@@ -21,7 +21,7 @@
 
 import { useRef, useEffect, useCallback } from 'react'
 import { useGesture } from '@use-gesture/react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore, type EditorStore } from '@core/editor-store/store'
 import {
   applyZoom,
   applyPan,
@@ -43,6 +43,21 @@ interface UseCanvasOptions {
   transformLayerRef: React.RefObject<HTMLElement | null>
 }
 
+type CanvasTransformSnapshot = readonly [zoom: number, panX: number, panY: number]
+
+const selectCanvasTransformSnapshot = (state: EditorStore): CanvasTransformSnapshot => [
+  state.zoom,
+  state.panX,
+  state.panY,
+]
+
+function areCanvasTransformSnapshotsEqual(
+  a: CanvasTransformSnapshot,
+  b: CanvasTransformSnapshot,
+) {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
+}
+
 export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions) {
   // Ref-based transform — not React state — avoids re-renders during interaction
   const transformRef = useRef<Transform>({ zoom: 1, panX: 0, panY: 0 })
@@ -53,8 +68,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
   const lastPinchMovementRef = useRef(1)
 
   // Actions — Zustand actions are stable references, subscribing to them is fine.
-  const setZoom = useEditorStore((s) => s.setZoom)
-  const setPan = useEditorStore((s) => s.setPan)
+  const setCanvasTransform = useEditorStore((s) => s.setCanvasTransform)
   const zoomIn = useEditorStore((s) => s.zoomIn)
   const zoomOut = useEditorStore((s) => s.zoomOut)
   const resetView = useEditorStore((s) => s.resetView)
@@ -98,10 +112,9 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
   const scheduleStoreCommit = useCallback((t: Transform) => {
     if (commitTimerRef.current) clearTimeout(commitTimerRef.current)
     commitTimerRef.current = setTimeout(() => {
-      setZoom(t.zoom)
-      setPan(t.panX, t.panY)
+      setCanvasTransform(t.zoom, t.panX, t.panY)
     }, 100)
-  }, [setZoom, setPan])
+  }, [setCanvasTransform])
 
   const updateTransform = useCallback((t: Transform) => {
     scheduleTransformWrite(t)
@@ -244,19 +257,24 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
   // Zustand subscribers fire synchronously inside set(), so the DOM is updated
   // in the same microtask as the store change — no visible frame lag.
   //
-  // The guard `zoom !== cur.zoom || ...` prevents redundant DOM writes from our
-  // own debounced Zustand commits (scheduleStoreCommit): by the time the 100ms
-  // debounce fires, transformRef already holds the same values the debounce is
-  // committing, so the comparison returns false and we skip the write.
+  // This subscription must be scoped to the transform tuple. During wheel pan
+  // the DOM transform intentionally leads the debounced store values; unrelated
+  // store updates such as canvas hover must not "sync" the DOM back to stale pan.
+  // The guard `zoom !== cur.zoom || ...` then prevents redundant DOM writes from
+  // our own debounced Zustand commits (scheduleStoreCommit): by the time the
+  // 100ms debounce fires, transformRef already holds the committed values.
   useEffect(() => {
-    const unsubscribe = useEditorStore.subscribe((state) => {
-      const { zoom, panX, panY } = state
-      const cur = transformRef.current
-      if (zoom !== cur.zoom || panX !== cur.panX || panY !== cur.panY) {
-        transformRef.current = { zoom, panX, panY }
-        applyTransformToDOM(transformRef.current)
-      }
-    })
+    const unsubscribe = useEditorStore.subscribe(
+      selectCanvasTransformSnapshot,
+      ([zoom, panX, panY]) => {
+        const cur = transformRef.current
+        if (zoom !== cur.zoom || panX !== cur.panX || panY !== cur.panY) {
+          transformRef.current = { zoom, panX, panY }
+          applyTransformToDOM(transformRef.current)
+        }
+      },
+      { equalityFn: areCanvasTransformSnapshotsEqual },
+    )
     return unsubscribe
   }, [applyTransformToDOM])
 

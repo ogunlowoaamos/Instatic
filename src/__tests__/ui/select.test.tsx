@@ -130,4 +130,60 @@ describe('Select', () => {
     expect(combobox.value).toBe('')
     expect(combobox.placeholder).toBe('Browser default')
   })
+
+  it('can open a wider menu than the closed trigger', () => {
+    render(
+      <Select
+        id="compact-status"
+        aria-label="Compact status"
+        value="draft"
+        menuMinWidth={192}
+        options={OPTIONS}
+        onChange={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('combobox', { name: /compact status/i }))
+
+    expect(screen.getByRole('listbox', { name: /compact status/i }).getAttribute('style'))
+      .toContain('--context-menu-min-width: 192px')
+  })
+
+  it('can place the menu to the left of the trigger', () => {
+    const originalRect = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = () => ({
+      x: 260,
+      y: 50,
+      left: 260,
+      top: 50,
+      right: 290,
+      bottom: 80,
+      width: 30,
+      height: 30,
+      toJSON: () => ({}),
+    } as DOMRect)
+
+    try {
+      render(
+        <Select
+          id="left-status"
+          aria-label="Left status"
+          value="draft"
+          menuMinWidth={192}
+          menuPlacement="left-start"
+          options={OPTIONS}
+          onChange={() => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByRole('combobox', { name: /left status/i }))
+
+      const menuStyle = screen.getByRole('listbox', { name: /left status/i }).getAttribute('style')
+      expect(menuStyle).toContain('--context-menu-x: 62px')
+      expect(menuStyle).toContain('--context-menu-y: 50px')
+      expect(menuStyle).toContain('--context-menu-width: 192px')
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalRect
+    }
+  })
 })

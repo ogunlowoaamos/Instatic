@@ -10,6 +10,10 @@ const CANVAS_BREAKPOINT_SELECTOR_CSS = new URL(
   '../../editor/components/Canvas/CanvasBreakpointSelector.module.css',
   import.meta.url,
 )
+const CANVAS_BREAKPOINT_SELECTOR_TSX = new URL(
+  '../../editor/components/Canvas/CanvasBreakpointSelector.tsx',
+  import.meta.url,
+)
 
 beforeEach(() => {
   cleanup()
@@ -95,16 +99,32 @@ describe('CanvasBreakpointSelector', () => {
     expect(state.selectedNodeId).toBe(nodeId)
   })
 
-  it('uses black inverted-corner chrome with a mint-accent select', () => {
+  it('keeps the closed trigger compact while opening a wider breakpoint menu', () => {
+    loadCanvasWithSelectedText()
+    render(<CanvasRoot />)
+
+    fireEvent.click(screen.getByRole('combobox', { name: /canvas breakpoint/i }))
+
+    const menuStyle = screen.getByRole('listbox', { name: /canvas breakpoint/i }).getAttribute('style')
+    expect(menuStyle).toContain('--context-menu-min-width: 164px')
+    expect(menuStyle).toContain('--context-menu-width: 164px')
+  })
+
+  it('uses icon-only vertical black inverted-corner chrome with a mint-accent select', () => {
     const css = readFileSync(CANVAS_BREAKPOINT_SELECTOR_CSS, 'utf-8')
+    const tsx = readFileSync(CANVAS_BREAKPOINT_SELECTOR_TSX, 'utf-8')
 
     expect(css).toContain('border: 0')
     expect(css).toContain('--breakpoint-notch-radius: 13px')
-    expect(css).toContain('min-height: 34px')
-    expect(css).toContain('width: 108px')
+    expect(css).toContain('min-width: 42px')
+    expect(css).toContain('flex-direction: column')
+    expect(css).toContain('flex: 0 0 0')
+    expect(css).toContain('width: 0')
+    expect(css).toContain('color: transparent')
     expect(css).toContain('border-radius: 0 0 0 var(--breakpoint-notch-radius)')
     expect(css).toContain('left: calc(1px - var(--breakpoint-notch-corner))')
     expect(css).toContain('bottom: calc(1px - var(--breakpoint-notch-corner))')
     expect(css).toContain('rgba(142, 230, 200')
+    expect(tsx).toContain('menuPlacement="left-start"')
   })
 })

@@ -20,42 +20,11 @@
     padding: 8px;
 }
 
-.mediaToolbar {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.mediaSearch {
-    width: 100%;
-}
-
-.mediaControlRow {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px;
-    align-items: center;
-}
-
-.mediaFilterGroup,
 .mediaViewGroup {
     display: flex;
-    min-width: 0;
     align-items: center;
-    gap: 2px;
-}
-
-.mediaFilterGroup {
-    overflow: hidden;
-}
-
-.mediaFilterGroup button {
-    flex: 1 1 0;
-    min-width: 0;
-}
-
-.mediaViewGroup {
     flex-shrink: 0;
+    gap: 2px;
 }
 
 .section {

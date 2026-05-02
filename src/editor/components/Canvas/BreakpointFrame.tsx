@@ -23,6 +23,7 @@ interface BreakpointFrameProps {
   page: Page
   breakpoint: Breakpoint
   isActive: boolean
+  isDimmed?: boolean
   onActivate: (breakpointId: string) => void
   templateContext?: TemplateRenderDataContext
 }
@@ -31,6 +32,7 @@ export function BreakpointFrame({
   page,
   breakpoint,
   isActive,
+  isDimmed = false,
   onActivate,
   templateContext,
 }: BreakpointFrameProps) {
@@ -38,7 +40,11 @@ export function BreakpointFrame({
   const bpStyle = { '--bp-width': `${breakpoint.width}px` } as CSSProperties
 
   return (
-    <div className={styles.frameWrapper} style={bpStyle}>
+    <div
+      className={cn(styles.frameWrapper, isDimmed && styles.frameWrapperDimmed)}
+      data-breakpoint-dimmed={isDimmed ? 'true' : undefined}
+      style={bpStyle}
+    >
       {/* Breakpoint label bar */}
       <Button
         variant="ghost"

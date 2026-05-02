@@ -85,10 +85,10 @@
 .moduleStyleRow {
     position: relative;
     box-sizing: border-box;
-    --class-remove-label-column: 120px;
+    --class-remove-label-column: 100px;
     --class-remove-row-center: 14px;
     --class-remove-button-size: 22px;
-    --class-remove-fade-width: 64px;
+    --class-remove-fade-width: 36px;
     --class-remove-row-bg: var(--editor-bg);
 }
 

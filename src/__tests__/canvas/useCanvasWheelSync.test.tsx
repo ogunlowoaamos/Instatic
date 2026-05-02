@@ -1,0 +1,64 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { useRef } from 'react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useEditorStore } from '../../core/editor-store/store'
+import { DEFAULT_ZOOM } from '../../core/editor-store/slices/canvasSlice'
+import { useCanvas } from '../../editor/hooks/useCanvas'
+
+function TestCanvas() {
+  const canvasRootRef = useRef<HTMLDivElement>(null)
+  const transformLayerRef = useRef<HTMLDivElement>(null)
+  const { bind } = useCanvas({ canvasRootRef, transformLayerRef })
+
+  return (
+    <div ref={canvasRootRef} data-testid="test-canvas-root" {...bind()}>
+      <div ref={transformLayerRef} data-testid="test-transform-layer" />
+    </div>
+  )
+}
+
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+}
+
+beforeEach(() => {
+  useEditorStore.setState({
+    zoom: DEFAULT_ZOOM,
+    panX: 0,
+    panY: 0,
+    hoveredNodeId: null,
+    hoveredBreakpointId: null,
+  } as Parameters<typeof useEditorStore.setState>[0])
+})
+
+afterEach(() => {
+  cleanup()
+})
+
+describe('useCanvas wheel pan sync', () => {
+  it('does not snap back to stale store pan when hover changes before the debounced pan commit', async () => {
+    render(<TestCanvas />)
+
+    const root = screen.getByTestId('test-canvas-root')
+    const layer = screen.getByTestId('test-transform-layer')
+
+    fireEvent.wheel(root, {
+      deltaX: 120,
+      deltaY: 0,
+      clientX: 10,
+      clientY: 10,
+    })
+
+    await act(async () => {
+      await nextAnimationFrame()
+    })
+
+    expect(layer.style.transform).toBe('translate(-120px, 0px) scale(1)')
+
+    act(() => {
+      useEditorStore.getState().hoverNode('node-under-pointer', 'mobile')
+    })
+
+    expect(layer.style.transform).toBe('translate(-120px, 0px) scale(1)')
+  })
+})

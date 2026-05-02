@@ -20,19 +20,6 @@
     padding: 8px;
 }
 
-.toolbar {
-    display: grid;
-    gap: 8px;
-}
-
-.categoryRow {
-    display: flex;
-    min-width: 0;
-    gap: 5px;
-    overflow-x: auto;
-    padding-bottom: 1px;
-}
-
 .rows {
     display: grid;
     align-content: start;

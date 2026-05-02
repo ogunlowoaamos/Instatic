@@ -20,13 +20,14 @@ interface CanvasTransformLayerProps {
   page: Page | null
   breakpoints: Breakpoint[]
   activeBreakpointId: string
+  dimInactiveBreakpoints?: boolean
   onBreakpointActivate: (id: string) => void
   templateContext?: TemplateRenderDataContext
 }
 
 export const CanvasTransformLayer = forwardRef<HTMLDivElement, CanvasTransformLayerProps>(
   function CanvasTransformLayer(
-    { page, breakpoints, activeBreakpointId, onBreakpointActivate, templateContext },
+    { page, breakpoints, activeBreakpointId, dimInactiveBreakpoints = false, onBreakpointActivate, templateContext },
     ref,
   ) {
     return (
@@ -43,6 +44,7 @@ export const CanvasTransformLayer = forwardRef<HTMLDivElement, CanvasTransformLa
               page={page}
               breakpoint={bp}
               isActive={activeBreakpointId === bp.id}
+              isDimmed={dimInactiveBreakpoints && activeBreakpointId !== bp.id}
               onActivate={onBreakpointActivate}
               templateContext={templateContext}
             />

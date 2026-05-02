@@ -6,10 +6,10 @@
 .propertyRowWrap {
     position: relative;
     color: var(--editor-text);
-    --class-remove-label-column: 120px;
+    --class-remove-label-column: 100px;
     --class-remove-row-center: 14px;
     --class-remove-button-size: 22px;
-    --class-remove-fade-width: 64px;
+    --class-remove-fade-width: 36px;
     --class-remove-row-bg: var(--editor-bg);
 }
 .propertyRowWrap label {
@@ -73,16 +73,15 @@
 .removeBtn.removeBtn {
     width: var(--class-remove-button-size);
     height: var(--class-remove-button-size);
-    border-radius: 999px;
+    border-radius: 10px;
     background: transparent;
     color: var(--editor-text-secondary);
+    background: var(--editor-bg);
     border: 1px solid var(--editor-border-med);
-    box-shadow: 0 0 5px black;
 }
 
 .removeBtn.removeBtn:hover,
 .removeBtn.removeBtn:focus-visible {
-    background: rgba(255, 255, 255, 0.06);
     color: var(--editor-text);
 }
 

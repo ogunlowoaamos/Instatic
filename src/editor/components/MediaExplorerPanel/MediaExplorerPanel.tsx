@@ -20,7 +20,7 @@ import {
 import { PanelHeader } from '../shared/PanelHeader'
 import { Button } from '@ui/components/Button'
 import { FileUpload } from '@ui/components/FileUpload'
-import { SearchBar } from '@ui/components/SearchBar'
+import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import type { IconComponent } from '@ui/icons/types'
 import { BulletlistIcon } from '@ui/icons/icons/bulletlist'
 import { CheckIcon } from '@ui/icons/icons/check'
@@ -396,31 +396,23 @@ export function MediaExplorerPanel({
 
       <div className={styles.content}>
         <>
-            <div className={styles.mediaToolbar} aria-label="Media library controls">
-              <SearchBar
-                aria-label="Search media"
-                placeholder="Search media"
-                fieldSize="xs"
-                value={searchQuery}
-                onValueChange={setSearchQuery}
-                onClear={() => setSearchQuery('')}
-                className={styles.mediaSearch}
-              />
-              <div className={styles.mediaControlRow}>
-                <div className={styles.mediaFilterGroup} role="group" aria-label="Filter media type">
-                  {(['all', 'images', 'videos', 'other'] as MediaFilter[]).map((filter) => (
-                    <Button
-                      key={filter}
-                      variant="ghost"
-                      size="xs"
-                      pressed={mediaFilter === filter}
-                      onClick={() => setMediaFilter(filter)}
-                    >
-                      {filter === 'all' ? 'All' : BUCKET_LABELS[filter]}
-                    </Button>
-                  ))}
-                </div>
-                <div className={styles.mediaViewGroup} role="group" aria-label="Media view">
+            <FilterBar<MediaFilter>
+              items={(['all', 'images', 'videos', 'other'] as MediaFilter[]).map<FilterBarItem<MediaFilter>>((filter) => ({
+                value: filter,
+                label: filter === 'all' ? 'All' : BUCKET_LABELS[filter],
+              }))}
+              value={mediaFilter}
+              onValueChange={setMediaFilter}
+              search={{
+                value: searchQuery,
+                onValueChange: setSearchQuery,
+                onClear: () => setSearchQuery(''),
+                placeholder: 'Search media',
+                ariaLabel: 'Search media',
+              }}
+              groupLabel="Filter media type"
+              trailing={
+                <div role="group" aria-label="Media view" className={styles.mediaViewGroup}>
                   <Button
                     variant="ghost"
                     size="xs"
@@ -444,8 +436,8 @@ export function MediaExplorerPanel({
                     <Grid2x22Icon size={13} />
                   </Button>
                 </div>
-              </div>
-            </div>
+              }
+            />
 
             {shouldShowBucket('images') && (
             <ExplorerSection

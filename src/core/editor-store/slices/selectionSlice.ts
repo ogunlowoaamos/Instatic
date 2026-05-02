@@ -8,15 +8,18 @@ export interface SelectionSlice {
   selectedNodeId: string | null
   /** Hovered node ID — null if no hover */
   hoveredNodeId: string | null
+  /** Breakpoint frame that owns the current canvas hover; null means global hover */
+  hoveredBreakpointId: string | null
 
   selectNode: (id: string | null) => void
-  hoverNode: (id: string | null) => void
+  hoverNode: (id: string | null, breakpointId?: string | null) => void
   clearSelection: () => void
 }
 
 export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSlice> = (set, get) => ({
   selectedNodeId: null,
   hoveredNodeId: null,
+  hoveredBreakpointId: null,
 
   selectNode: (id) => {
     const current = get()
@@ -37,8 +40,16 @@ export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSl
         : state.propertiesPanel,
     }))
   },
-  hoverNode: (id) => set({ hoveredNodeId: id }),
-  clearSelection: () => set({ selectedNodeId: null, hoveredNodeId: null, activeClassId: null }),
+  hoverNode: (id, breakpointId = null) => set({
+    hoveredNodeId: id,
+    hoveredBreakpointId: id ? breakpointId : null,
+  }),
+  clearSelection: () => set({
+    selectedNodeId: null,
+    hoveredNodeId: null,
+    hoveredBreakpointId: null,
+    activeClassId: null,
+  }),
 })
 
 function getSelectionActiveClassId(state: EditorStore, nodeId: string | null): string | null {

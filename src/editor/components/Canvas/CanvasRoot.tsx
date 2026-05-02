@@ -70,6 +70,7 @@ export function CanvasRoot() {
   const setActiveDocument = useEditorStore((s) => s.setActiveDocument)
   const activeDocument = useEditorStore((s) => s.activeDocument)
   const templatePreviewContext = useTemplatePreviewContext(canvasPage)
+  const focusActiveBreakpoint = Boolean(selectedNodeId && rightSidebarExpanded)
 
   // Canvas gesture hook (pan/zoom)
   const { bind, handleKeyDown: canvasKeyDown } = useCanvas({
@@ -92,8 +93,8 @@ export function CanvasRoot() {
   )
 
   const onNodeHover = useCallback(
-    (nodeId: string | null) => {
-      hoverNode(nodeId)
+    (nodeId: string | null, breakpointId?: string) => {
+      hoverNode(nodeId, breakpointId)
     },
     [hoverNode],
   )
@@ -255,6 +256,7 @@ export function CanvasRoot() {
           page={canvasPage}
           breakpoints={breakpoints}
           activeBreakpointId={activeBreakpointId}
+          dimInactiveBreakpoints={focusActiveBreakpoint}
           onBreakpointActivate={setActiveBreakpoint}
           templateContext={templatePreviewContext}
         />

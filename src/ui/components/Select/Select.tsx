@@ -25,6 +25,7 @@ import styles from './Select.module.css'
 
 type FieldSize = 'xs' | 'sm' | 'md'
 type TextEmphasis = 'default' | 'strong'
+type MenuPlacement = 'bottom-start' | 'left-start'
 
 interface SelectOption {
   value: string | number
@@ -46,12 +47,15 @@ interface MenuPosition {
   x: number
   y: number
   width: number
+  minWidth: number
 }
 
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
   invalid?: boolean
   fieldSize?: FieldSize
   emphasis?: TextEmphasis
+  menuMinWidth?: number
+  menuPlacement?: MenuPlacement
   options?: SelectOption[]
   placeholder?: string
   'data-testid'?: string
@@ -73,6 +77,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     name,
     required,
     placeholder,
+    menuMinWidth,
+    menuPlacement = 'bottom-start',
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledBy,
     'data-testid': dataTestId,
@@ -127,12 +133,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const updateMenuPosition = useCallback(() => {
     const rect = selectRef.current?.getBoundingClientRect()
     if (!rect) return
+    const resolvedMinWidth = menuMinWidth ?? rect.width
+    const resolvedWidth = Math.max(rect.width, resolvedMinWidth)
     setMenuPosition({
-      x: rect.left,
-      y: rect.bottom + 6,
-      width: rect.width,
+      x: menuPlacement === 'left-start'
+        ? Math.max(8, rect.left - resolvedWidth - 6)
+        : rect.left,
+      y: menuPlacement === 'left-start' ? rect.top : rect.bottom + 6,
+      width: resolvedWidth,
+      minWidth: resolvedMinWidth,
     })
-  }, [])
+  }, [menuMinWidth, menuPlacement])
 
   const closeMenu = useCallback(() => {
     setOpen(false)
@@ -327,7 +338,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           x={menuPosition.x}
           y={menuPosition.y}
           width={menuPosition.width}
-          minWidth={menuPosition.width}
+          minWidth={menuPosition.minWidth}
           zIndex={10000}
           ariaLabel={ariaLabel ?? 'Select option'}
           aria-labelledby={ariaLabelledBy}

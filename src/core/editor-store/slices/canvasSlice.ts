@@ -27,6 +27,7 @@ export interface CanvasSlice {
 
   setZoom: (zoom: number) => void
   setPan: (x: number, y: number) => void
+  setCanvasTransform: (zoom: number, x: number, y: number) => void
   setActiveBreakpoint: (id: string) => void
   setActivePage: (pageId: string) => void
   setCanvasMode: (mode: CanvasMode) => void
@@ -65,6 +66,12 @@ export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> =
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
 
   setPan: (panX, panY) => set({ panX: clampPan(panX), panY: clampPan(panY) }),
+
+  setCanvasTransform: (zoom, panX, panY) => set({
+    zoom: clampZoom(zoom),
+    panX: clampPan(panX),
+    panY: clampPan(panY),
+  }),
 
   setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
 

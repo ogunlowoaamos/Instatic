@@ -17,14 +17,22 @@ describe('ClassPropertyRow remove button layout', () => {
       new URL('../../editor/components/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
       'utf-8',
     )
+    const controlCss = readFileSync(
+      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      'utf-8',
+    )
+    const compactCss = css.replace(/\s+/g, '')
+    const controlLabelColumn = controlCss.match(/grid-template-columns:\s*(\d+px)\s+1fr/)?.[1]
 
-    expect(css).toMatch(/--class-remove-label-column:\s*120px/)
+    expect(controlLabelColumn).toBe('100px')
+    expect(css).toMatch(/--class-remove-label-column:\s*100px/)
     expect(css).toMatch(/--class-remove-row-center:\s*14px/)
     expect(css).toMatch(/--class-remove-button-size:\s*22px/)
-    expect(css).toMatch(/--class-remove-fade-width:\s*64px/)
+    expect(css).toMatch(/--class-remove-fade-width:\s*36px/)
     expect(css).toMatch(/\.propertyRowWrap\[data-state="set"\]::after\s*\{[^}]*linear-gradient/s)
-    expect(css).toMatch(/\.removeBtn\s*\{[^}]*left:\s*calc\(var\(--class-remove-label-column\)\s*-\s*var\(--class-remove-button-size\)\s*-\s*4px\)/s)
-    expect(css).toMatch(/\.removeBtn\s*\{[^}]*top:\s*calc\(var\(--class-remove-row-center\)\s*-\s*\(var\(--class-remove-button-size\)\s*\/\s*2\)\)/s)
+    expect(compactCss).toContain(
+      '.removeBtn{position:absolute;top:calc(var(--class-remove-row-center)-(var(--class-remove-button-size)/2));left:calc(var(--class-remove-label-column)-var(--class-remove-button-size)-4px)',
+    )
     expect(css).toMatch(/\.removeBtn\.removeBtn\s*\{[^}]*width:\s*var\(--class-remove-button-size\)/s)
     expect(css).toMatch(/\.removeBtn\.removeBtn\s*\{[^}]*height:\s*var\(--class-remove-button-size\)/s)
     expect(css).not.toMatch(/\.removeBtn\s*\{[^}]*right:/s)
@@ -46,6 +54,7 @@ describe('ClassPropertyRow remove button layout', () => {
     expect(rowSource).toContain('<CloseIcon size={16}')
     expect(css).toMatch(/\.removeBtn\.removeBtn\s*\{[^}]*color:\s*var\(--editor-text-secondary\)/s)
     expect(css).toMatch(/\.removeBtn\.removeBtn:hover[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.06\)/s)
+    expect(css).not.toContain('box-shadow: 0 0 5px black')
     expect(css).not.toContain('editor-danger')
   })
 })
@@ -67,12 +76,18 @@ describe('ClassComposer module style remove button layout', () => {
       new URL('../../editor/components/PropertiesPanel/ClassComposer.module.css', import.meta.url),
       'utf-8',
     )
+    const controlCss = readFileSync(
+      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      'utf-8',
+    )
     const compactCss = css.replace(/\s+/g, '')
+    const controlLabelColumn = controlCss.match(/grid-template-columns:\s*(\d+px)\s+1fr/)?.[1]
 
-    expect(css).toMatch(/--class-remove-label-column:\s*120px/)
+    expect(controlLabelColumn).toBe('100px')
+    expect(css).toMatch(/--class-remove-label-column:\s*100px/)
     expect(css).toMatch(/--class-remove-row-center:\s*14px/)
     expect(css).toMatch(/--class-remove-button-size:\s*22px/)
-    expect(css).toMatch(/--class-remove-fade-width:\s*64px/)
+    expect(css).toMatch(/--class-remove-fade-width:\s*36px/)
     expect(css).toMatch(/\.moduleStyleRow::after\s*\{[^}]*linear-gradient/s)
     expect(compactCss).toContain(
       '.moduleStyleRemoveBtn{position:absolute;top:calc(var(--class-remove-row-center)-(var(--class-remove-button-size)/2));left:calc(var(--class-remove-label-column)-var(--class-remove-button-size)-4px)',

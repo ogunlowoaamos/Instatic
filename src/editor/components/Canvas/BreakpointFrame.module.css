@@ -10,6 +10,17 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  opacity: 1;
+  transition: opacity 140ms ease, filter 140ms ease;
+}
+
+.frameWrapperDimmed {
+  filter: saturate(0.72);
+  opacity: 0.42;
+}
+
+.frameWrapperDimmed:hover {
+  opacity: 0.68;
 }
 
 /* Breakpoint label width is driven by --bp-width CSS var. */

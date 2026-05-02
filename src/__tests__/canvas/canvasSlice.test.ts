@@ -212,6 +212,25 @@ describe('setPan — store action clamping (Security Auditor requirement, messag
 })
 
 // ---------------------------------------------------------------------------
+// setCanvasTransform — atomic transform commit
+// ---------------------------------------------------------------------------
+
+describe('setCanvasTransform — atomic zoom/pan commit', () => {
+  it('updates zoom and pan in one store notification so subscribers never see a mixed transform', () => {
+    const observed: Array<{ zoom: number; panX: number; panY: number }> = []
+    const unsubscribe = useEditorStore.subscribe((state) => {
+      observed.push({ zoom: state.zoom, panX: state.panX, panY: state.panY })
+    })
+
+    useEditorStore.getState().setCanvasTransform(1.25, 300, -120)
+    unsubscribe()
+
+    expect(canvas()).toEqual({ zoom: 1.25, panX: 300, panY: -120 })
+    expect(observed).toEqual([{ zoom: 1.25, panX: 300, panY: -120 }])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // zoomTo — cursor-centred zoom with pan adjustment + clamping
 // ---------------------------------------------------------------------------
 

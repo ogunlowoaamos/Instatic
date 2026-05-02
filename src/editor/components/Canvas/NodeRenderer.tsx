@@ -37,6 +37,8 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
   const node = useEditorStore(
     useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null, [nodeId]),
   )
+  const breakpointId = useContext(CanvasBreakpointContext)
+  const templateContext = useContext(CanvasTemplateContext)
 
   // Per-node selection/hover subscriptions (Perf fix — Contribution #495).
   // Only the 2 nodes whose boolean flips will re-render on any selection/hover
@@ -45,7 +47,12 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
     useCallback((s) => s.selectedNodeId === nodeId, [nodeId]),
   )
   const isHovered = useEditorStore(
-    useCallback((s) => s.hoveredNodeId === nodeId, [nodeId]),
+    useCallback(
+      (s) =>
+        s.hoveredNodeId === nodeId &&
+        (!s.hoveredBreakpointId || s.hoveredBreakpointId === breakpointId),
+      [nodeId, breakpointId],
+    ),
   )
   const previewClassAssignment = useEditorStore(
     useCallback(
@@ -62,8 +69,6 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
   )
 
   const { onNodeClick, onNodeHover, onNodeContextMenu, onNodeDoubleClick } = useContext(CanvasSelectionContext)
-  const breakpointId = useContext(CanvasBreakpointContext)
-  const templateContext = useContext(CanvasTemplateContext)
 
   const handleNodeClick = useCallback(
     (clickedNodeId: string, e: React.MouseEvent) => {
@@ -77,6 +82,13 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
       onNodeContextMenu(clickedNodeId, e, breakpointId)
     },
     [breakpointId, onNodeContextMenu],
+  )
+
+  const handleNodeHover = useCallback(
+    (hoveredNodeId: string | null) => {
+      onNodeHover(hoveredNodeId, breakpointId)
+    },
+    [breakpointId, onNodeHover],
   )
 
   if (!node) return null
@@ -113,7 +125,7 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
       isSelected={isSelected}
       isHovered={isHovered}
       onNodeClick={handleNodeClick}
-      onNodeHover={onNodeHover}
+      onNodeHover={handleNodeHover}
       onNodeContextMenu={handleNodeContextMenu}
       onNodeDoubleClick={onNodeDoubleClick}
     >

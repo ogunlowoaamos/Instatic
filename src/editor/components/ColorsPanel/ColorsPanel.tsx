@@ -23,8 +23,8 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@ui/components/ContextMenu";
+import { FilterBar, type FilterBarItem } from "@ui/components/FilterBar";
 import { Input } from "@ui/components/Input";
-import { SearchBar } from "@ui/components/SearchBar";
 import { Select } from "@ui/components/Select";
 import { Switch } from "@ui/components/Switch";
 import { ChevronDownIcon } from "@ui/icons/icons/chevron-down";
@@ -199,44 +199,37 @@ export function ColorsPanel({ variant = "docked" }: ColorsPanelProps) {
         </PanelHeader>
 
         <div className={styles.content}>
-          <div className={styles.toolbar}>
-            <SearchBar
-              value={query}
-              onValueChange={setQuery}
-              onClear={() => setQuery("")}
-              aria-label="Search colors"
-              placeholder="Search colors"
-            />
-            <div className={styles.categoryRow} aria-label="Color categories">
+          <FilterBar<string | null>
+            items={[
+              { value: null, label: "All" },
+              ...colors.categories.map<FilterBarItem<string | null>>(
+                (category) => ({
+                  value: category.id,
+                  label: category.name,
+                }),
+              ),
+            ]}
+            value={activeCategoryId}
+            onValueChange={setActiveCategoryId}
+            search={{
+              value: query,
+              onValueChange: setQuery,
+              onClear: () => setQuery(""),
+              placeholder: "Search colors",
+              ariaLabel: "Search colors",
+            }}
+            groupLabel="Color categories"
+            inlineActions={
               <Button
-                variant="secondary"
-                size="xs"
-                active={activeCategoryId === null}
-                onClick={() => setActiveCategoryId(null)}
-              >
-                All
-              </Button>
-              {colors.categories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant="secondary"
-                  size="xs"
-                  active={activeCategoryId === category.id}
-                  onClick={() => setActiveCategoryId(category.id)}
-                >
-                  {category.name}
-                </Button>
-              ))}
-              <Button
-                variant="secondary"
+                variant="ghost"
                 size="xs"
                 aria-label="Create category"
                 onClick={() => setCreateCategoryDialogOpen(true)}
               >
                 Add category
               </Button>
-            </div>
-          </div>
+            }
+          />
 
           {colors.tokens.length === 0 ? (
             <div className={styles.emptyState}>
