@@ -82,6 +82,7 @@ import { validateSite, SiteValidationError } from '../../src/core/persistence/va
 import type { SitePackageJson } from '../../src/core/site-dependencies/manifest'
 import { isSafePackageName } from '../../src/core/site-dependencies/packageNames'
 import { normalizeSiteRuntimeConfig } from '../../src/core/site-runtime'
+import type { TemplateRenderDataContext } from '../../src/core/templates/dynamicBindings'
 import '../../src/modules/base'
 import { registry } from '../../src/core/module-engine/registry'
 import { resolveSiteDependencyLock } from './runtime/dependencyResolver'
@@ -104,6 +105,13 @@ const MAX_MEDIA_BYTES = 50 * 1024 * 1024
 function readString(body: Record<string, unknown>, key: string): string {
   const value = body[key]
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function readObject<T>(body: Record<string, unknown>, key: string): T | undefined {
+  const value = body[key]
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as T
+    : undefined
 }
 
 function readNullableString(body: Record<string, unknown>, key: string): string | null {
@@ -431,6 +439,8 @@ export async function handleCmsRequest(
 
     const body = await readJsonObject(req)
     const pageId = readString(body, 'pageId')
+    const breakpointId = readString(body, 'breakpointId') || undefined
+    const templateContext = readObject<TemplateRenderDataContext>(body, 'templateContext')
     if (!pageId) return badRequest('Missing pageId')
 
     try {
@@ -448,6 +458,8 @@ export async function handleCmsRequest(
         registry,
         assetBasePath: '/_pb/preview/runtime/',
         dependencyCache,
+        breakpointId,
+        templateContext,
       })
 
       return jsonResponse({

@@ -53,7 +53,9 @@ export async function handleServerRequest(
   if (req.method === 'GET' && url.pathname.startsWith('/_pb/assets/')) {
     const runtimeAsset = await getPublishedRuntimeAsset(runtime.db, url.pathname)
     if (runtimeAsset) {
-      return new Response(runtimeAsset.bytes, {
+      const body = new ArrayBuffer(runtimeAsset.bytes.byteLength)
+      new Uint8Array(body).set(runtimeAsset.bytes)
+      return new Response(body, {
         headers: {
           'content-type': runtimeAsset.contentType,
           'cache-control': 'public, max-age=31536000, immutable',

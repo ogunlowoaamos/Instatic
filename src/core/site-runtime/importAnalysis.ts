@@ -35,11 +35,11 @@ const NODE_BUILTIN_PACKAGES = new Set([
 ])
 
 function isIdentifierStart(char: string | undefined): boolean {
-  return Boolean(char) && /[A-Za-z_$]/.test(char)
+  return typeof char === 'string' && /[A-Za-z_$]/.test(char)
 }
 
 function isIdentifierPart(char: string | undefined): boolean {
-  return Boolean(char) && /[A-Za-z0-9_$]/.test(char)
+  return typeof char === 'string' && /[A-Za-z0-9_$]/.test(char)
 }
 
 function isKeywordAt(source: string, index: number, keyword: string): boolean {

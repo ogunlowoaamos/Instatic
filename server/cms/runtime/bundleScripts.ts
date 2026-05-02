@@ -135,6 +135,7 @@ export async function buildSiteRuntimeScripts(
     if (entryPoints.length === 0) return emptyRuntimeBuild()
 
     const outputRoot = 'out'
+    const splitRuntimeChunks = input.target === 'publish'
     const build = await esbuild.build({
       absWorkingDir: workspace.rootDir,
       assetNames: 'assets/[name]-[hash]',
@@ -156,7 +157,7 @@ export async function buildSiteRuntimeScripts(
       outdir: outputRoot,
       platform: 'browser',
       sourcemap: false,
-      splitting: true,
+      splitting: splitRuntimeChunks,
       target: ['es2020'],
       write: false,
     })

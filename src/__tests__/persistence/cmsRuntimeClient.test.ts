@@ -31,7 +31,12 @@ describe('CMS runtime client', () => {
   it('posts site preview requests to the runtime preview endpoint', async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     const result = await buildCmsRuntimePreview(
-      { site: { id: 'site_1' }, pageId: 'page_1' },
+      {
+        site: { id: 'site_1' },
+        pageId: 'page_1',
+        breakpointId: 'mobile',
+        templateContext: { currentEntry: null },
+      },
       async (input, init) => {
         calls.push({ input, init })
         return new Response(JSON.stringify({
@@ -48,5 +53,11 @@ describe('CMS runtime client', () => {
       input: '/api/cms/runtime/preview',
       init: { method: 'POST', credentials: 'include' },
     })
+    expect(calls[0].init?.body).toBe(JSON.stringify({
+      site: { id: 'site_1' },
+      pageId: 'page_1',
+      breakpointId: 'mobile',
+      templateContext: { currentEntry: null },
+    }))
   })
 })

@@ -14,6 +14,7 @@ import type { Page, Breakpoint } from '../../../core/page-tree/types'
 import type { TemplateRenderDataContext } from '../../../core/templates/dynamicBindings'
 import { NodeRenderer } from './NodeRenderer'
 import { CanvasBreakpointContext, CanvasTemplateContext } from './CanvasContexts'
+import { CanvasRuntimePreview } from './CanvasRuntimePreview'
 import { PlusBoxIcon } from '@ui/icons/icons/plus-box'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
@@ -72,6 +73,13 @@ export function BreakpointFrame({
             <NodeRenderer nodeId={page.rootNodeId} />
           </CanvasBreakpointContext.Provider>
         </CanvasTemplateContext.Provider>
+
+        <CanvasRuntimePreview
+          page={page}
+          breakpointId={breakpoint.id}
+          active={isActive}
+          templateContext={templateContext}
+        />
       </div>
     </div>
   )

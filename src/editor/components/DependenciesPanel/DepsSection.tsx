@@ -32,6 +32,11 @@ import {
   getSiteModuleDependencyUsage,
   type SiteModuleDependencyUsage,
 } from '../../../core/module-engine/dependencies'
+import {
+  analyzeRuntimeScriptImports,
+  type RuntimePackageDependencyUsage,
+  type SiteRuntimeDiagnostic,
+} from '../../../core/site-runtime'
 import { registry } from '../../../core/module-engine/registry'
 import styles from './DepsSection.module.css'
 
@@ -43,6 +48,18 @@ interface RemoveConfirmState {
   name: string
   /** TODO(Phase G): used by `bun remove --dev` when bridge is active */
   dev: boolean
+}
+
+interface DependencyUsageSummary {
+  moduleUsage?: SiteModuleDependencyUsage
+  scriptUsage?: RuntimePackageDependencyUsage
+}
+
+interface RuntimeDependencyIssue {
+  code: string
+  packageName: string
+  message: string
+  action: 'add' | 'move-to-runtime' | null
 }
 
 // ---------------------------------------------------------------------------
@@ -94,8 +111,17 @@ export function DepsSection({
     [filterDeps, packageJson.devDependencies],
   )
   const dependencyUsage = useMemo(
-    () => getSiteModuleDependencyUsage(site, registry),
-    [site],
+    () => combineDependencyUsage(
+      getSiteModuleDependencyUsage(site, registry),
+      analyzeRuntimeScriptImports(site?.files ?? [], packageJson).usage,
+    ),
+    [packageJson, site],
+  )
+  const runtimeIssues = useMemo(
+    () => summarizeRuntimeDependencyIssues(
+      analyzeRuntimeScriptImports(site?.files ?? [], packageJson).diagnostics,
+    ),
+    [packageJson, site],
   )
 
   const totalFiltered = filteredDeps.length + filteredDevDeps.length
@@ -120,6 +146,21 @@ export function DepsSection({
     setAddError(null)
     // TODO(Phase G): ask the site bridge to install this in the user site.
   }, [addName, addDev, setDependency])
+
+  const handleRuntimeIssueAction = useCallback(
+    (issue: RuntimeDependencyIssue) => {
+      if (issue.action === 'add') {
+        setDependency(issue.packageName, '*', false)
+        return
+      }
+
+      if (issue.action === 'move-to-runtime') {
+        const version = packageJson.devDependencies[issue.packageName] ?? '*'
+        setDependency(issue.packageName, version, false)
+      }
+    },
+    [packageJson.devDependencies, setDependency],
+  )
 
   // ── Remove confirmation (Guideline #258) ────────────────────────────────
   const requestRemove = useCallback(
@@ -196,6 +237,34 @@ export function DepsSection({
 
       {/* ─── Package list ──────────────────────────────────────────── */}
       <div className={styles.packageList}>
+        {runtimeIssues.length > 0 && (
+          <div
+            className={styles.runtimeIssues}
+            aria-label="Runtime dependency issues"
+          >
+            {runtimeIssues.map((issue) => (
+              <div
+                key={`${issue.code}:${issue.packageName}`}
+                className={styles.runtimeIssue}
+              >
+                <span className={styles.runtimeIssueText}>
+                  <span className={styles.runtimeIssuePackage}>{issue.packageName}</span>
+                  <span>{issue.message}</span>
+                </span>
+                {issue.action && (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => handleRuntimeIssueAction(issue)}
+                  >
+                    {issue.action === 'add' ? 'Add' : 'Move'}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* dependencies section */}
         {filteredDeps.length > 0 && (
           <>
@@ -353,7 +422,7 @@ interface DepRowProps {
   name: string
   version: string
   dev: boolean
-  usage?: SiteModuleDependencyUsage
+  usage?: DependencyUsageSummary
   onRemove: (name: string, dev: boolean) => void
   confirmState: RemoveConfirmState | null
   cancelRef: React.RefObject<HTMLButtonElement | null>
@@ -388,7 +457,7 @@ function DepRow({
           Remove <strong>{name}</strong>?
           {usage && (
             <span className={styles.depConfirmDetail}>
-              {' '}Used by {formatModuleUsage(usage)}.
+              {' '}Used by {formatDependencyUsage(usage)}.
             </span>
           )}
         </span>
@@ -433,7 +502,7 @@ function DepRow({
       {usage && (
         <span
           className={styles.depUsage}
-          title={`Required by ${formatModuleUsage(usage)}`}
+          title={`Required by ${formatDependencyUsage(usage)}`}
         >
           in use
         </span>
@@ -456,4 +525,83 @@ function DepRow({
 function formatModuleUsage(usage: SiteModuleDependencyUsage): string {
   if (usage.modules.length <= 2) return usage.modules.join(', ')
   return `${usage.modules.slice(0, 2).join(', ')} +${usage.modules.length - 2}`
+}
+
+function formatScriptUsage(usage: RuntimePackageDependencyUsage): string {
+  const paths = usage.files.map((file) => file.path.split('/').pop() ?? file.path)
+  if (paths.length <= 2) return paths.join(', ')
+  return `${paths.slice(0, 2).join(', ')} +${paths.length - 2}`
+}
+
+function formatDependencyUsage(usage: DependencyUsageSummary): string {
+  const parts: string[] = []
+  if (usage.moduleUsage) parts.push(formatModuleUsage(usage.moduleUsage))
+  if (usage.scriptUsage) parts.push(`scripts: ${formatScriptUsage(usage.scriptUsage)}`)
+  return parts.join('; ')
+}
+
+function combineDependencyUsage(
+  moduleUsage: Map<string, SiteModuleDependencyUsage>,
+  scriptUsage: Map<string, RuntimePackageDependencyUsage>,
+): Map<string, DependencyUsageSummary> {
+  const combined = new Map<string, DependencyUsageSummary>()
+
+  for (const [name, usage] of moduleUsage) {
+    combined.set(name, { moduleUsage: usage })
+  }
+
+  for (const [name, usage] of scriptUsage) {
+    const current = combined.get(name)
+    combined.set(name, {
+      ...current,
+      scriptUsage: usage,
+    })
+  }
+
+  return combined
+}
+
+function summarizeRuntimeDependencyIssues(
+  diagnostics: SiteRuntimeDiagnostic[],
+): RuntimeDependencyIssue[] {
+  const issues = new Map<string, RuntimeDependencyIssue>()
+
+  for (const diagnostic of diagnostics) {
+    if (!diagnostic.packageName) continue
+    if (
+      diagnostic.code !== 'runtime-dependency-missing' &&
+      diagnostic.code !== 'runtime-dependency-dev-only' &&
+      diagnostic.code !== 'runtime-dependency-node-builtin' &&
+      diagnostic.code !== 'runtime-dependency-invalid-name'
+    ) {
+      continue
+    }
+
+    const key = `${diagnostic.code}:${diagnostic.packageName}`
+    if (issues.has(key)) continue
+
+    const message =
+      diagnostic.code === 'runtime-dependency-missing'
+        ? 'missing from dependencies'
+        : diagnostic.code === 'runtime-dependency-dev-only'
+          ? 'declared as devDependency'
+          : diagnostic.code === 'runtime-dependency-node-builtin'
+            ? 'not available in browser runtime'
+            : 'has an invalid package name'
+    const action =
+      diagnostic.code === 'runtime-dependency-missing'
+        ? 'add'
+        : diagnostic.code === 'runtime-dependency-dev-only'
+          ? 'move-to-runtime'
+          : null
+
+    issues.set(key, {
+      code: diagnostic.code,
+      packageName: diagnostic.packageName,
+      message,
+      action,
+    })
+  }
+
+  return [...issues.values()]
 }

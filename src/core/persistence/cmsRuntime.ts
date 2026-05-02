@@ -4,6 +4,7 @@ import type {
   SiteRuntimeDiagnostic,
 } from '../site-runtime'
 import type { SitePackageJson } from '../site-dependencies/manifest'
+import type { TemplateRenderDataContext } from '../templates/dynamicBindings'
 import { responseErrorMessage } from './httpErrors'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -20,6 +21,13 @@ export interface CmsRuntimePreviewResult {
   assets: CmsRuntimePreviewAsset[]
   runtimeAssets: PublishedPageRuntimeAssets
   diagnostics: SiteRuntimeDiagnostic[]
+}
+
+export interface CmsRuntimePreviewInput {
+  site: unknown
+  pageId: string
+  breakpointId?: string
+  templateContext?: TemplateRenderDataContext
 }
 
 export async function resolveCmsRuntimeDependencies(
@@ -41,7 +49,7 @@ export async function resolveCmsRuntimeDependencies(
 }
 
 export async function buildCmsRuntimePreview(
-  input: { site: unknown; pageId: string },
+  input: CmsRuntimePreviewInput,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/api/cms',
 ): Promise<CmsRuntimePreviewResult> {
