@@ -18,7 +18,7 @@ import { TextControl } from '../PropertyControls/TextControl'
 import { ColorControl } from '../PropertyControls/ColorControl'
 import { SelectControl } from '../PropertyControls/SelectControl'
 import { Button } from '@ui/components/Button'
-import { CloseIcon } from '../../../ui/icons/icons/close'
+import { CloseIcon } from '@ui/icons/icons/close'
 import { cn } from '@ui/cn'
 import {
   getCSSPropertyControlType,

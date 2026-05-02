@@ -9,7 +9,7 @@ import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import styles from './text.module.css'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 
 type TextTag =
   | 'p'

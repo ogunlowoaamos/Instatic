@@ -7,7 +7,7 @@ import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-e
 import { registry } from '@core/module-engine/registry'
 import { safeUrl } from '../utils/escape'
 import styles from './button.module.css'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 
 interface ButtonProps extends Record<string, unknown> {
   label: string

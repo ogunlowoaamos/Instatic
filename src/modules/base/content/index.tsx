@@ -2,7 +2,7 @@
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 import styles from './content.module.css'
 
 interface ContentProps extends Record<string, unknown> {

@@ -7,7 +7,7 @@ import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-e
 import { registry } from '@core/module-engine/registry'
 import { safeUrl } from '../utils/escape'
 import styles from './video.module.css'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 
 interface VideoProps extends Record<string, unknown> {
   source: 'media' | 'youtube' | 'url'

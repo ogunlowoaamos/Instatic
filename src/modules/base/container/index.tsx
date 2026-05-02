@@ -6,7 +6,7 @@ import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import styles from './container.module.css'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 
 interface ContainerProps extends Record<string, unknown> {
   tag: 'div' | 'section' | 'article' | 'main' | 'header' | 'footer'

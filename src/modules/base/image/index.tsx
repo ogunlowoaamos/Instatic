@@ -7,7 +7,7 @@ import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-e
 import { registry } from '@core/module-engine/registry'
 import { safeUrl } from '../utils/escape'
 import styles from './image.module.css'
-import { cn } from '../../../ui/cn'
+import { cn } from '@ui/cn'
 
 interface ImageProps extends Record<string, unknown> {
   src: string
