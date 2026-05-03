@@ -16,6 +16,12 @@ export interface SelectionSlice {
   clearSelection: () => void
 }
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends SelectionSlice {}
+}
+
 export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSlice> = (set, get) => ({
   selectedNodeId: null,
   hoveredNodeId: null,

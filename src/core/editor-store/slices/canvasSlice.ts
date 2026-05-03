@@ -80,6 +80,12 @@ function nearestZoomStep(current: number, direction: 1 | -1): number {
   }
 }
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends CanvasSlice {}
+}
+
 export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> = (set, get) => ({
   zoom: DEFAULT_ZOOM,
   panX: 0,

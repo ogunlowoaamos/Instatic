@@ -149,25 +149,27 @@ describe('PP-2 — ClassPicker visible immediately on element selection', () => 
 // PP-3: Pill click opens minimal ClassComposer; clicking again closes it
 // ---------------------------------------------------------------------------
 
-describe('PP-3 — Pill click toggles inline ClassComposer', () => {
-  it('clicking a class pill opens ClassComposer; clicking again closes it', () => {
+describe('PP-3 — Pill click toggles CSS editor; locked preview shown with no active class', () => {
+  it('before class selection the locked preview CTA is shown; clicking a pill opens the CSS editor; clicking again returns to locked preview', () => {
     const { nodeId } = loadSiteWithClasses(1)
     selectNode(nodeId)
     render(<PropertiesPanel />)
 
-    // ClassComposer not visible yet (no active class)
-    expect(screen.queryByRole('searchbox', { name: /search class style properties to add/i })).toBeNull()
+    // No active class — LockedStylePreview is shown with its "Add class" CTA.
+    // Search bar is always visible (searches module settings and CSS properties).
+    expect(screen.getByRole('button', { name: /^add class$/i })).toBeDefined()
+    expect(screen.getByRole('searchbox', { name: /search class style properties to add/i })).toBeDefined()
 
-    // Find the pill and click it
+    // Click the pill to activate the class CSS editor.
     const pill = screen.getByRole('button', { name: /edit class class-1/i })
     fireEvent.click(pill)
 
-    // ClassComposer now open — minimal property search visible
-    expect(screen.getByRole('searchbox', { name: /search class style properties to add/i })).toBeDefined()
+    // CSS editor active — locked preview CTA gone, CSS property rows accessible.
+    expect(screen.queryByRole('button', { name: /^add class$/i })).toBeNull()
 
-    // Click again to deselect
+    // Click again to deselect — locked preview returns.
     fireEvent.click(pill)
-    expect(screen.queryByRole('searchbox', { name: /search class style properties to add/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /^add class$/i })).toBeDefined()
   })
 })
 
@@ -200,36 +202,43 @@ describe('ClassComposer inline style filtering', () => {
     expect(css).not.toMatch(/\.searchResultsEmpty\b/)
   })
 
-  it('category rail buttons filter the inline style catalog', () => {
+  it('category rail buttons navigate via scroll-anchor (all sections stay in DOM)', () => {
     const { nodeId } = loadSiteWithClasses(1)
     selectNode(nodeId)
     render(<PropertiesPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: /edit class class-1/i }))
 
+    // All sections always rendered — both display (layout) and fontFamily (typography) present.
     expect(document.querySelector('[data-testid="css-property-row-display"]')).not.toBeNull()
     expect(document.querySelector('[data-testid="css-property-row-fontFamily"]')).not.toBeNull()
 
     const typographyButton = screen.getByRole('button', { name: /show typography styles/i })
     fireEvent.click(typographyButton)
 
+    // Typography button is pressed (scroll-anchor active); both sections still in DOM.
     expect(typographyButton.getAttribute('aria-pressed')).toBe('true')
     expect(document.querySelector('[data-testid="css-property-row-fontFamily"]')).not.toBeNull()
-    expect(document.querySelector('[data-testid="css-property-row-display"]')).toBeNull()
+    // Scroll-anchor: clicking a section scrolls to it, does NOT hide other sections.
+    expect(document.querySelector('[data-testid="css-property-row-display"]')).not.toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: /show all class style categories/i }))
     expect(document.querySelector('[data-testid="css-property-row-display"]')).not.toBeNull()
   })
 
-  it('search filters across all categories even when a category rail filter is active', () => {
+  it('search filters across all categories regardless of which rail button was last clicked', () => {
     const { nodeId } = loadSiteWithClasses(1)
     selectNode(nodeId)
     render(<PropertiesPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: /edit class class-1/i }))
+    // Click typography rail button (scroll-anchor: does NOT remove other sections from DOM).
     fireEvent.click(screen.getByRole('button', { name: /show typography styles/i }))
-    expect(document.querySelector('[data-testid="css-property-row-display"]')).toBeNull()
 
+    // All sections still present after clicking a rail button in scroll-anchor mode.
+    expect(document.querySelector('[data-testid="css-property-row-display"]')).not.toBeNull()
+
+    // Search for 'display' — only display-related properties are shown.
     fireEvent.change(screen.getByRole('searchbox', { name: /search class style properties to add/i }), {
       target: { value: 'display' },
     })
@@ -333,10 +342,10 @@ describe('PP-5 — Advanced Section removed', () => {
 // PP-6: Section shared by top-level panel and class style categories
 // ---------------------------------------------------------------------------
 
-describe("PP-6 — Section shared from './Section' in PropertiesPanel and ClassComposer", () => {
-  it('PropertiesPanel.tsx imports Section from ./Section', () => {
+describe("PP-6 — StyleSurface used by PropertiesPanel; Section shared in ClassComposer", () => {
+  it('PropertiesPanel.tsx imports StyleSurface from ./StyleSurface', () => {
     const src = readFileSync(join(PP_DIR, 'PropertiesPanel.tsx'), 'utf-8')
-    expect(src).toMatch(/import.*Section.*from\s+['"]\.\/Section['"]/)
+    expect(src).toMatch(/import.*StyleSurface.*from\s+['"]\.\/StyleSurface['"]/)
   })
 
   it('ClassComposer.tsx imports Section from ./Section for assigned style categories', () => {

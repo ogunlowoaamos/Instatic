@@ -55,8 +55,6 @@ export const SlotOutletModule: ModuleDefinition<SlotOutletProps> = {
     slotName: 'children',
   },
 
-  classStyleBindings: {},
-
   component: SlotOutletEditor,
 
   /**

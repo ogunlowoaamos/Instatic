@@ -36,6 +36,7 @@ import type {
 } from "@core/page-tree/types";
 import { cn } from "@ui/cn";
 import { MonitorIcon } from "pixel-art-icons/icons/monitor";
+import { RulerDimensionIcon } from "pixel-art-icons/icons/ruler-dimension";
 import { SmartphoneIcon } from "pixel-art-icons/icons/smartphone";
 import {
   FrameworkScalePanel,
@@ -369,6 +370,7 @@ export function SpacingPanel({ variant = "docked" }: SpacingPanelProps) {
       Boolean(state.site?.settings.framework?.spacing?.isDisabled),
     ratioOptions: SPACING_RATIO_OPTIONS,
     classGeneratorProperties: SPACING_CSS_PROPERTIES,
+    scalesSectionIcon: RulerDimensionIcon,
     baseSizeLabel: "Size",
     readBaseSize: (group, side) => Number(group[side].size),
     patchBaseSize: (side, value) => ({

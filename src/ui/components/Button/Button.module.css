@@ -31,11 +31,16 @@
     box-shadow: var(--btn-focus-ring, 0 0 0 1px rgba(255, 255, 255, 0.25));
 }
 
-.btn:disabled,
-.btn[aria-disabled="true"] {
+.btn:disabled {
     opacity: 0.38;
     cursor: default;
     pointer-events: none;
+}
+
+/* aria-disabled: visually disabled but pointer-events allowed so tooltips fire on hover */
+.btn[aria-disabled="true"] {
+    opacity: 0.38;
+    cursor: default;
 }
 
 /* ── Sizes ────────────────────────────────────────────────────────────────── */

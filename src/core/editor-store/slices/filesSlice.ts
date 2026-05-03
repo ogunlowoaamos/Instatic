@@ -73,6 +73,12 @@ export interface FilesSlice {
 // Slice implementation
 // ---------------------------------------------------------------------------
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends FilesSlice {}
+}
+
 export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (set, get) => ({
   createFile(path, type, content) {
     const { site } = get()

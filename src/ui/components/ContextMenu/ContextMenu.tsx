@@ -1,11 +1,13 @@
 import {
   forwardRef,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
   type HTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { Button, type ButtonProps } from '@ui/components/Button'
 import { Separator } from '@ui/components/Separator'
@@ -23,6 +25,20 @@ interface ContextMenuProps extends Omit<HTMLAttributes<HTMLDivElement>, 'childre
   width?: number
   zIndex?: number
   menuClassName?: string
+  /**
+   * When provided, the menu switches to a non-modal dismiss mode:
+   *   - The invisible backdrop overlay is NOT rendered.
+   *   - Outside-click detection runs at the document level (mousedown
+   *     capture phase).
+   *   - Clicks inside this trigger element do NOT close the menu — the
+   *     trigger keeps receiving native focus and clicks while open.
+   *
+   * Use this for combobox/dropdown patterns where the trigger is an
+   * editable input that must stay focused (e.g. ClassPicker). Right-click
+   * context menus that should fully capture the next click can leave this
+   * prop undefined and the modal backdrop is used instead.
+   */
+  triggerRef?: RefObject<HTMLElement | null>
 }
 
 export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function ContextMenu(
@@ -36,6 +52,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     width = minWidth,
     zIndex = 1000,
     menuClassName,
+    triggerRef,
     onKeyDown,
     ...props
   },
@@ -49,6 +66,31 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     '--context-menu-z-index': zIndex,
   } as CSSProperties
 
+  // Non-modal dismiss: clicks/contextmenus outside the menu and trigger close it.
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const setMenuRef = (node: HTMLDivElement | null) => {
+    menuRef.current = node
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }
+
+  useEffect(() => {
+    if (!triggerRef) return
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (menuRef.current?.contains(target)) return
+      if (triggerRef?.current?.contains(target)) return
+      onClose()
+    }
+    document.addEventListener('mousedown', handlePointerDown, true)
+    document.addEventListener('contextmenu', handlePointerDown, true)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown, true)
+      document.removeEventListener('contextmenu', handlePointerDown, true)
+    }
+  }, [onClose, triggerRef])
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -57,6 +99,24 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     onKeyDown?.(event)
   }
 
+  const menu = (
+    <div
+      ref={setMenuRef}
+      role="menu"
+      aria-label={ariaLabel}
+      className={cn(styles.menu, menuClassName)}
+      style={style}
+      onKeyDown={handleKeyDown}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+
+  // Non-modal mode (combobox-style): no backdrop, document listener handles dismiss.
+  if (triggerRef) return menu
+
+  // Modal mode (right-click context menu): invisible backdrop intercepts clicks.
   return (
     <>
       <div
@@ -68,17 +128,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
         }}
         style={style}
       />
-      <div
-        ref={ref}
-        role="menu"
-        aria-label={ariaLabel}
-        className={cn(styles.menu, menuClassName)}
-        style={style}
-        onKeyDown={handleKeyDown}
-        {...props}
-      >
-        {children}
-      </div>
+      {menu}
     </>
   )
 })

@@ -32,15 +32,6 @@ const dynamicModule: AnyModuleDefinition = {
     eyebrow: 'Featured',
     tone: 'bold',
   },
-  classStyleBindings: {
-    backgroundColor: {
-      properties: ['backgroundColor'],
-      control: { type: 'color', label: 'Background' },
-      defaultValue: '#111827',
-      toCSS: (value) => ({ backgroundColor: String(value) }),
-      fromCSS: (styles) => styles.backgroundColor ?? '#111827',
-    },
-  },
   component: () => null,
   render: () => ({ html: '' }),
 }
@@ -84,14 +75,11 @@ describe('buildPageContext — dynamic module registry', () => {
       prop.key === 'tone' &&
       prop.options?.some((option) => option.label === 'Bold' && option.value === 'bold'),
     )).toBe(true)
-    expect(moduleContext?.styles.some((style) =>
-      style.key === 'backgroundColor' &&
-      style.cssProperties.includes('backgroundColor') &&
-      style.defaultValue === '#111827',
-    )).toBe(true)
+    // No classStyleBindings system — styles array is empty for non-typography modules
+    expect(moduleContext?.styles).toEqual([])
   })
 
-  it('adds typography style hints for text modules without requiring module-owned style bindings', () => {
+  it('adds typography style hints for text modules', () => {
     const page = freshSite()
     const context = buildPageContext(useEditorStore.getState(), page)
 

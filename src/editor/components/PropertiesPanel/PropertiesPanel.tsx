@@ -8,9 +8,12 @@
  * - Independent panel with its own visibility state — NOT a tab in a shared shell.
  *   AI assistant (AgentPanel) is a separate independent floating panel. (Guideline #410)
  *
- * Redesign (Task #456 / Spec #659): single-scroll layout replaces 3-tab paradigm.
- *   - ClassPicker always-visible under the node header
- *   - Module props in collapsible Section (default open)
+ * Unified icon-rail design (Task #unified-panel):
+ *   - StyleCategoryRail is the primary navigation for the panel's lower half.
+ *   - First rail icon: Module settings (always enabled).
+ *   - Remaining icons: CSS style categories (disabled when no active class).
+ *   - ClassPicker always-visible above the rail+content area.
+ *   - Default active section on node selection: MODULE_CATEGORY_ID.
  *
  * Guideline #357 (Compact UI Density):
  * - Property rows: 26px height, label font 11px, value font 12px
@@ -27,26 +30,29 @@ import {
   useEditorStore,
   selectSelectedNode,
 } from '@core/editor-store/store'
-
 import { usePropertiesPanelAutoOpen } from './usePropertiesPanelAutoOpen'
 import { registry } from '@core/module-engine/registry'
 import { evaluateCondition, resolveProps } from '@core/page-tree/selectors'
 import { isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import { PropertyControlRenderer } from '../PropertyControls/PropertyControlRenderer'
-import type { AnyModuleDefinition, PropertyControl } from '@core/module-engine/types'
-import type { CSSClass, PageNode, SiteDocument } from '@core/page-tree/types'
-import { ClassPicker } from './ClassPicker'
+import type { PropertyControl } from '@core/module-engine/types'
+import type { CSSClass } from '@core/page-tree/types'
+import { ClassPicker, type ClassPickerHandle } from './ClassPicker'
+import { StyleSurface, GeneratedUtilityLockedState } from './StyleSurface'
+import {
+  StyleCategoryRail,
+  ALL_STYLE_CATEGORY_ID,
+} from './StyleCategoryRail'
 import { ClassComposer } from './ClassComposer'
-import { Section } from './Section'
+import {
+  getClassStyleSectionSetCounts,
+  getActiveStyleTab,
+} from './cssControlTypes'
 import { ComponentRefView } from './ComponentRefView'
 import { ParamPromotableRow } from './ParamPromotableRow'
 import { ComponentParamsOverview } from './ComponentParamsOverview'
 import { ConvertToComponentButton } from './ConvertToComponentButton'
-import {
-  getModuleStyleBindings,
-  isModuleStyleSet,
-  type ResolvedModuleStyleBinding,
-} from './moduleStyleBindings'
+import { SearchBar } from '@ui/components/SearchBar'
 import { PanelHeader } from '../shared/PanelHeader'
 import { useDraggablePanel } from '../../hooks/useDraggablePanel'
 import { Button } from '@ui/components/Button'
@@ -80,9 +86,6 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   const setNodeDynamicBinding = useEditorStore((s) => s.setNodeDynamicBinding)
   const clearNodeDynamicBinding = useEditorStore((s) => s.clearNodeDynamicBinding)
   const setBreakpointOverride = useEditorStore((s) => s.setBreakpointOverride)
-  const ensureNodeStyleClass = useEditorStore((s) => s.ensureNodeStyleClass)
-  const updateClassStyles = useEditorStore((s) => s.updateClassStyles)
-  const setClassBreakpointStyles = useEditorStore((s) => s.setClassBreakpointStyles)
   const renameClass = useEditorStore((s) => s.renameClass)
   const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
   const renameNode = useEditorStore((s) => s.renameNode)
@@ -105,8 +108,13 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
 
   const [statusMessage, setStatusMessage] = useState('')
 
+  // ── ClassPicker ref — for the locked-state 'Add class' CTA ────────────────
+  const classPickerRef = useRef<ClassPickerHandle>(null)
+  const handleFocusClassPicker = useCallback(() => {
+    classPickerRef.current?.focusInput()
+  }, [])
+
   // ── Draggable panel position ───────────────────────────────────────────────
-  // Default to top-right (window.innerWidth − panel width − 16px gutter)
   const { panelRef: dragPanelElementRef, headerDragProps, panelPositionStyle } = useDraggablePanel(
     'properties',
     () => ({
@@ -117,9 +125,11 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
 
   // ─── Focus management: F6 moves focus into panel ──────────────────────────
   useEffect(() => {
-    if (focusedPanel === 'properties' && dragPanelElementRef.current) {
-      dragPanelElementRef.current.focus()
-    }
+    if (focusedPanel !== 'properties') return
+    const panel = dragPanelElementRef.current
+    if (!panel) return
+    if (panel.contains(document.activeElement)) return
+    panel.focus()
   }, [focusedPanel, dragPanelElementRef])
 
   // ─── Panel keyboard shortcuts ──────────────────────────────────────────────
@@ -139,7 +149,6 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
       ? new Set(Object.keys(selectedNode.breakpointOverrides[activeBreakpointId] ?? {}))
       : new Set<string>()
 
-  const isNonDesktopBp = Boolean(activeBreakpointId && activeBreakpointId !== 'desktop')
   const selectedSelectorClass = selectedSelectorClassId ? site?.classes[selectedSelectorClassId] ?? null : null
   const activeClass =
     !selectedSelectorClass &&
@@ -163,39 +172,9 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
     [selectedNodeId, activeBreakpointId, updateNodeProps, setBreakpointOverride],
   )
 
-  const handleModuleStyleChange = useCallback(
-    (binding: ResolvedModuleStyleBinding, value: unknown) => {
-      if (!selectedNodeId || !definition) return
-      const cls = ensureNodeStyleClass(selectedNodeId, definition.name)
-      if (!cls) return
-      const nodeStyleClass = findNodeStyleClass(site, selectedNode, selectedNodeId) ?? cls
-      const currentStyles = activeBreakpointId && activeBreakpointId !== 'desktop'
-        ? (nodeStyleClass.breakpointStyles[activeBreakpointId] ?? {})
-        : nodeStyleClass.styles
-      const patch = binding.binding.toCSS(value, currentStyles)
-      if (activeBreakpointId && activeBreakpointId !== 'desktop') {
-        setClassBreakpointStyles(cls.id, activeBreakpointId, patch)
-      } else {
-        updateClassStyles(cls.id, patch)
-      }
-      setStatusMessage(`${binding.label} updated`)
-    },
-    [
-      selectedNodeId,
-      selectedNode,
-      definition,
-      site,
-      activeBreakpointId,
-      ensureNodeStyleClass,
-      updateClassStyles,
-      setClassBreakpointStyles,
-    ],
-  )
-
   const collapsed = panelState.collapsed
   const width = Math.max(panelState.width || DEFAULT_WIDTH, MIN_WIDTH)
 
-  // Fully hidden when collapsed or when there is no selected layer/selector to inspect.
   if (collapsed || (!selectedNodeId && !selectedSelectorClass)) return null
 
   const modeButtonLabel = variant === 'docked'
@@ -204,6 +183,56 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   const modeButtonTitle = variant === 'docked'
     ? 'Unpin to floating panel'
     : 'Dock in right sidebar'
+
+  // ── Module tab content — pre-rendered, passed to StyleSurface as a ReactNode
+  const moduleTabContent = definition && selectedNode && resolvedPropsForBreakpoint
+    ? (
+      <div key={selectedNodeId ?? ''}>
+        {Object.entries(definition.schema).map(([key, control]: [string, PropertyControl]) => {
+          if (control.condition && !evaluateCondition(control.condition, resolvedPropsForBreakpoint)) {
+            return null
+          }
+
+          if (activeDocument?.kind === 'visualComponent' && selectedNodeId && selectedNode) {
+            return (
+              <ParamPromotableRow
+                key={key}
+                vcId={activeDocument.vcId}
+                nodeId={selectedNodeId}
+                propKey={key}
+                control={control}
+                value={resolvedPropsForBreakpoint[key]}
+                isOverride={overrideKeys.has(key)}
+                onChange={handleChange}
+              />
+            )
+          }
+
+          return (
+            <PropertyControlRenderer
+              key={key}
+              propKey={key}
+              control={control}
+              value={resolvedPropsForBreakpoint[key]}
+              onChange={handleChange}
+              isOverride={overrideKeys.has(key)}
+              dynamicBinding={dynamicBindingsEnabled && selectedNodeId ? {
+                binding: selectedNode.dynamicBindings?.[key],
+                onSet: (binding) => {
+                  setNodeDynamicBinding(selectedNodeId, key, binding)
+                  setStatusMessage(`${key} bound`)
+                },
+                onClear: () => {
+                  clearNodeDynamicBinding(selectedNodeId, key)
+                  setStatusMessage(`${key} binding removed`)
+                },
+              } : undefined}
+            />
+          )
+        })}
+      </div>
+    )
+    : null
 
   return (
     <aside
@@ -217,8 +246,6 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
       onKeyDown={handlePanelKeyDown}
       onFocus={() => setFocusedPanel('properties')}
       onClick={(e) => e.stopPropagation()}
-      // Width is state-driven (resizable panel) — CSS var injection
-      // Panel position is drag-driven — CSS var injection from useDraggablePanel
       style={
         variant === 'floating'
           ? { '--panel-w': `${width}px`, ...panelPositionStyle } as React.CSSProperties
@@ -274,7 +301,10 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
         className={styles.propertiesPanel}
       >
         {selectedSelectorClass ? (
-          <SelectorInspector cls={selectedSelectorClass} />
+          <SelectorInspector
+            cls={selectedSelectorClass}
+            activeBreakpointId={activeBreakpointId}
+          />
         ) : !selectedNode || !definition ? (
           activeDocument?.kind === 'visualComponent' && selectedNodeId === null && selectedSelectorClassId === null && activeVc
             ? <ComponentParamsOverview vc={activeVc} />
@@ -291,99 +321,30 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
             propOverrides={(selectedNode.props.propOverrides ?? {}) as Record<string, unknown>}
           />
         ) : (
-          /* ── Single-scroll layout (Task #456 / Spec #659 §1) ─────────── */
-          <div className={styles.scrollArea}>
-            {/* Convert to component — only on pages, for non-root non-ref nodes */}
+          /* ── Unified panel: ClassPicker above StyleSurface ────────────── */
+          <div className={styles.nodeArea}>
             {activeDocument?.kind !== 'visualComponent' &&
               selectedNode.moduleId !== 'base.root' &&
               selectedNode.moduleId !== 'base.visual-component-ref' && (
                 <ConvertToComponentButton nodeId={selectedNodeId!} />
               )
             }
+
+            {/* ClassPicker — always visible, manages class assignment */}
             <div className={styles.headerClassPicker}>
-              <ClassPicker nodeId={selectedNodeId!} />
+              <ClassPicker ref={classPickerRef} nodeId={selectedNodeId!} />
             </div>
 
-            {/* Module props section — collapsible, default open (PP-4).
-                Icon comes from the module declaration (single source of truth)
-                so this header matches the layer tree, canvas notch, and
-                module picker. */}
-            <Section
-              title="Module settings"
-              defaultOpen
-              icon={definition.icon}
-              meta={definition.name}
-              indicator={isNonDesktopBp}
-            >
-              <div key={selectedNodeId ?? ''} className={styles.moduleContent}>
-                {Object.entries(definition.schema).map(([key, control]: [string, PropertyControl]) => {
-                  if (control.condition && !evaluateCondition(control.condition, resolvedPropsForBreakpoint!)) {
-                    return null
-                  }
-
-                  // In VC edit mode, wrap each control in ParamPromotableRow to expose
-                  // the param-binding affordance (Phase 2 §B).
-                  if (activeDocument?.kind === 'visualComponent' && selectedNodeId && selectedNode) {
-                    return (
-                      <ParamPromotableRow
-                        key={key}
-                        vcId={activeDocument.vcId}
-                        nodeId={selectedNodeId}
-                        propKey={key}
-                        control={control}
-                        value={resolvedPropsForBreakpoint![key]}
-                        isOverride={overrideKeys.has(key)}
-                        onChange={handleChange}
-                      />
-                    )
-                  }
-
-                  return (
-                    <PropertyControlRenderer
-                      key={key}
-                      propKey={key}
-                      control={control}
-                      value={resolvedPropsForBreakpoint![key]}
-                      onChange={handleChange}
-                      isOverride={overrideKeys.has(key)}
-                      dynamicBinding={dynamicBindingsEnabled && selectedNodeId ? {
-                        binding: selectedNode.dynamicBindings?.[key],
-                        onSet: (binding) => {
-                          setNodeDynamicBinding(selectedNodeId, key, binding)
-                          setStatusMessage(`${key} bound`)
-                        },
-                        onClear: () => {
-                          clearNodeDynamicBinding(selectedNodeId, key)
-                          setStatusMessage(`${key} binding removed`)
-                        },
-                      } : undefined}
-                    />
-                  )
-                })}
-                <ModuleStyleSettings
-                  moduleDefinition={definition}
-                  site={site}
-                  node={selectedNode}
-                  nodeId={selectedNodeId!}
-                  activeBreakpointId={activeBreakpointId}
-                  onChange={handleModuleStyleChange}
-                />
-              </div>
-            </Section>
-
-            {activeClassId && activeClass && (
-              isGeneratedClassLocked(activeClass) ? (
-                <GeneratedUtilityLockedState cls={activeClass} />
-              ) : (
-              <ClassComposer
-                key={`${activeClassId}-${isNonDesktopBp ? activeBreakpointId : 'base'}`}
-                classId={activeClassId}
-                cls={activeClass}
-                moduleDefinition={definition}
-                moduleProps={resolvedPropsForBreakpoint ?? selectedNode.props}
-              />
-              )
-            )}
+            {/* Unified StyleSurface: Module section + CSS sections (scroll-anchor) */}
+            <StyleSurface
+              definition={definition}
+              activeClass={activeClass ?? null}
+              activeClassId={activeClassId ?? null}
+              activeBreakpointId={activeBreakpointId}
+              nodeId={selectedNodeId}
+              moduleContent={moduleTabContent}
+              onFocusClassPicker={handleFocusClassPicker}
+            />
           </div>
         )}
       </div>
@@ -476,6 +437,10 @@ function NodeHeader({ nodeId, label, moduleName, onRename }: NodeHeaderProps) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// SelectorHeader — class selector name with inline rename
+// ---------------------------------------------------------------------------
+
 interface SelectorHeaderProps {
   cls: CSSClass
   onRename: (name: string) => void
@@ -559,102 +524,111 @@ function SelectorHeader({ cls, onRename }: SelectorHeaderProps) {
   )
 }
 
-function SelectorInspector({ cls }: { cls: CSSClass }) {
+// ---------------------------------------------------------------------------
+// SelectorInspector — global selector surface (rail + ClassComposer, no module tab)
+// ---------------------------------------------------------------------------
+
+interface SelectorInspectorProps {
+  cls: CSSClass
+  activeBreakpointId: string | undefined
+}
+
+function SelectorInspector({ cls, activeBreakpointId }: SelectorInspectorProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeAnchorId, setActiveAnchorId] = useState(ALL_STYLE_CATEGORY_ID)
+  const [styleQuery, setStyleQuery] = useState('')
+  const clearStyleQuery = useCallback(() => setStyleQuery(''), [])
+
+  // Derive active anchor from scroll position.
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+
+    function updateActive() {
+      if (!container) return
+      const sections = container.querySelectorAll<HTMLElement>('[data-style-section]')
+      const containerRect = container.getBoundingClientRect()
+      let activeId = ALL_STYLE_CATEGORY_ID
+      let closestAboveTop = -Infinity
+      for (const section of Array.from(sections)) {
+        const id = section.getAttribute('data-style-section')
+        if (!id) continue
+        const relTop = section.getBoundingClientRect().top - containerRect.top
+        if (relTop <= 1 && relTop > closestAboveTop) {
+          closestAboveTop = relTop
+          activeId = id
+        }
+      }
+      setActiveAnchorId(activeId)
+    }
+
+    container.addEventListener('scroll', updateActive, { passive: true })
+    return () => container.removeEventListener('scroll', updateActive)
+  }, [])
+
+  const handleSectionClick = useCallback((sectionId: string) => {
+    const container = scrollRef.current
+    if (!container) return
+    if (sectionId === ALL_STYLE_CATEGORY_ID) {
+      setActiveAnchorId(ALL_STYLE_CATEGORY_ID)
+      container.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    setActiveAnchorId(sectionId)
+    const el = container.querySelector<HTMLElement>(`[data-style-section="${sectionId}"]`)
+    if (!el) return
+    const containerRect = container.getBoundingClientRect()
+    const rect = el.getBoundingClientRect()
+    container.scrollTo({ top: rect.top - containerRect.top + container.scrollTop, behavior: 'smooth' })
+  }, [])
+
   if (isGeneratedClassLocked(cls)) {
     return (
-      <div className={styles.scrollArea}>
+      <div className={styles.nodeArea}>
         <GeneratedUtilityLockedState cls={cls} />
       </div>
     )
   }
-  return (
-    <div className={styles.scrollArea}>
-      <ClassComposer key={cls.id} classId={cls.id} cls={cls} mode="global" />
-    </div>
-  )
-}
 
-function GeneratedUtilityLockedState({ cls }: { cls: CSSClass }) {
-  const colorGenerated = cls.generated?.family === 'color' ? cls.generated : undefined
-  const utility = colorGenerated?.utility
-  const tokenName = cls.generated?.tokenName
+  const activeTab = getActiveStyleTab(activeBreakpointId)
+  const storedStyles = activeTab !== 'base' ? (cls.breakpointStyles[activeTab] ?? {}) : cls.styles
+  const sectionSetCounts = getClassStyleSectionSetCounts(storedStyles)
 
   return (
-    <div className={styles.generatedUtilityState}>
-      <div className={styles.generatedUtilityHeader}>
-        <span className={styles.generatedUtilityKicker}>Generated utility</span>
-        <span className={styles.generatedUtilityName}>.{cls.name}</span>
-      </div>
-      <p className={styles.generatedUtilityCopy}>
-        This class is managed by the framework color settings. Assign it from the class picker,
-        and edit its token, variants, or generated utility options in the Colors panel.
-      </p>
-      {(utility || tokenName) && (
-        <div className={styles.generatedUtilityMeta}>
-          {utility && <span>{utility}</span>}
-          {tokenName && <span>{tokenName}</span>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// ModuleStyleSettings — module-declared CSS fields backed by node-scoped class
-// ---------------------------------------------------------------------------
-
-interface ModuleStyleSettingsProps {
-  moduleDefinition: AnyModuleDefinition
-  site: SiteDocument | null
-  node: PageNode
-  nodeId: string
-  activeBreakpointId: string | undefined
-  onChange: (binding: ResolvedModuleStyleBinding, value: unknown) => void
-}
-
-function ModuleStyleSettings({
-  moduleDefinition,
-  site,
-  node,
-  nodeId,
-  activeBreakpointId,
-  onChange,
-}: ModuleStyleSettingsProps) {
-  const bindings = getModuleStyleBindings(moduleDefinition)
-  if (bindings.length === 0) return null
-
-  const nodeStyleClass = findNodeStyleClass(site, node, nodeId)
-  const currentStyles = activeBreakpointId && activeBreakpointId !== 'desktop'
-    ? (nodeStyleClass?.breakpointStyles[activeBreakpointId] ?? {})
-    : (nodeStyleClass?.styles ?? {})
-
-  return (
-    <div className={styles.moduleStyleFields}>
-      {bindings.map((binding) => (
-        <PropertyControlRenderer
-          key={`${activeBreakpointId ?? 'desktop'}-${binding.key}`}
-          propKey={`module-style-${binding.key}`}
-          control={binding.control}
-          value={binding.binding.fromCSS(currentStyles)}
-          onChange={(_, nextValue) => onChange(binding, nextValue)}
-          isOverride={isModuleStyleSet(binding, currentStyles)}
+    <div className={styles.nodeArea}>
+      <div className={styles.selectorSearchBar}>
+        <SearchBar
+          value={styleQuery}
+          onValueChange={setStyleQuery}
+          onClear={clearStyleQuery}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              clearStyleQuery()
+            }
+          }}
+          placeholder={`Search styles in ${cls.name}...`}
+          aria-label="Search class style properties to add"
         />
-      ))}
+      </div>
+      <div className={styles.selectorSurfaceLayout}>
+        <div ref={scrollRef} className={styles.selectorScrollContainer}>
+          <ClassComposer
+            key={cls.id}
+            classId={cls.id}
+            cls={cls}
+            styleQuery={styleQuery}
+            mode="global"
+          />
+        </div>
+        <StyleCategoryRail
+          activeAnchorId={activeAnchorId}
+          sectionSetCounts={sectionSetCounts}
+          onSectionClick={handleSectionClick}
+          definition={null}
+          activeClass={cls}
+        />
+      </div>
     </div>
   )
-}
-
-function findNodeStyleClass(
-  site: SiteDocument | null,
-  node: PageNode | null,
-  nodeId: string,
-): CSSClass | null {
-  if (!site || !node?.classIds) return null
-  for (const classId of node.classIds) {
-    const cls = site.classes[classId]
-    if (cls?.scope?.type === 'node' && cls.scope.nodeId === nodeId && cls.scope.role === 'module-style') {
-      return cls
-    }
-  }
-  return null
 }

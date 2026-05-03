@@ -65,6 +65,8 @@ describe('ClassPropertyRow remove button layout', () => {
 
 describe('ClassComposer module style remove button layout', () => {
   it('does not reserve a right-side gutter for module-owned style rows', async () => {
+    // Module-owned style rows were removed when classStyleBindings was deleted.
+    // This gate ensures no moduleStyleRow padding-right accidentally reappears.
     const { readFileSync } = await import('fs')
     const css = readFileSync(
       new URL('../../editor/components/PropertiesPanel/ClassComposer.module.css', import.meta.url),
@@ -72,51 +74,5 @@ describe('ClassComposer module style remove button layout', () => {
     )
 
     expect(css).not.toMatch(/\.moduleStyleRow\s*\{[^}]*padding-right:/s)
-  })
-
-  it('uses the same label-column overlay for module-owned style rows', async () => {
-    const { readFileSync } = await import('fs')
-    const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassComposer.module.css', import.meta.url),
-      'utf-8',
-    )
-    const controlCss = readFileSync(
-      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
-      'utf-8',
-    )
-    const compactCss = css.replace(/\s+/g, '')
-    const controlLabelColumn = controlCss.match(/grid-template-columns:\s*(\d+px)\s+1fr/)?.[1]
-
-    expect(controlLabelColumn).toBe('100px')
-    expect(css).toMatch(/--class-remove-label-column:\s*100px/)
-    expect(css).toMatch(/--class-remove-row-center:\s*14px/)
-    expect(css).toMatch(/--class-remove-button-size:\s*22px/)
-    expect(css).toMatch(/--class-remove-fade-width:\s*36px/)
-    expect(css).toMatch(/\.moduleStyleRow::after\s*\{[^}]*linear-gradient/s)
-    expect(compactCss).toContain(
-      '.moduleStyleRemoveBtn{position:absolute;top:calc(var(--class-remove-row-center)-(var(--class-remove-button-size)/2));left:calc(var(--class-remove-label-column)-var(--class-remove-button-size)-4px)',
-    )
-    expect(css).toMatch(/\.moduleStyleRemoveBtn\.moduleStyleRemoveBtn\s*\{[^}]*width:\s*var\(--class-remove-button-size\)/s)
-    expect(css).toMatch(/\.moduleStyleRemoveBtn\.moduleStyleRemoveBtn\s*\{[^}]*height:\s*var\(--class-remove-button-size\)/s)
-    expect(css).not.toMatch(/\.moduleStyleRemoveBtn\s*\{[^}]*right:/s)
-    expect(css).not.toMatch(/\.moduleStyleRemoveBtn\s*\{[^}]*translateY\(-50%\)/s)
-  })
-
-  it('uses the same neutral remove affordance for module-owned style rows', async () => {
-    const { readFileSync } = await import('fs')
-    const composerSource = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassComposer.tsx', import.meta.url),
-      'utf-8',
-    )
-    const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassComposer.module.css', import.meta.url),
-      'utf-8',
-    )
-
-    expect(composerSource).not.toContain('dangerHover')
-    expect(composerSource).toContain('<CloseIcon size={16}')
-    expect(css).toMatch(/\.moduleStyleRemoveBtn\.moduleStyleRemoveBtn\s*\{[^}]*color:\s*var\(--editor-text-secondary\)/s)
-    expect(css).toMatch(/\.moduleStyleRemoveBtn\.moduleStyleRemoveBtn:hover[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.06\)/s)
-    expect(css).not.toContain('editor-danger')
   })
 })

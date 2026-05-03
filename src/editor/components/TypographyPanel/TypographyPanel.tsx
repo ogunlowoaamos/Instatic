@@ -16,6 +16,7 @@ import type {
   FrameworkTypographyGroup,
   SiteDocument,
 } from '@core/page-tree/types'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 import {
   FrameworkScalePanel,
   type ScaleAdapter,
@@ -136,6 +137,7 @@ export function TypographyPanel({ variant = 'docked' }: TypographyPanelProps) {
       Boolean(state.site?.settings.framework?.typography?.isDisabled),
     ratioOptions: TYPE_RATIO_OPTIONS,
     classGeneratorProperties: TYPOGRAPHY_CSS_PROPERTIES,
+    scalesSectionIcon: TextStartTIcon,
     baseSizeLabel: 'Font size',
     readBaseSize: (group, side) => Number(group[side].fontSize),
     patchBaseSize: (side, value) => ({

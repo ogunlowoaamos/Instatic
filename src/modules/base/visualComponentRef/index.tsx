@@ -82,8 +82,6 @@ export const VisualComponentRefModule: ModuleDefinition<VisualComponentRefProps>
     slotContent: {},
   },
 
-  classStyleBindings: {},
-
   component: VisualComponentRefEditor,
 
   /**

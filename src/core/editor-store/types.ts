@@ -1,40 +1,39 @@
 /**
  * Editor store — combined-state type.
  *
- * `EditorStore` lives here (rather than in `./store.ts`) so each slice can
- * import the full union via `import type { EditorStore } from '../types'`
- * without going through `./store.ts`, which itself imports each slice
- * creator. This breaks the runtime store ↔ slice cycle that the static
- * graph would otherwise exhibit.
+ * `EditorStore` is declared here as an EMPTY interface that each slice file
+ * augments via `declare module '@core/editor-store/types' { interface
+ * EditorStore extends MySlice {} }`. By the time a consumer references
+ * `EditorStore`, all slice files have been loaded by the TS compiler and the
+ * augmentations have merged together — `EditorStore` resolves to the full
+ * union of every slice's state and actions.
  *
- * Type-only imports are erased by tsc, so there is no runtime dependency
- * from a slice file back into this module — each slice's value graph
- * terminates at its own creator function.
+ * Why this shape?
  *
- * If you add a new slice:
+ * The naïve form — `export type EditorStore = SiteSlice & CanvasSlice & …` —
+ * forces this module to import each slice's type, while every slice file
+ * needs to import `EditorStore` for its `StateCreator<EditorStore, …, MySlice>`
+ * generic. That creates a static-graph cycle (`types → slice → types`) at the
+ * type level. The cycle is harmless at runtime (every edge is `import type`,
+ * erased by tsc), but tools like madge that don't distinguish type-only
+ * imports flag it as a circular dependency.
+ *
+ * Module augmentation breaks the cycle structurally:
+ *   • `types.ts` imports nothing — it's a leaf node.
+ *   • Each slice imports `EditorStore` (one-way).
+ *   • Each slice extends `EditorStore` via `declare module` (no source-level
+ *     import edge created — augmentation is type-system-only).
+ *
+ * To register a new slice:
  *   1. Define and export its slice interface from the slice file.
- *   2. Import its type here and add it to the `EditorStore` intersection.
+ *   2. Add a `declare module '@core/editor-store/types'` block alongside the
+ *      slice interface declaring `interface EditorStore extends MySlice {}`.
  *   3. Wire its creator into `./store.ts`.
+ *
+ * NOTE: Don't add slice fields here directly. The whole point is that the
+ * slice files own their own state shape and contribute it via augmentation.
  */
-import type { SiteSlice } from './slices/siteSlice'
-import type { SelectionSlice } from './slices/selectionSlice'
-import type { CanvasSlice } from './slices/canvasSlice'
-import type { UiSlice } from './slices/uiSlice'
-import type { ClassSlice } from './slices/classSlice'
-import type { FilesSlice } from './slices/filesSlice'
-import type { VisualComponentsSlice } from './slices/visualComponentsSlice'
-import type { SettingsSlice } from './slices/settingsSlice'
-import type { AgentSlice } from '../agent/agentSlice'
-import type { SitePanelSlice } from './slices/sitePanelSlice'
-
-export type EditorStore =
-  & SiteSlice
-  & SelectionSlice
-  & CanvasSlice
-  & UiSlice
-  & ClassSlice
-  & FilesSlice
-  & VisualComponentsSlice
-  & SettingsSlice
-  & AgentSlice
-  & SitePanelSlice
+// EditorStore intentionally starts empty; slice files augment it.
+// Allowed by `@typescript-eslint/no-empty-object-type`'s `allowWithName` rule
+// configured in `eslint.config.js`.
+export interface EditorStore {}

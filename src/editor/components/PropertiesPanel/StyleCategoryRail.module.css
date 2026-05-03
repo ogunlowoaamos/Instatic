@@ -1,0 +1,39 @@
+/* StyleCategoryRail — icon rail navigation for the unified Properties Panel. */
+
+.categoryRail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 2px;
+}
+
+.categoryRailButton.categoryRailButton {
+    color: var(--editor-text-secondary);
+}
+
+.categoryRailButton.categoryRailButton:hover,
+.categoryRailButton.categoryRailButton[aria-pressed="true"] {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--editor-text);
+}
+
+.categoryRailIconWrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+}
+
+.categoryRailSetDot {
+    position: absolute;
+    top: -2px;
+    right: -3px;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--editor-success-green);
+    box-shadow: 0 0 0 2px var(--editor-bg);
+}

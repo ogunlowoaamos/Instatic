@@ -103,6 +103,12 @@ export interface SitePanelSlice {
 // Slice factory
 // ---------------------------------------------------------------------------
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends SitePanelSlice {}
+}
+
 export const createSitePanelSlice: StateCreator<
   EditorStore,
   [],

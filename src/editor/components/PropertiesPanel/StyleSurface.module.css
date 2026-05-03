@@ -1,0 +1,162 @@
+/* StyleSurface — unified properties editor (scroll-anchor layout). */
+
+/* ── Outer shell: THE scroll container, two-column grid ────────────────────── */
+/*    Left column  = content (search bar + sections)                           */
+/*    Right column = sticky rail (32px)                                        */
+.surface {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 32px;
+    gap: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    align-items: start;
+}
+
+/* ── Left content column ─────────────────────────────────────────────────── */
+.surfaceContent {
+    min-width: 0;
+    padding-bottom: 32px;
+}
+
+/* ── Sticky search bar ───────────────────────────────────────────────────── */
+.searchBarRow {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 10px 14px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Right column: sticky rail ───────────────────────────────────────────── */
+.railSticky {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    padding-top: 4px;
+}
+
+/* ── Generated utility lock wrapper ─────────────────────────────────────── */
+.lockedContent {
+    padding: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   LockedStylePreview
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.lockedPreview {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Teaser wrapper: max-height + overflow hidden so rows fade out */
+.lockedPreviewTeaserWrapper {
+    position: relative;
+    max-height: 200px;
+    overflow: hidden;
+}
+
+/* Phantom controls — read-only, slightly dimmed */
+.lockedPreviewTeaser {
+    display: grid;
+    gap: 8px;
+    padding: 12px 14px;
+    pointer-events: none;
+    opacity: 0.55;
+    user-select: none;
+}
+
+/* Bottom gradient covers only the last ~80px of the teaser */
+.lockedPreviewGradient {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 80px;
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        var(--editor-bg)
+    );
+    pointer-events: none;
+}
+
+/* CTA sits below the teaser wrapper — always visible */
+.lockedPreviewCta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 24px 24px;
+    text-align: center;
+}
+
+.lockedPreviewCtaText {
+    margin: 0;
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   GeneratedUtilityLockedState
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.generatedUtilityState {
+    display: grid;
+    gap: 8px;
+    margin: 8px 12px 14px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--editor-surface);
+}
+
+.generatedUtilityHeader {
+    display: grid;
+    gap: 4px;
+}
+
+.generatedUtilityKicker {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 750;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.generatedUtilityName {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--editor-text);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.generatedUtilityCopy {
+    margin: 0;
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.generatedUtilityMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.generatedUtilityMeta span {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 4px 7px;
+}

@@ -348,6 +348,12 @@ export interface VisualComponentsSlice {
 // Slice implementation
 // ---------------------------------------------------------------------------
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends VisualComponentsSlice {}
+}
+
 export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], VisualComponentsSlice> = (set, get) => ({
 
   createVisualComponent(name) {

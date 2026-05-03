@@ -397,3 +397,39 @@ export const CLASS_STYLE_SECTIONS: ReadonlyArray<ClassStyleSectionDefinition> = 
     ],
   },
 ]
+
+// ---------------------------------------------------------------------------
+// Style tab utilities
+//
+// Shared by ClassComposer, StyleSurface, and PropertiesPanel. Kept here (not
+// in ClassComposer) so ClassComposer stays a components-only file — satisfying
+// the react-refresh/only-export-components lint rule.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a map from section id → number of properties with stored values.
+ * Used to render the set-style dot badges on the StyleCategoryRail.
+ */
+export function getClassStyleSectionSetCounts(
+  storedStyles: Partial<CSSPropertyBag>,
+): ReadonlyMap<string, number> {
+  return new Map(
+    CLASS_STYLE_SECTIONS.map((section) => [
+      section.id,
+      section.properties.filter((prop) => hasStyleValue(storedStyles[prop])).length,
+    ]),
+  )
+}
+
+/**
+ * Returns the active breakpoint tab id for class style reads/writes.
+ * 'base' when desktop (or no breakpoint); otherwise the breakpoint id.
+ */
+export function getActiveStyleTab(activeBreakpointId: string | undefined): string {
+  return activeBreakpointId && activeBreakpointId !== 'desktop' ? activeBreakpointId : 'base'
+}
+
+// Private helper (also used in getClassStyleSectionSetCounts above)
+function hasStyleValue(value: string | number | undefined): value is string | number {
+  return value !== undefined && value !== null && value !== ''
+}

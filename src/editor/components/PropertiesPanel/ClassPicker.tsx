@@ -24,6 +24,8 @@ import {
   useRef,
   useEffect,
   useCallback,
+  forwardRef,
+  useImperativeHandle,
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -92,11 +94,17 @@ function keyboardMenuPosition(element: HTMLElement) {
 // ClassPicker
 // ---------------------------------------------------------------------------
 
+export interface ClassPickerHandle {
+  /** Focus the 'Add or create class…' input. */
+  focusInput: () => void
+}
+
 interface ClassPickerProps {
   nodeId: string
 }
 
-export function ClassPicker({ nodeId }: ClassPickerProps) {
+export const ClassPicker = forwardRef<ClassPickerHandle, ClassPickerProps>(
+function ClassPickerInner({ nodeId }: ClassPickerProps, ref) {
   const site = useEditorStore((s) => s.site)
   const node = useEditorStore(
     useCallback(
@@ -124,6 +132,12 @@ export function ClassPicker({ nodeId }: ClassPickerProps) {
   )
 
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      inputRef.current?.focus()
+    },
+  }))
 
   const assignedIds = node?.classIds ?? []
   const visibleAssignedIds = assignedIds.filter((id) => isUserVisibleClass(site?.classes[id]))
@@ -400,6 +414,7 @@ export function ClassPicker({ nodeId }: ClassPickerProps) {
             zIndex={10000}
             ariaLabel="Class suggestions"
             onClose={closeSuggestions}
+            triggerRef={inputRef}
           >
             {suggestions.map((cls) => (
               <ContextMenuItem
@@ -437,7 +452,7 @@ export function ClassPicker({ nodeId }: ClassPickerProps) {
       </div>
     </div>
   )
-}
+})
 
 function ClassPillContextMenu({
   x,

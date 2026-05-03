@@ -83,7 +83,9 @@ describe('base module registration', () => {
     }
   })
 
-  it('keeps visual styling out of all base module settings', () => {
+  it('keeps visual styling out of all base module schemas', () => {
+    // All base module settings should be content/structural, not visual/CSS.
+    // Visual styling is handled via class assignment and the CSS editor.
     for (const mod of [
       RootModule,
       ContainerModule,
@@ -96,7 +98,11 @@ describe('base module registration', () => {
       VisualComponentRefModule,
       SlotOutletModule,
     ]) {
-      expect(mod.classStyleBindings ?? {}).toEqual({})
+      // No module should declare CSS-only props as module schema fields.
+      const cssOnlyPropNames = ['backgroundColor', 'color', 'fontSize', 'padding', 'margin', 'border']
+      for (const propName of cssOnlyPropNames) {
+        expect(Object.keys(mod.schema)).not.toContain(propName)
+      }
     }
   })
 })
@@ -117,7 +123,6 @@ describe('base.text — unified text module', () => {
   it('has only content and tag module settings', async () => {
     expect(TextModule.id).toBe('base.text')
     expect(Object.keys(TextModule.schema).sort()).toEqual(['tag', 'text'])
-    expect(TextModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('renders the selected semantic tag', async () => {
@@ -144,7 +149,6 @@ describe('base.text — unified text module', () => {
 describe('base.button — render() specifics', () => {
   it('has only content and behavior module settings', () => {
     expect(Object.keys(ButtonModule.schema).sort()).toEqual(['disabled', 'href', 'label', 'target'])
-    expect(ButtonModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('renders an <a> element when href is set', () => {
@@ -198,7 +202,6 @@ describe('base.container — render() specifics', () => {
 
   it('has only the HTML tag module setting', () => {
     expect(Object.keys(ContainerModule.schema)).toEqual(['tag'])
-    expect(ContainerModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('renders children HTML inside the container', () => {
@@ -254,7 +257,6 @@ describe('base.image — render() specifics', () => {
 
   it('has only content and behavior module settings', () => {
     expect(Object.keys(ImageModule.schema).sort()).toEqual(['alt', 'loading', 'src'])
-    expect(ImageModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('returns empty html when src is empty (Guideline #226)', () => {
@@ -322,7 +324,6 @@ describe('base.video — render() specifics', () => {
       'videoUrl',
       'youtubeId',
     ])
-    expect(VideoModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('defaults to media library video selection', () => {
@@ -406,7 +407,6 @@ describe('base.video — render() specifics', () => {
 describe('base.list — render() specifics', () => {
   it('has only content and semantic module settings', () => {
     expect(Object.keys(ListModule.schema).sort()).toEqual(['items', 'listType'])
-    expect(ListModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('renders <ul> element for listType="unordered"', () => {
@@ -486,7 +486,6 @@ describe('base.list — render() specifics', () => {
 describe('base.link — render() specifics', () => {
   it('has URL, text, and target module settings', () => {
     expect(Object.keys(LinkModule.schema).sort()).toEqual(['href', 'target', 'text'])
-    expect(LinkModule.classStyleBindings ?? {}).toEqual({})
   })
 
   it('renders target and rel for new-tab links', () => {

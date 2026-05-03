@@ -1,6 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { IconComponent } from 'pixel-art-icons/types'
-import type { CSSPropertyBag } from '../page-tree/types'
 
 // ---------------------------------------------------------------------------
 // Property Condition — declarative, JSON-serializable (no function callbacks)
@@ -71,34 +70,6 @@ export type PropertyControl = PropertyControlBase &
  * Use `type: 'group'` for visual grouping only — it does NOT nest the data shape.
  */
 export type PropertySchema = Record<string, PropertyControl>
-
-// ---------------------------------------------------------------------------
-// Module style bindings — bridge module settings into reusable class styles
-// ---------------------------------------------------------------------------
-
-export interface ModuleStyleBinding {
-  /** CSSPropertyBag keys this module setting owns when edited on a class. */
-  properties: ReadonlyArray<keyof CSSPropertyBag>
-  /** Optional label/control override. Defaults to the module schema entry. */
-  label?: string
-  control?: PropertyControl
-  /** Optional initial value when the setting is added from search. */
-  defaultValue?: unknown
-  /** Convert the control value into a CSSPropertyBag patch. */
-  toCSS: (value: unknown, currentStyles: Partial<CSSPropertyBag>) => Partial<CSSPropertyBag>
-  /** Read the control value back from the current class styles. */
-  fromCSS: (styles: Partial<CSSPropertyBag>) => unknown
-  /** Optional custom assigned-state check. Defaults to any owned CSS property being set. */
-  isSet?: (styles: Partial<CSSPropertyBag>) => boolean
-}
-
-type ModuleStyleBindings = Record<string, ModuleStyleBinding>
-
-type ModuleField =
-  | { kind: 'prop'; control: PropertyControl }
-  | ({ kind: 'style' } & ModuleStyleBinding)
-
-type ModuleFields = Record<string, ModuleField>
 
 // ---------------------------------------------------------------------------
 // Module package dependencies — dependency-backed editor runtimes
@@ -242,19 +213,6 @@ export interface ModuleDefinition<
    * `{ three: "^0.184.0" }`; dev dependencies use `{ version, dev: true }`.
    */
   dependencies?: ModuleDependencies
-
-  /**
-   * Optional author-facing field manifest. The editor can inspect this single
-   * list of module-exposed fields alongside schema and classStyleBindings.
-   */
-  fields?: ModuleFields
-
-  /**
-   * Optional bridge from module settings to CSS class styles.
-   * Use this only for visual/style-backed module props. Content, data, URLs,
-   * behavior, and structural settings should remain normal module props.
-   */
-  classStyleBindings?: ModuleStyleBindings
 
   /**
    * React component for the editor canvas live preview.

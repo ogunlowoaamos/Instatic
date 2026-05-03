@@ -673,6 +673,12 @@ function clearDynamicBindingsFromNode(node: PageNode): void {
   }
 }
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends SiteSlice {}
+}
+
 export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (set, get) => {
   // ---------------------------------------------------------------------------
   // Internal helpers — note: these use `get()` before calling set() so they

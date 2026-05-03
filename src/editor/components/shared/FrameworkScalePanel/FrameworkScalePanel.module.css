@@ -36,6 +36,16 @@
 .editor {
     display: flex;
     flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+}
+
+/* Stacks the controls inside a Section's content area. Mirrors the gap the
+ * editor used to apply directly; lives on the body now that each major
+ * grouping (Scales, Utilities, Font settings) is wrapped in a Section. */
+.sectionBody {
+    display: flex;
+    flex-direction: column;
     gap: 10px;
     padding-top: 4px;
 }
@@ -238,23 +248,20 @@
     font-size: 11px;
 }
 
-/* Class generator — one row per generator: pattern + property + on/off + delete */
+/* Class generator — one row per generator: pattern + property + on/off + delete.
+ * The visual card chrome was removed when this list moved inside the
+ * "Utilities" accordion Section; the Section header + content padding is the
+ * visual container now. */
 .classGenerator {
     display: grid;
     align-content: start;
     gap: 6px;
-    border-radius: 12px;
-    background: var(--editor-surface);
-    padding: 12px;
 }
 
 .classGeneratorHeader {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    justify-content: flex-end;
     align-items: center;
-    color: var(--editor-text);
-    font-size: 12px;
-    font-weight: 700;
 }
 
 .classGeneratorRows {
@@ -264,7 +271,7 @@
 
 .classGeneratorRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: 1fr 1fr auto auto;
     grid-template-rows: auto auto;
     column-gap: 6px;
     row-gap: 4px;

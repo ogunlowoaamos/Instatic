@@ -136,6 +136,12 @@ function uniqueClassCopyName(classes: Record<string, CSSClass>, originalName: st
 // Slice implementation
 // ---------------------------------------------------------------------------
 
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../types.ts` for why we use this pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends ClassSlice {}
+}
+
 export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (set, get) => ({
   // ── UI state ───────────────────────────────────────────────────────────────
 

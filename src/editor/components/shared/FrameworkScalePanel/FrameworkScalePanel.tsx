@@ -25,6 +25,7 @@ import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
 import { Switch } from '@ui/components/Switch'
+import { BracesIcon } from 'pixel-art-icons/icons/braces'
 import { Copy2SharpIcon } from 'pixel-art-icons/icons/copy-2-sharp'
 import { DeleteIcon } from 'pixel-art-icons/icons/delete'
 import { EditIcon } from 'pixel-art-icons/icons/edit'
@@ -32,7 +33,9 @@ import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
 import { MinusIcon } from 'pixel-art-icons/icons/minus'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { ReloadIcon } from 'pixel-art-icons/icons/reload'
+import type { IconComponent } from 'pixel-art-icons/types'
 import { ControlRow } from '../../PropertyControls/ControlRow'
+import { Section } from '../../PropertiesPanel/Section'
 import { useEditorStore } from '@core/editor-store/store'
 import {
   computeFluidScale,
@@ -145,6 +148,26 @@ export interface ScaleAdapter<G, C> {
   onUpsertManualSize: (groupId: string, sizeId: string, patch: Partial<FrameworkScaleManualSize>) => void
   /** Replace the whole class-generators list. */
   onSetClassGenerators: (next: C[]) => void
+  /**
+   * Icon shown in the "Scales" Section header. Conventionally the same icon
+   * the panel rail uses for this family — `text-start-t` for typography,
+   * `ruler-dimension` for spacing — so the rail → panel → section chain
+   * shares a consistent visual identity.
+   */
+  scalesSectionIcon?: IconComponent
+  /**
+   * Optional extra collapsible sections rendered after the built-in
+   * "Scales" + "Utilities" sections. Used by TypographyPanel today to host
+   * the future "Font settings" section (font loader). Each entry is its own
+   * Section with its own collapse state.
+   */
+  extraSections?: ReadonlyArray<{
+    id: string
+    title: string
+    icon?: IconComponent
+    defaultOpen?: boolean
+    render: (group: G) => React.ReactNode
+  }>
 }
 
 interface FrameworkScalePanelProps {
@@ -262,36 +285,17 @@ export function FrameworkScalePanel<G extends GroupShape, C extends GeneratorSha
               </Button>
             </div>
           ) : activeGroup ? (
-            <>
-              <FilterBar<string>
-                items={sortedGroups.map<FilterBarItem<string>>((group) => ({
-                  value: group.id,
-                  label: group.name,
-                }))}
-                value={activeGroup.id}
-                onValueChange={(value) => setActiveTabId(value)}
-                groupLabel={`${adapter.title} scales`}
-                inlineActions={
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label={`Add ${adapter.title.toLowerCase()} scale`}
-                    onClick={handleAddGroup}
-                  >
-                    Add scale
-                  </Button>
-                }
-              />
-
-              <GroupEditor<G, C>
-                key={activeGroup.id}
-                group={activeGroup as G}
-                adapter={adapter}
-                preferences={preferences}
-                onContextMenu={(e) => handleTabContextMenu(activeGroup.id, e)}
-                classGenerators={classGenerators}
-              />
-            </>
+            <GroupEditor<G, C>
+              key={activeGroup.id}
+              group={activeGroup as G}
+              groups={sortedGroups as G[]}
+              adapter={adapter}
+              preferences={preferences}
+              onContextMenu={(e) => handleTabContextMenu(activeGroup.id, e)}
+              onActivateGroup={(value) => setActiveTabId(value)}
+              onAddGroup={handleAddGroup}
+              classGenerators={classGenerators}
+            />
           ) : null}
         </div>
       </aside>
@@ -336,56 +340,113 @@ export function FrameworkScalePanel<G extends GroupShape, C extends GeneratorSha
 
 interface GroupEditorProps<G extends GroupShape, C extends GeneratorShape> {
   group: G
+  /** All scale groups, sorted — needed for the in-section FilterBar tab list. */
+  groups: G[]
   adapter: ScaleAdapter<G, C>
   preferences: ReturnType<typeof resolveFrameworkPreferences>
   onContextMenu: (event: MouseEvent<HTMLElement>) => void
+  /** Switch the active scale (called by the FilterBar inside the Scales section). */
+  onActivateGroup: (groupId: string) => void
+  /** Append a new scale and switch to it. */
+  onAddGroup: () => void
   classGenerators: C[]
 }
 
 function GroupEditor<G extends GroupShape, C extends GeneratorShape>({
   group,
+  groups,
   adapter,
   preferences,
   onContextMenu,
+  onActivateGroup,
+  onAddGroup,
   classGenerators,
 }: GroupEditorProps<G, C>) {
   return (
     <div className={styles.editor}>
-      <div className={styles.tabHeading} onContextMenu={onContextMenu}>
-        <Input
-          fieldSize="sm"
-          aria-label="Scale name"
-          value={group.name}
-          onChange={(event) => adapter.onUpdateGroup(group.id, { name: event.target.value })}
-        />
-        <Input
-          fieldSize="sm"
-          aria-label="Variable prefix"
-          value={group.namingConvention}
-          onChange={(event) =>
-            adapter.onUpdateGroup(group.id, { namingConvention: event.target.value })
-          }
-          monospace
-        />
-      </div>
+      {/* Scales section — scale picker (FilterBar), name + prefix, mode toggle,
+          fluid/manual editor with chart. The scale picker lives inside the
+          section because it's part of managing scales. The icon comes from
+          the adapter so each panel reuses its rail icon (text-start-t /
+          ruler-dimension). */}
+      <Section title="Scales" defaultOpen icon={adapter.scalesSectionIcon}>
+        <div className={styles.sectionBody}>
+          <FilterBar<string>
+            items={groups.map<FilterBarItem<string>>((g) => ({
+              value: g.id,
+              label: g.name,
+            }))}
+            value={group.id}
+            onValueChange={onActivateGroup}
+            groupLabel={`${adapter.title} scales`}
+            inlineActions={
+              <Button
+                variant="ghost"
+                size="xs"
+                aria-label={`Add ${adapter.title.toLowerCase()} scale`}
+                onClick={onAddGroup}
+              >
+                Add scale
+              </Button>
+            }
+          />
 
-      <ModeToggle
-        mode={group.mode}
-        onChange={(mode) => adapter.onUpdateGroup(group.id, { mode })}
-      />
+          <div className={styles.tabHeading} onContextMenu={onContextMenu}>
+            <Input
+              fieldSize="sm"
+              aria-label="Scale name"
+              value={group.name}
+              onChange={(event) => adapter.onUpdateGroup(group.id, { name: event.target.value })}
+            />
+            <Input
+              fieldSize="sm"
+              aria-label="Variable prefix"
+              value={group.namingConvention}
+              onChange={(event) =>
+                adapter.onUpdateGroup(group.id, { namingConvention: event.target.value })
+              }
+              monospace
+            />
+          </div>
 
-      {group.mode === 'fluid_manual' ? (
-        <ManualEditor group={group} adapter={adapter} preferences={preferences} />
-      ) : (
-        <FluidEditor group={group} adapter={adapter} preferences={preferences} />
-      )}
+          <ModeToggle
+            mode={group.mode}
+            onChange={(mode) => adapter.onUpdateGroup(group.id, { mode })}
+          />
 
-      <ClassGeneratorList<C>
-        groupId={group.id}
-        groupNamingConvention={group.namingConvention}
-        adapter={adapter as unknown as ScaleAdapter<GroupShape, C>}
-        classes={classGenerators}
-      />
+          {group.mode === 'fluid_manual' ? (
+            <ManualEditor group={group} adapter={adapter} preferences={preferences} />
+          ) : (
+            <FluidEditor group={group} adapter={adapter} preferences={preferences} />
+          )}
+        </div>
+      </Section>
+
+      {/* Utilities section — class generator (utility class patterns).
+          Same icon for both panels: utility classes are CSS rules, so the
+          braces icon (`{ }`) reads as "code that gets generated". */}
+      <Section title="Utilities" defaultOpen icon={BracesIcon}>
+        <div className={styles.sectionBody}>
+          <ClassGeneratorList<C>
+            groupId={group.id}
+            groupNamingConvention={group.namingConvention}
+            adapter={adapter as unknown as ScaleAdapter<GroupShape, C>}
+            classes={classGenerators}
+          />
+        </div>
+      </Section>
+
+      {/* Adapter-supplied extra sections (e.g. Typography → Font settings) */}
+      {adapter.extraSections?.map((section) => (
+        <Section
+          key={section.id}
+          title={section.title}
+          defaultOpen={section.defaultOpen ?? false}
+          icon={section.icon}
+        >
+          <div className={styles.sectionBody}>{section.render(group)}</div>
+        </Section>
+      ))}
     </div>
   )
 }
@@ -861,9 +922,8 @@ function ClassGeneratorList<C extends GeneratorShape>({
   }
 
   return (
-    <section className={styles.classGenerator} aria-label="Class generator">
+    <div className={styles.classGenerator} aria-label="Class generator">
       <header className={styles.classGeneratorHeader}>
-        <span>Class generator</span>
         <Button variant="ghost" size="xs" onClick={handleAdd}>
           Add class
         </Button>
@@ -918,7 +978,7 @@ function ClassGeneratorList<C extends GeneratorShape>({
           ))
         )}
       </div>
-    </section>
+    </div>
   )
 }
 

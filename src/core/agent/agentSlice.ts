@@ -24,7 +24,6 @@ import type { EditorStore } from '../editor-store/types'
 import { registry } from '../module-engine/registry'
 import type {
   AnyModuleDefinition,
-  ModuleStyleBinding,
   PropertyControl,
   PropertySchema,
 } from '../module-engine/types'
@@ -132,6 +131,13 @@ function clearStoredAgentSessionId(siteId: string | null | undefined): void {
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
+
+// Contribute this slice's fields to the combined `EditorStore` type via TS
+// module augmentation. See `../editor-store/types.ts` for why we use this
+// pattern.
+declare module '@core/editor-store/types' {
+  interface EditorStore extends AgentSlice {}
+}
 
 export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (set, get) => {
   // AbortController held in closure (not reactive — intentional, not needed in UI)
@@ -612,15 +618,8 @@ function moduleDefinitionToAgentContext(mod: AnyModuleDefinition): AgentModuleCo
     canHaveChildren: mod.canHaveChildren,
     defaults: toSerializableRecord(mod.defaults ?? {}),
     props: schemaToAgentProps(mod.schema, mod.defaults ?? {}),
-    styles: agentStylesForModule(mod),
+    styles: genericAgentStyleHintsForModule(mod),
   }
-}
-
-function agentStylesForModule(mod: AnyModuleDefinition): AgentModuleStyleContext[] {
-  const styles = styleBindingsToAgentStyles(mod.classStyleBindings ?? {})
-  const existingKeys = new Set(styles.map((style) => style.key))
-  const extraStyles = genericAgentStyleHintsForModule(mod).filter((style) => !existingKeys.has(style.key))
-  return [...styles, ...extraStyles]
 }
 
 function genericAgentStyleHintsForModule(mod: AnyModuleDefinition): AgentModuleStyleContext[] {
@@ -666,31 +665,6 @@ function schemaToAgentProps(
   }
 
   return props
-}
-
-function styleBindingsToAgentStyles(
-  bindings: Record<string, ModuleStyleBinding>,
-): AgentModuleStyleContext[] {
-  return Object.entries(bindings).map(([key, binding]) => {
-    const control = binding.control
-    const style: AgentModuleStyleContext = {
-      key,
-      type: control?.type ?? 'style',
-      label: binding.label ?? control?.label ?? key,
-      description: control?.description,
-      defaultValue: toSerializableValue(binding.defaultValue),
-      cssProperties: binding.properties.map(String),
-    }
-
-    if (control?.type === 'select') {
-      style.options = control.options.map((option) => ({
-        label: option.label,
-        value: toSerializableValue(option.value),
-      }))
-    }
-
-    return style
-  })
 }
 
 function controlToAgentProp(

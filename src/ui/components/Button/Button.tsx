@@ -70,6 +70,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       "aria-label": ariaLabel,
       tooltip,
       tooltipSide,
+      // Explicitly destructured so we can intercept disabled+tooltip combos.
+      disabled,
+      onClick,
       ...rest
     },
     ref,
@@ -79,6 +82,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "[Button] iconOnly={true} requires an aria-label prop for accessibility.",
       );
     }
+
+    // When a tooltip is provided alongside disabled, use aria-disabled instead
+    // of the native disabled attribute so that mouseenter still fires and the
+    // tooltip can show (native disabled silently swallows pointer events).
+    // The click handler is intercepted so the button remains non-interactive.
+    const useAriaDisabled = !!disabled && !!tooltip;
 
     const button = (
       <button
@@ -103,6 +112,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className,
         )}
         {...rest}
+        // These three override anything in ...rest to ensure correct disabled/
+        // aria semantics when a tooltip is provided with a disabled button.
+        disabled={useAriaDisabled ? undefined : (disabled || undefined)}
+        aria-disabled={useAriaDisabled ? true : undefined}
+        onClick={useAriaDisabled ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault() : onClick}
       >
         {children}
       </button>
