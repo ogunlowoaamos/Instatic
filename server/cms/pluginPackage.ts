@@ -30,6 +30,8 @@ export async function readPluginPackage(file: File): Promise<PluginPackage> {
   const manifestText = files['plugin.json']
   if (!manifestText) throw new Error('Plugin package is missing plugin.json')
 
+  // parsePluginManifest is a Zod schema validator — it accepts unknown and
+  // throws on shape mismatch. Safe boundary.
   const manifest = parsePluginManifest(JSON.parse(manifestText))
   const entrypoints = [
     ...Object.values(manifest.entrypoints ?? {}),

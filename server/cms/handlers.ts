@@ -239,6 +239,8 @@ async function readPluginPackageForm(req: Request): Promise<{
   let grantedPermissions: PluginPermission[] = []
   if (typeof rawPermissions === 'string') {
     try {
+      // JSON.parse returns unknown — readPermissionGrants validates the shape
+      // (must be array, items must be strings) before returning. Safe boundary.
       grantedPermissions = readPermissionGrants(JSON.parse(rawPermissions))
     } catch {
       grantedPermissions = []

@@ -266,6 +266,9 @@ function getMessageContentBlocks(message: unknown): Array<Record<string, unknown
     : []
 }
 
+// Returns unknown by design — caller's responsibility to narrow. Used for
+// best-effort parsing of streaming text chunks where the input may or may
+// not be JSON. Safe boundary.
 function parseMaybeJson(value: string): unknown {
   if (!value.trim()) return undefined
   try {

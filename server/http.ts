@@ -1,18 +1,27 @@
+import { z } from 'zod'
+
 export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   const res = new Response(JSON.stringify(body), init)
   res.headers.set('content-type', 'application/json')
   return res
 }
 
+// Validates a request body is a JSON object (not an array, not a primitive,
+// not null). Each individual handler is expected to narrow further with its
+// own Zod schema for the specific fields it consumes; this helper just
+// guarantees you can safely destructure with no runtime crash on garbage
+// input. Surfaced by /audit-types — was `await req.json() as Record<...>`.
+const JsonObjectSchema = z.record(z.string(), z.unknown())
+
 export async function readJsonObject(req: Request): Promise<Record<string, unknown>> {
+  let raw: unknown
   try {
-    const body = await req.json()
-    return body && typeof body === 'object' && !Array.isArray(body)
-      ? body as Record<string, unknown>
-      : {}
+    raw = await req.json()
   } catch {
     return {}
   }
+  const result = JsonObjectSchema.safeParse(raw)
+  return result.success ? result.data : {}
 }
 
 export function methodNotAllowed(): Response {

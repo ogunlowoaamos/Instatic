@@ -21,7 +21,7 @@ import type {
   ServerPluginRouteHandler,
 } from '@core/plugin-sdk'
 import { assertPluginPermission } from '@core/plugin-sdk'
-import { jsonResponse } from '../http'
+import { jsonResponse, readJsonObject } from '../http'
 import { nanoid } from 'nanoid'
 
 interface ServerPluginRoute {
@@ -167,17 +167,9 @@ export async function handleServerPluginRuntimeRequest(
   const route = serverPluginRuntime.findRoute(pluginId, req.method, routePath)
   if (!route) return jsonResponse({ error: 'Plugin route not found' }, { status: 404 })
 
-  let body: Record<string, unknown> = {}
-  if (req.method !== 'GET') {
-    try {
-      const parsed = await req.json()
-      body = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? parsed as Record<string, unknown>
-        : {}
-    } catch {
-      body = {}
-    }
-  }
+  const body: Record<string, unknown> = req.method !== 'GET'
+    ? await readJsonObject(req)
+    : {}
 
   const result = await route.handler({ req, db, body })
   if (result instanceof Response) return result
