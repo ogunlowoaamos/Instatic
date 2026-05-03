@@ -160,6 +160,7 @@ function rawSite(overrides: Record<string, unknown> = {}): Record<string, unknow
     updatedAt: 2000,
     files: [],
     classes: {},
+    visualComponents: [],
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
     settings: {
       colorTokens: {},
@@ -173,7 +174,14 @@ function rawSite(overrides: Record<string, unknown> = {}): Record<string, unknow
         slug: 'index',
         rootNodeId: 'root',
         nodes: {
-          root: { id: 'root', moduleId: 'base.root', props: {}, children: [], breakpointOverrides: {} },
+          root: {
+            id: 'root',
+            moduleId: 'base.root',
+            props: {},
+            children: [],
+            breakpointOverrides: {},
+            classIds: [],
+          },
         },
       },
     ],
@@ -186,7 +194,14 @@ function rawVC(overrides: Record<string, unknown> = {}) {
   return {
     id: 'vc-card-1',
     name: 'Card',
-    rootNode: { id: 'vc-root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} },
+    rootNode: {
+      id: 'vc-root',
+      moduleId: 'base.container',
+      props: {},
+      children: [],
+      breakpointOverrides: {},
+      classIds: [],
+    },
     params: [],
     breakpoints: [],
     classIds: [],
@@ -400,7 +415,7 @@ describe('Gate RG-1 — getReferencedComponentIds: leaf node returns empty set',
     requireRG(getReferencedComponentIds)
     const leafNode = {
       id: 'n1',
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: { text: 'Hello' },
       children: [],
       breakpointOverrides: {},
@@ -767,7 +782,7 @@ describe('Gate SL-14 — addNodeToVc: succeeds when no cycle', () => {
     const vcId = (s.createVisualComponent as (name: string) => string)('Card')
     const headingNode = {
       id: 'heading-1',
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: { text: 'Card Title' },
       children: [],
       breakpointOverrides: {},
@@ -782,16 +797,6 @@ describe('Gate SL-14 — addNodeToVc: succeeds when no cycle', () => {
 // ============================================================================
 // Section 7 — validateSite extension
 // ============================================================================
-
-describe('Gate VP-1 — backward compat: missing visualComponents defaults to []', () => {
-  it('site without visualComponents field validates cleanly → visualComponents: []', () => {
-    const raw = rawSite()  // no visualComponents key
-    delete (raw as Record<string, unknown>).visualComponents
-    const site = validateSite(raw) as SiteDocument & { visualComponents?: unknown[] }
-    expect(Array.isArray(site.visualComponents)).toBe(true)
-    expect(site.visualComponents).toHaveLength(0)
-  })
-})
 
 describe('Gate VP-2 — valid VC passes through validateSite cleanly', () => {
   it('a properly-shaped VC is preserved in the output', () => {
@@ -873,7 +878,7 @@ describe('Gate VP-8 — validateSite preserves rootNode.childNodes on VC round-t
   it('a VC rootNode with childNodes survives validateSite() with childNodes intact', () => {
     const childNode = {
       id: 'child-heading',
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: { text: 'Card Title' },
       children: [],
       breakpointOverrides: {},
@@ -962,7 +967,7 @@ describe('Gate VP-9 — validateSite preserves rootNode.propBindings on VC round
   it('a VC rootNode with propBindings survives validateSite() with bindings intact', () => {
     const rootNodeWithBindings = {
       id: 'vc-root',
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: { text: 'Default Title' },
       children: [],
       breakpointOverrides: {},
@@ -1024,7 +1029,7 @@ describe('Gate VP-9 — validateSite preserves rootNode.propBindings on VC round
     // propBindings can appear on any node in the VC tree, not just the root
     const childWithBindings = {
       id: 'heading-child',
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: { text: 'Default' },
       children: [],
       breakpointOverrides: {},

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { activateInstalledEditorPlugins } from '@core/extensions/editorPluginLoader'
+import { activateInstalledEditorPlugins } from '@core/plugins/editorPluginLoader'
 import { CMS_PLUGINS_CHANGED_EVENT } from '../utils/pluginEvents'
 
 export function useInstalledEditorPlugins(): void {

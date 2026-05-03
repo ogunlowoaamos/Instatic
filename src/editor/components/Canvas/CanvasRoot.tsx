@@ -28,6 +28,7 @@ import { registry } from '@core/module-engine/registry'
 import { useCanvas } from '../../hooks/useCanvas'
 import { CanvasTransformLayer } from './CanvasTransformLayer'
 import { CanvasNotch } from './CanvasNotch'
+import { CanvasModeToggle } from './CanvasModeToggle'
 import { CanvasBreakpointSelector } from './CanvasBreakpointSelector'
 import { CanvasSelectionContext } from './CanvasContexts'
 import { ClassStyleInjector } from './ClassStyleInjector'
@@ -241,6 +242,9 @@ export function CanvasRoot() {
 
         {/* Fixed insert controls — part of canvas chrome, not the zoom layer. */}
         <CanvasNotch />
+
+        {/* Design / Preview view toggle — top-left chrome */}
+        <CanvasModeToggle />
 
         {rightSidebarExpanded && (
           <CanvasBreakpointSelector

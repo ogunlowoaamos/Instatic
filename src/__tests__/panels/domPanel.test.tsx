@@ -68,7 +68,7 @@ function loadSite(rootHasChildren = false) {
     [rootId]: makeNode({ id: rootId, moduleId: 'base.root', children: rootHasChildren ? [childId] : [] }),
   }
   if (rootHasChildren) {
-    nodes[childId] = makeNode({ id: childId, moduleId: 'base.heading', children: [] })
+    nodes[childId] = makeNode({ id: childId, moduleId: 'base.text', children: [] })
   }
 
   const page = makePage({ id: 'page-1', rootNodeId: rootId, nodes })
@@ -441,31 +441,38 @@ describe('DomPanel — tree keyboard navigation', () => {
     expect(useEditorStore.getState().selectedNodeId).toBe('root-1')
   })
 
-  it('pressing ArrowRight on collapsed root expands its children', () => {
+  it('page root is always rendered expanded — its children are visible without toggling', () => {
+    // The root row is the implicit body injected into every editor: it is
+    // forced open and exposes no chevron, so children are visible immediately.
     loadSite(true)
     render(<DomPanel />)
-    const items = screen.getAllByRole('treeitem')
-    const rootItem = items[0]
 
-    // Initially collapsed — no child items visible
-    expect(screen.getAllByRole('treeitem').length).toBe(1)
-
-    fireEvent.keyDown(rootItem, { key: 'ArrowRight' })
-    // After expanding, child treeitem should appear
+    // Root + its single child should both be visible from the first paint.
     expect(screen.getAllByRole('treeitem').length).toBe(2)
   })
 
-  it('clicking a parent row expands its children like the Files tree', () => {
+  it('page root row exposes no aria-expanded — it is not collapsible', () => {
     loadSite(true)
     render(<DomPanel />)
     const rootItem = screen.getAllByRole('treeitem')[0]
+    // aria-expanded is omitted entirely (not "true"/"false") because the row
+    // has no expand/collapse affordance.
+    expect(rootItem.hasAttribute('aria-expanded')).toBe(false)
+  })
 
-    expect(screen.getAllByRole('treeitem').length).toBe(1)
+  it('clicking a non-root parent row expands its children like the Files tree', () => {
+    loadContainerSite()
+    render(<DomPanel />)
 
-    fireEvent.click(rootItem)
-
+    // Root is always expanded → root + container are visible, but the
+    // container's text child is collapsed by default.
     expect(screen.getAllByRole('treeitem').length).toBe(2)
-    expect(useEditorStore.getState().selectedNodeId).toBe('root-1')
+
+    const containerItem = screen.getByRole('treeitem', { name: /container/i })
+    fireEvent.click(containerItem)
+
+    expect(screen.getAllByRole('treeitem').length).toBe(3)
+    expect(useEditorStore.getState().selectedNodeId).toBe('container-1')
   })
 
   it('commits inline tree rename to the node label', () => {

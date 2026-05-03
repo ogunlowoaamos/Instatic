@@ -357,48 +357,6 @@ function reconcileFrameworkColorClasses(site: SiteDocument): void {
   }
 }
 
-function migrateLegacyTextModules(site: SiteDocument): SiteDocument {
-  const migrated = structuredClone(site)
-
-  for (const page of migrated.pages) {
-    for (const node of Object.values(page.nodes)) {
-      migrateLegacyTextNode(node)
-    }
-  }
-
-  for (const component of migrated.visualComponents ?? []) {
-    migrateLegacyTextNode(component.rootNode)
-  }
-
-  return migrated
-}
-
-function migrateLegacyTextNode(node: { moduleId: string; props: Record<string, unknown>; childNodes?: unknown[] }) {
-  if (node.moduleId === 'base.heading') {
-    node.moduleId = 'base.text'
-    node.props = {
-      text: typeof node.props.text === 'string' ? node.props.text : 'Your Heading Here',
-      tag: legacyHeadingTag(node.props.level),
-    }
-  } else if (node.moduleId === 'base.paragraph') {
-    node.moduleId = 'base.text'
-    node.props = {
-      text: typeof node.props.text === 'string' ? node.props.text : 'Add your text here.',
-      tag: 'p',
-    }
-  }
-
-  for (const child of node.childNodes ?? []) {
-    migrateLegacyTextNode(child as { moduleId: string; props: Record<string, unknown>; childNodes?: unknown[] })
-  }
-}
-
-function legacyHeadingTag(level: unknown): string {
-  if (typeof level === 'number' && level >= 1 && level <= 6) return `h${level}`
-  const tag = String(level || 'h2').toLowerCase()
-  return /^h[1-6]$/.test(tag) ? tag : 'h2'
-}
-
 function clearDynamicBindingsFromNode(node: PageNode): void {
   delete node.dynamicBindings
   for (const child of node.childNodes ?? []) {
@@ -540,17 +498,16 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
       // site cannot bleed into the canvas after switching projects.
       // (Guideline #307 / Architect message #1216 — critical integration note)
       renderCache.clear()
-      const migratedSite = migrateLegacyTextModules(site)
-      if (migratedSite.settings.framework?.colors) {
-        reconcileFrameworkColorClasses(migratedSite)
+      if (site.settings.framework?.colors) {
+        reconcileFrameworkColorClasses(site)
       }
-      const packageJson = clonePackageJson(migratedSite.packageJson)
-      const siteRuntime = cloneSiteRuntimeConfig(migratedSite.runtime)
+      const packageJson = clonePackageJson(site.packageJson)
+      const siteRuntime = cloneSiteRuntimeConfig(site.runtime)
       set({
-        site: { ...migratedSite, packageJson, runtime: siteRuntime },
+        site: { ...site, packageJson, runtime: siteRuntime },
         packageJson,
         siteRuntime,
-        activePageId: migratedSite.pages[0]?.id ?? null,
+        activePageId: site.pages[0]?.id ?? null,
         _historyPast: [],
         _historyFuture: [],
         canUndo: false,

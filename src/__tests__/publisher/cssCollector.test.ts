@@ -48,20 +48,20 @@ describe('CssCollector', () => {
   })
 
   it('adds one module CSS and collects it', () => {
-    collector.add('base.heading', 'h1 { color: red; }')
+    collector.add('base.text', 'h1 { color: red; }')
     expect(collector.size).toBe(1)
     expect(collector.collect()).toBe('h1 { color: red; }')
   })
 
   it('deduplicates: second add for same moduleId is ignored', () => {
-    collector.add('base.heading', 'h1 { color: red; }')
-    collector.add('base.heading', 'h1 { color: blue; }') // ignored
+    collector.add('base.text', 'h1 { color: red; }')
+    collector.add('base.text', 'h1 { color: blue; }') // ignored
     expect(collector.size).toBe(1)
     expect(collector.collect()).toBe('h1 { color: red; }') // first wins
   })
 
   it('collects CSS from multiple module types', () => {
-    collector.add('base.heading', 'h1 { margin: 0; }')
+    collector.add('base.text', 'h1 { margin: 0; }')
     collector.add('base.container', '.container { display: flex; }')
     collector.add('base.image', 'img { max-width: 100%; }')
     expect(collector.size).toBe(3)
@@ -73,7 +73,7 @@ describe('CssCollector', () => {
 
   it('50 instances of the same module → size stays 1', () => {
     for (let i = 0; i < 50; i++) {
-      collector.add('base.heading', 'h1 { font-family: sans-serif; }')
+      collector.add('base.text', 'h1 { font-family: sans-serif; }')
     }
     expect(collector.size).toBe(1)
   })
@@ -87,7 +87,7 @@ describe('CssCollector', () => {
   })
 
   it('clear() resets the collector', () => {
-    collector.add('base.heading', 'h1 { color: red; }')
+    collector.add('base.text', 'h1 { color: red; }')
     collector.clear()
     expect(collector.size).toBe(0)
     expect(collector.isEmpty).toBe(true)

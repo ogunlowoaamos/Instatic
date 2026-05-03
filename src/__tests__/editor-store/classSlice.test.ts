@@ -46,7 +46,7 @@ function setupSite() {
   const s = freshStore()
   const site = s.createSite('Test')
   const rootId = site.pages[0].rootNodeId
-  const childId = useEditorStore.getState().insertNode('base.heading', {}, rootId)
+  const childId = useEditorStore.getState().insertNode('base.text', {}, rootId)
   return { rootId, childId, site: useEditorStore.getState().site! }
 }
 

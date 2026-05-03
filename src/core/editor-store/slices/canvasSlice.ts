@@ -3,6 +3,22 @@ import type { EditorStore } from '../store'
 
 type CanvasMode = 'select' | 'pan' | 'insert'
 
+/**
+ * Canvas render mode.
+ *
+ * - 'design': the React-based module renderer is shown — fully reactive to
+ *   property edits, no script execution. Selection / drag / drop work here.
+ * - 'preview': the runtime-preview iframe is shown — site scripts actually run
+ *   inside a sandboxed iframe so authors can test behavior. Property edits
+ *   while in preview mode do NOT auto-refresh the iframe; the user clicks
+ *   Refresh (or navigates page/breakpoint, or edits scripts/deps) to rebuild.
+ *
+ * The two surfaces are mutually exclusive — preview mode does not stack the
+ * iframe over the design canvas. This avoids the "scripts re-execute on every
+ * keystroke" problem the previous overlay design caused.
+ */
+export type CanvasView = 'design' | 'preview'
+
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
 export const DEFAULT_ZOOM = 1
@@ -24,6 +40,8 @@ export interface CanvasSlice {
   activePageId: string | null
   /** Current editor interaction mode */
   canvasMode: CanvasMode
+  /** Current canvas render mode — design (live module editor) or preview (sandboxed runtime) */
+  canvasView: CanvasView
 
   setZoom: (zoom: number) => void
   setPan: (x: number, y: number) => void
@@ -31,6 +49,7 @@ export interface CanvasSlice {
   setActiveBreakpoint: (id: string) => void
   setActivePage: (pageId: string) => void
   setCanvasMode: (mode: CanvasMode) => void
+  setCanvasView: (view: CanvasView) => void
   resetView: () => void
   zoomIn: () => void
   zoomOut: () => void
@@ -62,6 +81,7 @@ export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> =
   activeBreakpointId: 'desktop',
   activePageId: null,
   canvasMode: 'select',
+  canvasView: 'design',
 
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
 
@@ -78,6 +98,8 @@ export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> =
   setActivePage: (pageId) => set({ activePageId: pageId }),
 
   setCanvasMode: (mode) => set({ canvasMode: mode }),
+
+  setCanvasView: (view) => set({ canvasView: view }),
 
   resetView: () => set({ zoom: DEFAULT_ZOOM, panX: 0, panY: 0 }),
 

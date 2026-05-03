@@ -264,7 +264,7 @@ function makeSite(
     if (id === 'root') continue
     childNodes[id] = {
       id,
-      moduleId: 'base.heading',
+      moduleId: 'base.text',
       props: {},
       breakpointOverrides: {},
       children: [],

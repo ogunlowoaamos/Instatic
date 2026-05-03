@@ -91,11 +91,11 @@ function makeContext(overrides: Partial<PageContext> = {}): PageContext {
       },
       {
         id: 'h1-id',
-        moduleId: 'base.heading',
+        moduleId: 'base.text',
         label: 'Hero Heading',
         parentId: 'root-abc',
         children: [],
-        props: { text: 'Hello World', level: 'h1' },
+        props: { text: 'Hello World', tag: 'h1' },
         breakpointOverrides: {},
         classIds: [],
       },
@@ -129,7 +129,7 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(makeContext())
     expect(prompt).toContain('root-abc')
     expect(prompt).toContain('h1-id')
-    expect(prompt).toContain('base.heading')
+    expect(prompt).toContain('base.text')
   })
 
   it('includes node labels', () => {

@@ -19,6 +19,12 @@ function validSite(): SiteDocument {
     updatedAt: 2000,
     files: [],
     classes: {},
+    visualComponents: [],
+    packageJson: { dependencies: {}, devDependencies: {} },
+    runtime: {
+      dependencyLock: { version: 1, packages: {}, updatedAt: 0 },
+      scripts: {},
+    },
     breakpoints: [
       { id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' },
     ],
@@ -40,13 +46,15 @@ function validSite(): SiteDocument {
             props: {},
             children: ['heading-1'],
             breakpointOverrides: {},
+            classIds: [],
           },
           'heading-1': {
             id: 'heading-1',
-            moduleId: 'base.heading',
+            moduleId: 'base.text',
             props: { text: 'Hello' },
             children: [],
             breakpointOverrides: { mobile: { text: 'Hi' } },
+            classIds: [],
           },
         },
       },
@@ -363,25 +371,9 @@ describe('validateSite — site package manifest', () => {
   })
 })
 
-// ── classes round-trip (Task #428 helper-audit) ───────────────────────────────
-//
-// validateSite must return an empty classes map for legacy projects (no classes
-// field) and preserve existing class definitions. Regression gate for the
-// field-passthrough audit that also found gaps in test fixture helpers.
+// ── classes round-trip ────────────────────────────────────────────────────────
 
 describe('validateSite — classes field', () => {
-  it('returns empty classes map when classes field is absent (legacy site)', () => {
-    const p = validSite() // local validSite doesn't include classes
-    const result = validateSite(p)
-    expect(result.classes).toEqual({})
-  })
-
-  it('returns empty classes map when classes is null', () => {
-    const p = { ...validSite(), classes: null }
-    const result = validateSite(p as unknown)
-    expect(result.classes).toEqual({})
-  })
-
   it('preserves generated framework class lock metadata', () => {
     const p = validSite()
     p.classes = {

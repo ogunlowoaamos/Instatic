@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import {
-  DepsSection,
-  evaluateDependencyLockStatus,
-} from '../../editor/components/DependenciesPanel/DepsSection'
+import { DepsSection } from '../../editor/components/DependenciesPanel/DepsSection'
+import { evaluateDependencyLockStatus } from '../../editor/components/DependenciesPanel/lockStatus'
 import { useEditorStore } from '@core/editor-store/store'
 import { makeSite } from '../fixtures'
 import { normalizeSiteRuntimeConfig } from '@core/site-runtime'

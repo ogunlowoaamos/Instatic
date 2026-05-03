@@ -142,8 +142,8 @@ describe('Phase 1 Gate 4 — CSS deduplication O(modules) (Guideline #307 Hot Pa
     // This directly tests the O(modules) invariant from Guideline #307
     const { CssCollector } = require(CSS_COLLECTOR_PATH)
     const collector = new CssCollector()
-    collector.add('base.heading', 'h1 { color: red }')
-    collector.add('base.heading', 'h1 { color: blue }')  // second add must be ignored
+    collector.add('base.text', 'h1 { color: red }')
+    collector.add('base.text', 'h1 { color: blue }')  // second add must be ignored
     const css = collector.collect()
     expect(css).toContain('color: red')
     expect(css).not.toContain('color: blue')

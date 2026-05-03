@@ -464,6 +464,9 @@ function minimalValidRaw(): Record<string, unknown> {
     updatedAt: 2000,
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
     settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+    classes: {},
+    files: [],
+    visualComponents: [],
     pages: [
       {
         id: 'page-1',
@@ -471,21 +474,21 @@ function minimalValidRaw(): Record<string, unknown> {
         slug: 'index',
         rootNodeId: 'root',
         nodes: {
-          root: { id: 'root', moduleId: 'base.root', props: {}, children: [], breakpointOverrides: {} },
+          root: {
+            id: 'root',
+            moduleId: 'base.root',
+            props: {},
+            children: [],
+            breakpointOverrides: {},
+            classIds: [],
+          },
         },
       },
     ],
   }
 }
 
-describe('validateSite — files field (Task #429)', () => {
-  it('defaults missing files field to [] (backward-compat with legacy projects)', () => {
-    const raw = minimalValidRaw()
-    // raw has no `files` field
-    const site = validateSite(raw)
-    expect(site.files).toEqual([])
-  })
-
+describe('validateSite — files field', () => {
   it('accepts and returns a valid files array', () => {
     const raw = minimalValidRaw()
     raw.files = [

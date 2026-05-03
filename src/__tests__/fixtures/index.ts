@@ -15,6 +15,8 @@ import type { Page, PageNode, SiteDocument } from '@core/page-tree/types'
 import { DEFAULT_BREAKPOINTS, DEFAULT_SITE_SETTINGS } from '@core/page-tree/types'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
 import { isSafeUrl } from '@core/publisher/utils'
+import { normalizeSitePackageJson } from '@core/site-dependencies/manifest'
+import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
 
 // ---------------------------------------------------------------------------
 // ModuleDefinition factories
@@ -142,10 +144,7 @@ export function makeNode(overrides: Partial<PageNode> & { id?: string } = {}): P
     label: overrides.label,
     locked: overrides.locked,
     hidden: overrides.hidden,
-    // classIds is optional in PageNode — preserve when provided so callers that
-    // test the CSS class pipeline (e.g. makeNode({ classIds: ['cls-1'] })) are
-    // not silently dropped (same bug class as publisher/helpers.ts Task #427).
-    classIds: overrides.classIds,
+    classIds: overrides.classIds ?? [],
     dynamicBindings: overrides.dynamicBindings,
     propBindings: overrides.propBindings,
     childNodes: overrides.childNodes,
@@ -184,16 +183,11 @@ export function makeSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
     pages: overrides.pages ?? [makePage()],
     breakpoints: overrides.breakpoints ?? DEFAULT_BREAKPOINTS,
     settings: overrides.settings ?? structuredClone(DEFAULT_SITE_SETTINGS),
-    // classes is required on SiteDocument — default to empty map.
-    // Previously omitted, causing site.classes === undefined which crashes
-    // collectClassCSS unless the caller uses the Bug C guard added in Task #427.
     classes: overrides.classes ?? {},
-    // files is required on SiteDocument (Contribution #595 §1 — files data layer).
     files: overrides.files ?? [],
-    // visualComponents is required on SiteDocument; default to no reusable components.
     visualComponents: overrides.visualComponents ?? [],
-    ...(overrides.packageJson !== undefined ? { packageJson: overrides.packageJson } : {}),
-    ...(overrides.runtime !== undefined ? { runtime: overrides.runtime } : {}),
+    packageJson: overrides.packageJson ?? normalizeSitePackageJson(undefined),
+    runtime: overrides.runtime ?? normalizeSiteRuntimeConfig(undefined),
     createdAt: overrides.createdAt ?? 1_700_000_000_000,
     updatedAt: overrides.updatedAt ?? 1_700_000_000_000,
   }

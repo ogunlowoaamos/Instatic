@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   activateEditorPlugin,
   pluginRuntime,
-} from '@core/extensions/runtime'
+} from '@core/plugins/runtime'
 import type { PluginManifest } from '@core/plugin-sdk'
 
 const workflowManifest: PluginManifest = {

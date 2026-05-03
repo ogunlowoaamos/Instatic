@@ -155,7 +155,7 @@ export interface ModuleDefinition<
 > {
   /**
    * Globally unique, namespaced ID.
-   * Format: "{namespace}.{module-name}" — e.g. "base.heading", "acme.hero-banner"
+   * Format: "{namespace}.{module-name}" — e.g. "base.text", "acme.hero-banner"
    * Constraint #181: no bare IDs, namespace required.
    */
   id: string
@@ -256,13 +256,23 @@ export interface ModuleDefinition<
 // Module Registry interface
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyModuleDefinition = ModuleDefinition<any>
+/**
+ * Type-erased module shape used by the heterogeneous registry. Every concrete
+ * `ModuleDefinition<TProps>` widens to this; the publisher and registry deal
+ * with props as `Record<string, unknown>` because at runtime that's all they
+ * have. Module authors keep their own narrow `TProps` at the definition site.
+ *
+ * Conversions from `ModuleDefinition<T>` to `AnyModuleDefinition` happen once
+ * at the registry boundary (see `ModuleRegistry.register`), never in user code.
+ */
+export type AnyModuleDefinition = ModuleDefinition<Record<string, unknown>>
 
 export interface IModuleRegistry {
-  // Uses ModuleDefinition<any> because the registry is a heterogeneous collection —
-  // each module has its own TProps type. Type safety is enforced at the call site.
-  register(definition: AnyModuleDefinition): void
+  // Heterogeneous collection — each module has its own TProps. Module-specific
+  // typing lives at the call site; the registry only sees the erased shape.
+  register<T extends Record<string, unknown>>(definition: ModuleDefinition<T>): void
+  registerOrReplace<T extends Record<string, unknown>>(definition: ModuleDefinition<T>): void
+  unregister(id: string): void
   get(id: string): AnyModuleDefinition | undefined
   getOrThrow(id: string): AnyModuleDefinition
   has(id: string): boolean

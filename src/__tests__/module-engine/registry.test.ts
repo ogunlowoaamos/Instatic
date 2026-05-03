@@ -59,9 +59,9 @@ describe('ModuleRegistry', () => {
   })
 
   it('registers a module and retrieves it by id', () => {
-    const mod = makeModule('base.heading')
+    const mod = makeModule('base.text')
     reg.register(mod)
-    expect(reg.get('base.heading')).toBe(mod)
+    expect(reg.get('base.text')).toBe(mod)
   })
 
   it('returns undefined for unknown module id', () => {
@@ -78,19 +78,19 @@ describe('ModuleRegistry', () => {
   })
 
   it('throws on duplicate registration', () => {
-    reg.register(makeModule('base.heading'))
-    expect(() => reg.register(makeModule('base.heading'))).toThrow('Already registered')
+    reg.register(makeModule('base.text'))
+    expect(() => reg.register(makeModule('base.text'))).toThrow('Already registered')
   })
 
   it('has() returns correct boolean', () => {
-    expect(reg.has('base.heading')).toBe(false)
-    reg.register(makeModule('base.heading'))
-    expect(reg.has('base.heading')).toBe(true)
+    expect(reg.has('base.text')).toBe(false)
+    reg.register(makeModule('base.text'))
+    expect(reg.has('base.text')).toBe(true)
   })
 
   it('list() returns all registered modules', () => {
-    reg.register(makeModule('base.heading'))
-    reg.register(makeModule('base.paragraph'))
+    reg.register(makeModule('base.text'))
+    reg.register(makeModule('base.image'))
     expect(reg.list().length).toBe(2)
   })
 

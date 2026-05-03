@@ -53,8 +53,9 @@ export function ClassPropertyRow({
   const label = cssPropertyLabel(String(property))
   const placeholderText = placeholder !== undefined ? String(placeholder) : undefined
 
-  // ── Adapter: any control's onChange → CSSPropertyBag-typed value ────────
-  const handleTextChange = useCallback(
+  // Translate a control's (propKey, val) onChange signature into a typed
+  // CSSPropertyBag value, coercing to number when the property expects one.
+  const handleControlChange = useCallback(
     (_key: string, val: unknown) => {
       const nextValue = String(val ?? '')
       if (NUMBER_TYPED_PROPS.has(property)) {
@@ -80,7 +81,7 @@ export function ClassPropertyRow({
           propKey={String(property)}
           value={String(value ?? '')}
           placeholder={placeholderText}
-          onChange={handleTextChange}
+          onChange={handleControlChange}
           label={label}
         />
       )
@@ -93,7 +94,7 @@ export function ClassPropertyRow({
           propKey={String(property)}
           value={String(value ?? '')}
           placeholder={placeholderText}
-          onChange={handleTextChange}
+          onChange={handleControlChange}
           label={label}
           options={[
             { label: '—', value: '' },
@@ -111,7 +112,7 @@ export function ClassPropertyRow({
           propKey={String(property)}
           value={String(value ?? '')}
           placeholder={placeholderText}
-          onChange={handleTextChange}
+          onChange={handleControlChange}
           label={label}
         />
       )

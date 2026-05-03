@@ -70,7 +70,7 @@ function setupPage() {
   const site = s.createSite('Test')
   const rootId = site.pages[0].rootNodeId
   // Insert a child node to wrap
-  const childId = useEditorStore.getState().insertNode('base.heading', {}, rootId)
+  const childId = useEditorStore.getState().insertNode('base.text', {}, rootId)
   return { rootId, childId }
 }
 

@@ -38,7 +38,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const store = getStore()
     const site = store.createSite('Test SiteDocument')
     const rootId = site.pages[0].rootNodeId
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     expect(useEditorStore.getState().canUndo).toBe(true)
   })
 
@@ -48,7 +48,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const rootId = site.pages[0].rootNodeId
     const nodesBefore = Object.keys(site.pages[0].nodes).length
 
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     const nodesAfter = Object.keys(
       useEditorStore.getState().site!.pages[0].nodes
     ).length
@@ -66,7 +66,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const site = s.createSite('Test SiteDocument')
     const rootId = site.pages[0].rootNodeId
 
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     const nodesBeforeUndo = Object.keys(
       useEditorStore.getState().site!.pages[0].nodes
     ).length
@@ -84,7 +84,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const s = getStore()
     const site = s.createSite('Test SiteDocument')
     const rootId = site.pages[0].rootNodeId
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().undo()
     expect(useEditorStore.getState().canRedo).toBe(true)
   })
@@ -93,7 +93,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const s = getStore()
     const site = s.createSite('Test SiteDocument')
     const rootId = site.pages[0].rootNodeId
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().undo()
     useEditorStore.getState().redo()
     expect(useEditorStore.getState().canRedo).toBe(false)
@@ -105,9 +105,9 @@ describe('Undo / Redo — basic lifecycle', () => {
     const rootId = site.pages[0].rootNodeId
 
     // Insert → undo → new insertion (new branch)
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().undo()
-    useEditorStore.getState().insertNode('base.paragraph', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
 
     expect(useEditorStore.getState().canRedo).toBe(false)
     expect(useEditorStore.getState()._historyFuture).toHaveLength(0)
@@ -119,8 +119,8 @@ describe('Undo / Redo — basic lifecycle', () => {
     const rootId = site.pages[0].rootNodeId
     const startCount = Object.keys(site.pages[0].nodes).length
 
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
-    useEditorStore.getState().insertNode('base.paragraph', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().insertNode('base.image', {}, rootId)
 
     expect(Object.keys(useEditorStore.getState().site!.pages[0].nodes).length).toBe(startCount + 3)
@@ -148,7 +148,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const s = getStore()
     const site = s.createSite('Test SiteDocument')
     const rootId = site.pages[0].rootNodeId
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().undo()
 
     // Create new site — should wipe history
@@ -165,7 +165,7 @@ describe('Undo / Redo — basic lifecycle', () => {
     const rootId = site.pages[0].rootNodeId
 
     useEditorStore.setState({ zoom: 2, panX: 100, panY: 50 })
-    useEditorStore.getState().insertNode('base.heading', {}, rootId)
+    useEditorStore.getState().insertNode('base.text', {}, rootId)
     useEditorStore.getState().undo()
 
     const { zoom, panX, panY } = useEditorStore.getState()

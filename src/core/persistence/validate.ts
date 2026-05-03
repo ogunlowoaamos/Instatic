@@ -161,14 +161,17 @@ function validatePageNode(raw: unknown, path: string): PageNode {
   assertString(raw.id, `${path}.id`)
   assertString(raw.moduleId, `${path}.moduleId`)
   // props must be an object (values are unchecked — module-specific)
-  assertObject(raw.props ?? {}, `${path}.props`)
+  assertObject(raw.props, `${path}.props`)
   // children must be an array of strings
-  assertArray(raw.children ?? [], `${path}.children`)
+  assertArray(raw.children, `${path}.children`)
   for (let i = 0; i < (raw.children as unknown[]).length; i++) {
     assertString((raw.children as unknown[])[i], `${path}.children[${i}]`)
   }
   // breakpointOverrides must be an object (values unchecked)
-  assertObject(raw.breakpointOverrides ?? {}, `${path}.breakpointOverrides`)
+  assertObject(raw.breakpointOverrides, `${path}.breakpointOverrides`)
+  // classIds: normalize missing or non-array to []. The PageNode type guarantees
+  // a string[]; that guarantee is enforced here, not at the storage boundary.
+  const rawClassIds = raw.classIds
 
   // Sanitize richtext-typed prop values before storing — prevents XSS via
   // tampered or pre-DOMPurify-boundary site data reaching the publisher.
@@ -208,14 +211,13 @@ function validatePageNode(raw: unknown, path: string): PageNode {
     id: raw.id as string,
     moduleId: raw.moduleId as string,
     props: sanitizedProps,
-    children: (raw.children ?? []) as string[],
-    breakpointOverrides: (raw.breakpointOverrides ?? {}) as Record<string, Partial<Record<string, unknown>>>,
+    children: raw.children as string[],
+    breakpointOverrides: raw.breakpointOverrides as Record<string, Partial<Record<string, unknown>>>,
     label: typeof raw.label === 'string' ? raw.label : undefined,
     locked: typeof raw.locked === 'boolean' ? raw.locked : undefined,
     hidden: typeof raw.hidden === 'boolean' ? raw.hidden : undefined,
-    // classIds — optional, default [] for legacy nodes
-    classIds: Array.isArray(raw.classIds)
-      ? (raw.classIds as unknown[]).filter((id) => typeof id === 'string') as string[]
+    classIds: Array.isArray(rawClassIds)
+      ? (rawClassIds as unknown[]).filter((id) => typeof id === 'string') as string[]
       : [],
     dynamicBindings,
     childNodes,
@@ -588,11 +590,11 @@ export function validateSite(raw: unknown): SiteDocument {
   const packageJson = normalizeSitePackageJson(raw.packageJson)
   const runtime = normalizeSiteRuntimeConfig(raw.runtime)
 
-  // Validate class registry — coerce any legacy projects that lack this field
-  const rawClasses = raw.classes
+  // Validate class registry — required field, must be an object (may be empty).
+  assertObject(raw.classes, 'site.classes')
   const classes: SiteDocument['classes'] = {}
-  if (rawClasses !== undefined && rawClasses !== null && typeof rawClasses === 'object' && !Array.isArray(rawClasses)) {
-    for (const [id, cls] of Object.entries(rawClasses as Record<string, unknown>)) {
+  {
+    for (const [id, cls] of Object.entries(raw.classes as Record<string, unknown>)) {
       if (cls && typeof cls === 'object' && !Array.isArray(cls)) {
         const c = cls as Record<string, unknown>
         if (typeof c.id === 'string' && typeof c.name === 'string') {
@@ -640,16 +642,15 @@ export function validateSite(raw: unknown): SiteDocument {
     }
   }
 
-  // Validate files[] — default to [] for legacy projects that pre-date the
-  // files data layer (Contribution #595 / Task #429).  Individual files with
-  // unsafe paths are silently dropped rather than rejecting the whole site.
-  // Duplicate paths are deduplicated (last-write-wins on the normalized path).
-  const rawFiles = raw.files
+  // Validate files[] — required field. Individual files with unsafe paths are
+  // silently dropped rather than rejecting the whole site. Duplicate paths are
+  // deduplicated (last-write-wins on the normalized path).
+  assertArray(raw.files, 'site.files')
   const files: SiteFile[] = []
-  if (Array.isArray(rawFiles)) {
+  {
     const seenPaths = new Set<string>()
-    for (let i = 0; i < rawFiles.length; i++) {
-      const file = validateSiteFile(rawFiles[i], `site.files[${i}]`)
+    for (let i = 0; i < raw.files.length; i++) {
+      const file = validateSiteFile(raw.files[i], `site.files[${i}]`)
       if (file === null) continue
       if (seenPaths.has(file.path)) continue // deduplicate
       seenPaths.add(file.path)
@@ -657,17 +658,15 @@ export function validateSite(raw: unknown): SiteDocument {
     }
   }
 
-  // Validate visualComponents[] — default to [] for legacy projects that
-  // pre-date the VC data layer (Contribution #619 / Task #436).
-  // Individual VCs with invalid names are silently dropped.
-  // Duplicate names are deduplicated (first-wins, per §9 spec).
+  // Validate visualComponents[] — required field. Individual VCs with invalid
+  // names are silently dropped. Duplicate names are deduplicated (first-wins).
   // filePath is always re-derived from name (self-healing).
-  const rawVCs = raw.visualComponents
+  assertArray(raw.visualComponents, 'site.visualComponents')
   const visualComponents: VisualComponent[] = []
-  if (Array.isArray(rawVCs)) {
+  {
     const seenNames = new Set<string>()
-    for (let i = 0; i < rawVCs.length; i++) {
-      const vc = validateVisualComponent(rawVCs[i])
+    for (let i = 0; i < raw.visualComponents.length; i++) {
+      const vc = validateVisualComponent(raw.visualComponents[i])
       if (vc === null) continue
       if (seenNames.has(vc.name)) continue // first-wins deduplication
       seenNames.add(vc.name)

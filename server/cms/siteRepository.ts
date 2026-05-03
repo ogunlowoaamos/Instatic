@@ -3,6 +3,8 @@ import {
   DEFAULT_BREAKPOINTS,
   DEFAULT_SITE_SETTINGS,
 } from '@core/page-tree/types'
+import { normalizeSitePackageJson } from '@core/site-dependencies/manifest'
+import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
 import type { DbClient } from './db'
 import type { SiteRow } from './types'
 
@@ -54,12 +56,8 @@ function readStoredShell(row: SiteRow): SiteShell {
     visualComponents: Array.isArray(site.visualComponents)
       ? site.visualComponents as SiteDocument['visualComponents']
       : [],
-    packageJson: isRecord(site.packageJson)
-      ? site.packageJson as unknown as SiteDocument['packageJson']
-      : undefined,
-    runtime: isRecord(site.runtime)
-      ? site.runtime as unknown as SiteDocument['runtime']
-      : undefined,
+    packageJson: normalizeSitePackageJson(site.packageJson),
+    runtime: normalizeSiteRuntimeConfig(site.runtime),
     breakpoints: Array.isArray(site.breakpoints)
       ? site.breakpoints as SiteDocument['breakpoints']
       : DEFAULT_BREAKPOINTS,

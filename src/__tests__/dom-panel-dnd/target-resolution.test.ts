@@ -47,9 +47,9 @@ describe('DOMPanel DnD target resolution', () => {
   it('resolves before and after sibling drops', () => {
     const p = page({
       root: node('root', 'base.root', ['a', 'b', 'c']),
-      a: node('a', 'base.heading'),
-      b: node('b', 'base.heading'),
-      c: node('c', 'base.heading'),
+      a: node('a', 'base.text'),
+      b: node('b', 'base.text'),
+      c: node('c', 'base.text'),
     })
 
     expect(resolveDomDropTarget({
@@ -87,7 +87,7 @@ describe('DOMPanel DnD target resolution', () => {
     const p = page({
       root: node('root', 'base.root', ['container', 'leaf']),
       container: node('container', 'base.container', []),
-      leaf: node('leaf', 'base.paragraph'),
+      leaf: node('leaf', 'base.text'),
     })
 
     expect(resolveDomDropTarget({
@@ -110,10 +110,10 @@ describe('DOMPanel DnD target resolution', () => {
   it('normalizes same-parent insertion indices after source removal', () => {
     const p = page({
       root: node('root', 'base.root', ['a', 'b', 'c', 'd']),
-      a: node('a', 'base.heading'),
-      b: node('b', 'base.heading'),
-      c: node('c', 'base.heading'),
-      d: node('d', 'base.heading'),
+      a: node('a', 'base.text'),
+      b: node('b', 'base.text'),
+      c: node('c', 'base.text'),
+      d: node('d', 'base.text'),
     })
 
     expect(resolveDomDropTarget({
@@ -137,9 +137,9 @@ describe('DOMPanel DnD target resolution', () => {
     const p = page({
       root: node('root', 'base.root', ['a', 'b', 'locked']),
       a: node('a', 'base.container', ['child']),
-      child: node('child', 'base.heading'),
-      b: node('b', 'base.heading'),
-      locked: node('locked', 'base.heading', [], true),
+      child: node('child', 'base.text'),
+      b: node('b', 'base.text'),
+      locked: node('locked', 'base.text', [], true),
     })
 
     expect(resolveDomDropTarget({ page: p, draggedId: 'root', overId: 'b', zone: 'after', canHaveChildren })).toBeNull()

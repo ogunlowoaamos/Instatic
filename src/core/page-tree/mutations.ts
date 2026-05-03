@@ -27,6 +27,7 @@ export function createNode(
     props: { ...defaults },
     breakpointOverrides: {},
     children: [],
+    classIds: [],
   }
 }
 

@@ -10,7 +10,7 @@ import type {
 import {
   renderPluginAdminApp,
   type PluginAdminAppImport,
-} from '@core/extensions/adminRuntime'
+} from '@core/plugins/adminRuntime'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,

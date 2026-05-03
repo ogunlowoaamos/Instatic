@@ -61,7 +61,7 @@ function openPreviewWithSite() {
       },
       h1: {
         id: 'h1',
-        moduleId: 'base.heading',
+        moduleId: 'base.text',
         props: { text: 'Welcome', level: 1 },
         children: [],
         breakpointOverrides: {},
@@ -325,21 +325,21 @@ describe('publishPage — 2-node tree golden test (Phase 7)', () => {
     render: (_props, children) => ({ html: children.join('') }),
   })
 
-  const headingModule = makeModule('base.heading', {
+  const headingModule = makeModule('base.text', {
     canHaveChildren: false,
     render: (props) => ({
       html: `<h1 class="pb-heading">${props['text'] ?? ''}</h1>`,
-      css: '/* base.heading */\n.pb-heading { font-family: sans-serif; margin: 0; }',
+      css: '/* base.text */\n.pb-heading { font-family: sans-serif; margin: 0; }',
     }),
   })
 
-  const reg = makeRegistry({ 'base.root': rootModule, 'base.heading': headingModule })
+  const reg = makeRegistry({ 'base.root': rootModule, 'base.text': headingModule })
 
   it('renders a 2-node tree (root + heading) to a complete HTML document', () => {
     const page = makePage(
       {
         root: { moduleId: 'base.root', children: ['h1'] },
-        h1: { moduleId: 'base.heading', props: { text: 'Hello World' } },
+        h1: { moduleId: 'base.text', props: { text: 'Hello World' } },
       },
       'root',
     )
@@ -367,7 +367,7 @@ describe('publishPage — 2-node tree golden test (Phase 7)', () => {
     const page = makePage(
       {
         root: { moduleId: 'base.root', children: ['h1'] },
-        h1: { moduleId: 'base.heading', props: { text: '<script>alert(1)</script>' } },
+        h1: { moduleId: 'base.text', props: { text: '<script>alert(1)</script>' } },
       },
       'root',
     )
@@ -389,24 +389,24 @@ describe('publishPage — 2-node tree golden test (Phase 7)', () => {
         render: (_props, children) => ({ html: children.join('') }),
       }),
       'base.container': containerModule,
-      'base.heading': headingModule,
+      'base.text': headingModule,
     })
 
     const page = makePage(
       {
         root: { moduleId: 'base.root', children: ['wrap'] },
         wrap: { moduleId: 'base.container', children: ['h1', 'h2', 'h3'] },
-        h1: { moduleId: 'base.heading', props: { text: 'A' } },
-        h2: { moduleId: 'base.heading', props: { text: 'B' } },
-        h3: { moduleId: 'base.heading', props: { text: 'C' } },
+        h1: { moduleId: 'base.text', props: { text: 'A' } },
+        h2: { moduleId: 'base.text', props: { text: 'B' } },
+        h3: { moduleId: 'base.text', props: { text: 'C' } },
       },
       'root',
     )
     const site = makeSite({ pages: [page] })
     const { html } = publishPage(page, site, regWithContainer)
 
-    // The heading CSS marker appears exactly once
-    const occurrences = (html.match(/\/\* base\.heading \*\//g) ?? []).length
+    // The text-module CSS marker appears exactly once
+    const occurrences = (html.match(/\/\* base\.text \*\//g) ?? []).length
     expect(occurrences).toBe(1)
   })
 

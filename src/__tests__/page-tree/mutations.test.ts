@@ -43,10 +43,10 @@ function addChildToPage(page: Page, parentId: string, moduleId = 'base.div'): st
 
 describe('createNode', () => {
   it('creates a node with a unique id and the given moduleId', () => {
-    const a = createNode('base.heading')
-    const b = createNode('base.heading')
+    const a = createNode('base.text')
+    const b = createNode('base.text')
     expect(a.id).not.toBe(b.id)
-    expect(a.moduleId).toBe('base.heading')
+    expect(a.moduleId).toBe('base.text')
   })
   it('copies defaults into props', () => {
     const n = createNode('base.text', { text: 'hello', size: 16 })

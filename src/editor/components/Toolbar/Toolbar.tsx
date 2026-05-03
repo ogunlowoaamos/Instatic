@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
-import { pluginRuntime } from '@core/extensions/runtime'
+import { pluginRuntime } from '@core/plugins/runtime'
 import type { RegisteredPluginToolbarButton } from '@core/plugin-sdk'
 import { UndoRedoButtons } from './UndoRedoButtons'
 import { ZoomControls } from './ZoomControls'

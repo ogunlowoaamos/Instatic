@@ -58,7 +58,7 @@ describe('J6 DomPanel — store layer', () => {
     const { createSite, insertNode } = useEditorStore.getState()
     const site = createSite('Test')
     const page = site.pages[0]
-    const nodeId = insertNode('base.heading', { text: 'Hello' }, page.rootNodeId)
+    const nodeId = insertNode('base.text', { text: 'Hello' }, page.rootNodeId)
     const updatedPage = useEditorStore.getState().site!.pages[0]
     expect(updatedPage.nodes[nodeId]).toBeDefined()
     expect(updatedPage.nodes[page.rootNodeId].children).toContain(nodeId)
@@ -116,8 +116,8 @@ describe('J6 DomPanel — flattenSubtree', () => {
       nodes: {
         root: { id: 'root', moduleId: 'base.root', props: {}, children: ['a', 'b'], breakpointOverrides: {} },
         a: { id: 'a', moduleId: 'base.container', props: {}, children: ['a1'], breakpointOverrides: {} },
-        a1: { id: 'a1', moduleId: 'base.heading', props: {}, children: [], breakpointOverrides: {} },
-        b: { id: 'b', moduleId: 'base.paragraph', props: {}, children: [], breakpointOverrides: {} },
+        a1: { id: 'a1', moduleId: 'base.text', props: {}, children: [], breakpointOverrides: {} },
+        b: { id: 'b', moduleId: 'base.image', props: {}, children: [], breakpointOverrides: {} },
       },
     }
     expect(flattenSubtree(page, 'root')).toEqual(['root', 'a', 'a1', 'b'])
@@ -206,7 +206,7 @@ import type { PageNode } from '../core/page-tree/types'
 describe('J7+J8 PropertiesPanel — resolveProps', () => {
   const node: PageNode = {
     id: 'n1',
-    moduleId: 'base.heading',
+    moduleId: 'base.text',
     props: { text: 'Hello', fontSize: 24 },
     children: [],
     breakpointOverrides: {
@@ -238,7 +238,7 @@ describe('J7+J8 PropertiesPanel — store mutations', () => {
     const { createSite, insertNode, updateNodeProps } = useEditorStore.getState()
     const site = createSite('Test')
     const page = site.pages[0]
-    const nodeId = insertNode('base.heading', { text: 'Old' }, page.rootNodeId)
+    const nodeId = insertNode('base.text', { text: 'Old' }, page.rootNodeId)
 
     updateNodeProps(nodeId, { text: 'New' })
 
@@ -251,7 +251,7 @@ describe('J7+J8 PropertiesPanel — store mutations', () => {
     const { createSite, insertNode, setBreakpointOverride } = useEditorStore.getState()
     const site = createSite('Test')
     const page = site.pages[0]
-    const nodeId = insertNode('base.heading', { text: 'Base', fontSize: 24 }, page.rootNodeId)
+    const nodeId = insertNode('base.text', { text: 'Base', fontSize: 24 }, page.rootNodeId)
 
     setBreakpointOverride(nodeId, 'mobile', { fontSize: 14 })
 

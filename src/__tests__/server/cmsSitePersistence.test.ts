@@ -79,6 +79,7 @@ function validSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
             props: {},
             breakpointOverrides: {},
             children: [],
+            classIds: [],
           },
         },
       },
@@ -86,10 +87,10 @@ function validSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
     files: [],
     visualComponents: [],
     packageJson: {
-      scripts: {},
       dependencies: {},
       devDependencies: {},
     },
+    runtime: normalizeSiteRuntimeConfig(undefined),
     breakpoints: [
       { id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' },
     ],

@@ -111,7 +111,11 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
   const definition = registry.get(node.moduleId)
   const displayName = node.label || definition?.name || node.moduleId
   const hasChildren = node.children.length > 0
-  const expanded = isExpanded(nodeId)
+  // The page root is the implicit body injected into every editor: it is the
+  // only top-level row in the tree, so collapsing it would just hide the
+  // entire document. Force it open and hide its chevron — the row is purely
+  // a label for "the page", with no expand/collapse affordance.
+  const expanded = isRoot ? true : isExpanded(nodeId)
   const isOpenContainerGroup = node.moduleId === 'base.container' && hasChildren && expanded && isSelected
   const dropPosition =
     target?.overId === nodeId && target.position !== 'inside'
@@ -130,15 +134,15 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
       case ' ':
         e.preventDefault()
         selectNode(nodeId)
-        if (hasChildren) toggleExpanded(nodeId)
+        if (hasChildren && !isRoot) toggleExpanded(nodeId)
         break
       case 'ArrowRight':
         e.preventDefault()
-        if (hasChildren && !expanded) toggleExpanded(nodeId)
+        if (hasChildren && !isRoot && !expanded) toggleExpanded(nodeId)
         break
       case 'ArrowLeft':
         e.preventDefault()
-        if (expanded) toggleExpanded(nodeId)
+        if (!isRoot && expanded) toggleExpanded(nodeId)
         break
       case 'F2':
         e.preventDefault()
@@ -212,7 +216,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         {...listeners}
         role="treeitem"
         aria-selected={isSelected}
-        aria-expanded={hasChildren ? expanded : undefined}
+        aria-expanded={hasChildren && !isRoot ? expanded : undefined}
         // aria-label names the row for AT, including locked/hidden state so screen
         // reader users get the full picture without relying on the emoji indicators
         // (which are aria-hidden and therefore invisible to AT).
@@ -226,7 +230,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         onClick={(e) => {
           e.stopPropagation()
           selectNode(nodeId)
-          if (hasChildren) toggleExpanded(nodeId)
+          if (hasChildren && !isRoot) toggleExpanded(nodeId)
         }}
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => {
@@ -238,11 +242,12 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
       >
-        {/* Expand/collapse chevron */}
+        {/* Expand/collapse chevron — hidden on the page root, which is always
+            expanded (no toggle affordance). */}
         <TreeChevron
-          onClick={(e) => { e.stopPropagation(); toggleExpanded(nodeId) }}
+          onClick={(e) => { e.stopPropagation(); if (!isRoot) toggleExpanded(nodeId) }}
           expanded={expanded}
-          visible={hasChildren}
+          visible={hasChildren && !isRoot}
         />
 
         {/* Module icon */}

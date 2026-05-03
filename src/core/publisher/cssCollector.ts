@@ -3,7 +3,7 @@
  *
  * Why moduleId-keyed deduplication?
  * ─────────────────────────────────
- * A typical page might contain 50 instances of "base.heading".
+ * A typical page might contain 50 instances of "base.text".
  * Without dedup, every instance emits an identical CSS block → 50× overhead.
  *
  * With moduleId keying:

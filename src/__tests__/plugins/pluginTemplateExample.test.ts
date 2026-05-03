@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { readFile } from 'node:fs/promises'
-import { parsePluginManifest } from '@core/extensions/manifest'
+import { parsePluginManifest } from '@core/plugins/manifest'
 
 describe('plugin author template', () => {
   it('ships a valid plugin manifest template', async () => {

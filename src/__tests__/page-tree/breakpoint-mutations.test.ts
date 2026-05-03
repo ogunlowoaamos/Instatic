@@ -24,7 +24,7 @@ import { makePage } from '../fixtures'
 describe('setBreakpointOverride', () => {
   function makeTestPage() {
     const page = makePage()
-    const node = createNode('base.heading', { color: '#000', fontSize: 32 })
+    const node = createNode('base.text', { color: '#000', fontSize: 32 })
     insertNode(page, node, page.rootNodeId)
     return { page, nodeId: node.id }
   }
@@ -88,7 +88,7 @@ describe('setBreakpointOverride', () => {
 describe('clearBreakpointOverride', () => {
   function makeTestPageWithOverride() {
     const page = makePage()
-    const node = createNode('base.heading', { color: '#000', fontSize: 32 })
+    const node = createNode('base.text', { color: '#000', fontSize: 32 })
     insertNode(page, node, page.rootNodeId)
     setBreakpointOverride(page, node.id, 'mobile', { fontSize: 16, color: '#fff' })
     setBreakpointOverride(page, node.id, 'tablet', { fontSize: 22 })
@@ -152,7 +152,7 @@ describe('clearBreakpointOverride', () => {
 describe('breakpoint override roundtrip', () => {
   it('set → resolve at breakpoint → clear → resolve returns base', () => {
     const page = makePage()
-    const node = createNode('base.paragraph', { text: 'Desktop text', fontSize: 18 })
+    const node = createNode('base.text', { text: 'Desktop text', fontSize: 18 })
     insertNode(page, node, page.rootNodeId)
 
     // Set mobile override

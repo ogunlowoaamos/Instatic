@@ -61,7 +61,7 @@ import {
   missingPluginPermissionGrants,
   parsePluginManifest,
   validatePluginRecordData,
-} from '@core/extensions/manifest'
+} from '@core/plugins/manifest'
 import type {
   InstalledPlugin,
   PluginLifecycleStatus,

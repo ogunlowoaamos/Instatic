@@ -63,8 +63,8 @@ function loadSiteWithSelectedHeading() {
   const rootNode = makeNode({ id: rootId, moduleId: 'base.root', children: [nodeId] })
   const headingNode = makeNode({
     id: nodeId,
-    moduleId: 'base.heading',
-    props: { text: 'Hello', level: 'h2', align: 'left' },
+    moduleId: 'base.text',
+    props: { text: 'Hello', tag: 'h2', align: 'left' },
     children: [],
   })
   const page = makePage({

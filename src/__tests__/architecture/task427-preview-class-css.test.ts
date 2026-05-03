@@ -76,7 +76,7 @@ const buttonModule = makeModule('base.button', {
   render: () => ({ html: '<button class="pb-btn">Click me</button>' }),
 })
 
-const headingModule = makeModule('base.heading', {
+const headingModule = makeModule('base.text', {
   canHaveChildren: false,
   render: (props) => ({
     html: `<h2 class="pb-heading">${props['text'] ?? ''}</h2>`,
@@ -87,7 +87,7 @@ const headingModule = makeModule('base.heading', {
 const reg = makeRegistry({
   'base.root': rootModule,
   'base.button': buttonModule,
-  'base.heading': headingModule,
+  'base.text': headingModule,
 })
 
 /** Build a minimal Page directly (bypasses makePage) so gates 4/5/7/8 test

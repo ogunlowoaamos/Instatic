@@ -15,7 +15,7 @@ import {
   collectEnabledAdminPages,
   parsePluginManifest,
   permissionLabel,
-} from "@core/extensions/manifest";
+} from "@core/plugins/manifest";
 import { permissionDescription } from "@core/plugin-sdk";
 import {
   inspectCmsPluginPackage,

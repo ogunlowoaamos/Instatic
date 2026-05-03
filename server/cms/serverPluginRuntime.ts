@@ -11,7 +11,7 @@ import {
 import {
   findPluginResource,
   validatePluginRecordData,
-} from '@core/extensions/manifest'
+} from '@core/plugins/manifest'
 import type {
   PluginManifest,
   RouteMethod,

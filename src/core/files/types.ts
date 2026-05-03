@@ -48,8 +48,10 @@ export interface SiteFile {
   content?: string
 
   /**
-   * For legacy site asset files only — base64-encoded for document persistence.
-   * (Blob inside SiteDocument would defeat structuredClone equality checks.)
+   * Binary payload for asset files — base64-encoded mime + bytes.
+   * Stored as a plain object inside SiteDocument so structuredClone/Immer
+   * equality keeps working; a real Blob would defeat that.
+   * Always undefined for non-asset file types.
    */
   blob?: { mimeType: string; base64: string }
 

@@ -4,7 +4,7 @@ import {
   parsePluginManifest,
   pluginAdminPageRoute,
   validatePluginRecordData,
-} from '@core/extensions/manifest'
+} from '@core/plugins/manifest'
 
 describe('plugin manifest validation', () => {
   it('accepts a declarative admin-page plugin manifest', () => {

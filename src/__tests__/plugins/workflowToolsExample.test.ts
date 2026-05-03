@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import {
   activateEditorPlugin,
   pluginRuntime,
-} from '@core/extensions/runtime'
+} from '@core/plugins/runtime'
 import { useEditorStore } from '@core/editor-store/store'
 import type {
   EditorPluginModule,

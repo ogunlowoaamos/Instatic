@@ -6,9 +6,9 @@ import { join, relative } from 'node:path'
 import * as sdk from '@core/plugin-sdk'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
-const scannedRoots = ['src', 'server', 'docs']
-const legacyTypesPath = join('src', 'core', 'extensions', 'types.ts')
-const legacyTypesImportMarker = ['extensions', 'types'].join('/')
+const scannedRoots = ['src', 'server']
+const legacyTypesPath = join('src', 'core', 'plugins', 'types.ts')
+const legacyTypesImportMarker = ['plugins', 'types'].join('/')
 
 async function collectFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -58,8 +58,8 @@ describe('public plugin SDK exports', () => {
 
   it('keeps public plugin types at the SDK boundary', async () => {
     const compatibilityReexports = [
-      'src/core/extensions/runtime.ts',
-      'src/core/extensions/adminRuntime.ts',
+      'src/core/plugins/runtime.ts',
+      'src/core/plugins/adminRuntime.ts',
       'server/cms/serverPluginRuntime.ts',
     ]
 

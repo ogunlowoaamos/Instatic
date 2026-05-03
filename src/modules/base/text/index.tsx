@@ -2,8 +2,8 @@
 /**
  * base.text — unified semantic text module.
  *
- * Replaces base.heading and base.paragraph. Content and semantic tag are module
- * settings; visual typography belongs to class styles.
+ * Content and semantic tag are module settings; visual typography belongs to
+ * class styles.
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'

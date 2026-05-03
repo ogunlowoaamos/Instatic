@@ -223,7 +223,7 @@ export interface PageNode {
 
   /**
    * References a ModuleDefinition in the registry.
-   * Format: "namespace.module-name" — e.g. "base.heading"
+   * Format: "namespace.module-name" — e.g. "base.text"
    */
   moduleId: string
 
@@ -260,9 +260,9 @@ export interface PageNode {
    * Ordered class IDs from the site's class registry.
    * Applied as the referenced user-facing class names on the element.
    * Later classes in the array win in cascade order.
-   * Defaults to [] when not present (backwards-compatible).
+   * Empty array when no classes are applied.
    */
-  classIds?: string[]
+  classIds: string[]
 
   /**
    * Template-only prop bindings.
@@ -434,35 +434,19 @@ export interface SiteDocument {
   pages: Page[]
   /**
    * Flat list of every non-page file in the site.
-   * (Contribution #595 §1 — files data layer)
    *
    * Pages are NOT stored here — they remain first-class in `pages[]`.
    *
    * Why flat array: same reasoning as Page.nodes — a single Immer reference per
    * mutation and trivial serialization.
-   *
-   * Defaults to [] on hydration of legacy projects (validateSite handles this).
    */
   files: SiteFile[]
-  /**
-   * User-authored reusable canvas trees.
-   * Each VC is stored as a reusable canvas tree.
-   * (Contribution #619 — Visual Components data layer)
-   * Defaults to [] on hydration of legacy projects (validateSite handles this).
-   */
+  /** User-authored reusable canvas trees. Each VC is stored as a reusable canvas tree. */
   visualComponents: VisualComponent[]
-  /**
-   * SiteDocument-owned package manifest used by dependency-backed editor runtimes.
-   * Optional for legacy fixtures/projects; validation and site creation fill
-   * defaults before normal editor use.
-   */
-  packageJson?: SitePackageJson
-  /**
-   * Runtime configuration for dependency-backed user scripts.
-   * Optional for legacy fixtures/projects; validation and site creation fill
-   * defaults before normal editor use.
-   */
-  runtime?: SiteRuntimeConfig
+  /** SiteDocument-owned package manifest used by dependency-backed editor runtimes. */
+  packageJson: SitePackageJson
+  /** Runtime configuration for dependency-backed user scripts. */
+  runtime: SiteRuntimeConfig
   breakpoints: Breakpoint[]
   settings: SiteSettings
   /**
