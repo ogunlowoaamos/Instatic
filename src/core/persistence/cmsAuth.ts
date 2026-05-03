@@ -1,11 +1,9 @@
 import { parseJsonResponse } from '@core/utils/jsonValidate'
-import { CmsSetupStatusSchema, ErrorEnvelopeSchema } from './responseSchemas'
-
-interface CmsSetupStatus {
-  hasSite: boolean
-  hasAdmin: boolean
-  needsSetup: boolean
-}
+import {
+  CmsSetupStatusSchema,
+  ErrorEnvelopeSchema,
+  type CmsSetupStatus,
+} from './responseSchemas'
 
 interface CmsSetupInput {
   siteName: string

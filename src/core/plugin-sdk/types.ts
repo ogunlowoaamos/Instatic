@@ -195,7 +195,13 @@ export interface PluginAdminAppApi {
   cms: {
     routes: {
       fetch: (path: string, init?: RequestInit) => Promise<Response>
-      json: <T = unknown>(path: string, init?: RequestInit) => Promise<T>
+      /**
+       * Validated JSON helper. The Zod schema is required — that's the whole
+       * point: deeply-typed responses without an unsafe `as T` cast at the
+       * call site. Plugins that prefer raw access can use `fetch(path)` and
+       * `.json()` directly.
+       */
+      json: <T>(path: string, schema: import('zod').ZodType<T>, init?: RequestInit) => Promise<T>
     }
     storage: {
       collection: (resourceId: string) => {

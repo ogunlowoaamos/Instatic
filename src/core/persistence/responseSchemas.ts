@@ -23,6 +23,10 @@
 
 import { z } from 'zod'
 
+// Re-exported types are inferred from the schemas below — these schemas are
+// the source of truth, the types follow. Removes the previous duplication
+// where each consumer module also declared its own TS interface.
+
 // ---------------------------------------------------------------------------
 // Error envelope used by every CMS endpoint
 // ---------------------------------------------------------------------------
@@ -44,6 +48,8 @@ export const CmsSetupStatusSchema = z.object({
   needsSetup: z.boolean(),
 })
 
+export type CmsSetupStatus = z.infer<typeof CmsSetupStatusSchema>
+
 // ---------------------------------------------------------------------------
 // cmsMedia.ts
 // ---------------------------------------------------------------------------
@@ -56,6 +62,8 @@ export const CmsMediaAssetSchema = z.object({
   publicPath: z.string(),
   createdAt: z.string(),
 })
+
+export type CmsMediaAsset = z.infer<typeof CmsMediaAssetSchema>
 
 export const CmsMediaListResponseSchema = z
   .object({
@@ -75,6 +83,8 @@ export const CmsPublishResultSchema = z.object({
   publishedPages: z.number(),
 })
 
+export type CmsPublishResult = z.infer<typeof CmsPublishResultSchema>
+
 export const CmsPublishStatusSchema = z.object({
   hasPublishedVersion: z.boolean(),
   draftMatchesPublished: z.boolean(),
@@ -82,6 +92,8 @@ export const CmsPublishStatusSchema = z.object({
   publishedPages: z.number(),
   lastPublishedAt: z.string().optional(),
 })
+
+export type CmsPublishStatus = z.infer<typeof CmsPublishStatusSchema>
 
 // ---------------------------------------------------------------------------
 // cmsRuntime.ts — envelopes only; inner types are deep

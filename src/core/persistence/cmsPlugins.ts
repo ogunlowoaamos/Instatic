@@ -5,7 +5,7 @@ import type {
   PluginManifest,
   PluginPermission,
 } from '../plugin-sdk'
-import { parseJsonResponse } from '@core/utils/jsonValidate'
+import { readEnvelope } from './httpJson'
 import { responseErrorMessage } from './httpErrors'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -31,17 +31,6 @@ const PluginActionEnvelope = z.object({
 const ManifestEnvelope = z.object({
   manifest: z.unknown().optional(),
 }).passthrough()
-
-async function readEnvelope<T>(
-  res: Response,
-  schema: z.ZodType<T>,
-  fallback: string,
-): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, fallback))
-  }
-  return await parseJsonResponse(res, schema)
-}
 
 function emptyPayload(body: Partial<CmsPluginsPayload>): CmsPluginsPayload {
   return {

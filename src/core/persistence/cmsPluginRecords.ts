@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { PluginRecord, PluginResource } from '../plugin-sdk'
-import { parseJsonResponse } from '@core/utils/jsonValidate'
+import { readEnvelope } from './httpJson'
 import { responseErrorMessage } from './httpErrors'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -23,17 +23,6 @@ const PluginRecordsEnvelope = z.object({
 const RecordEnvelope = z.object({
   record: z.unknown().optional(),
 }).passthrough()
-
-async function readEnvelope<T>(
-  res: Response,
-  schema: z.ZodType<T>,
-  fallback: string,
-): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, fallback))
-  }
-  return await parseJsonResponse(res, schema)
-}
 
 function recordsPath(basePath: string, pluginId: string, resourceId: string): string {
   return `${basePath}/plugins/${encodeURIComponent(pluginId)}/resources/${encodeURIComponent(resourceId)}/records`

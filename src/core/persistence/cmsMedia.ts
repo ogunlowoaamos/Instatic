@@ -3,16 +3,10 @@ import { responseErrorMessage } from './httpErrors'
 import {
   CmsMediaAssetEnvelopeSchema,
   CmsMediaListResponseSchema,
+  type CmsMediaAsset,
 } from './responseSchemas'
 
-export interface CmsMediaAsset {
-  id: string
-  filename: string
-  mimeType: string
-  sizeBytes: number
-  publicPath: string
-  createdAt: string
-}
+export type { CmsMediaAsset }
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 

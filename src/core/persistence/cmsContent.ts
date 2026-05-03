@@ -9,8 +9,7 @@ import type {
   UpdateContentEntryCollectionInput,
   UpdateContentCollectionInput,
 } from '../content/types'
-import { parseJsonResponse } from '@core/utils/jsonValidate'
-import { responseErrorMessage } from './httpErrors'
+import { readEnvelope } from './httpJson'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -43,17 +42,6 @@ const EntryEnvelope = z.object({
 }).passthrough()
 
 // ---------------------------------------------------------------------------
-
-async function readEnvelope<T>(
-  res: Response,
-  schema: z.ZodType<T>,
-  fallback: string,
-): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, fallback))
-  }
-  return await parseJsonResponse(res, schema)
-}
 
 export async function listCmsContentCollections(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),

@@ -125,7 +125,11 @@ export interface PluginAdminAppApi {
   cms: {
     routes: {
       fetch: (path: string, init?: RequestInit) => Promise<Response>
-      json: <T = unknown>(path: string, init?: RequestInit) => Promise<T>
+      /**
+       * Validated JSON helper — pass a Zod schema. Plugins that don't want
+       * to depend on Zod should use `routes.fetch(path).then(r => r.json())`.
+       */
+      json: <T>(path: string, schema: import('zod').ZodType<T>, init?: RequestInit) => Promise<T>
     }
     storage: {
       collection: (resourceId: string) => PluginStorageCollection<void>

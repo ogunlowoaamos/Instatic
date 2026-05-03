@@ -213,7 +213,9 @@ export async function render({ root, api }) {
     try {
       const [records, status] = await Promise.all([
         approvals.list(),
-        api.cms.routes.json('status').catch(() => null),
+        // Raw fetch — this example doesn't import zod. Plugins that DO want
+        // typed responses should use api.cms.routes.json(path, schema).
+        api.cms.routes.fetch('status').then((r) => r.json()).catch(() => null),
       ])
       renderDashboard(records, status)
     } catch (error) {
@@ -321,7 +323,8 @@ export async function render({ root, api }) {
 
     shell.querySelector('[data-seed]')?.addEventListener('click', async () => {
       try {
-        await api.cms.routes.json('seed', { method: 'POST' })
+        // Fire-and-forget seed; ignore the response body.
+        await api.cms.routes.fetch('seed', { method: 'POST' })
         await loadRecords('Backend route created a request')
       } catch (error) {
         shell.insertAdjacentHTML('afterbegin', `<p class="workflowPlugin__error">${escapeHtml(error.message || error)}</p>`)

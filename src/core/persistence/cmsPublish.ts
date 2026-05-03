@@ -3,19 +3,9 @@ import { responseErrorMessage } from './httpErrors'
 import {
   CmsPublishResultSchema,
   CmsPublishStatusSchema,
+  type CmsPublishResult,
+  type CmsPublishStatus,
 } from './responseSchemas'
-
-interface CmsPublishResult {
-  publishedPages: number
-}
-
-interface CmsPublishStatus {
-  hasPublishedVersion: boolean
-  draftMatchesPublished: boolean
-  draftPages: number
-  publishedPages: number
-  lastPublishedAt?: string
-}
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 

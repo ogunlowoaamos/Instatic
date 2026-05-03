@@ -1,9 +1,11 @@
+import type { z } from 'zod'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
   listCmsPluginResourceRecords,
   updateCmsPluginResourceRecord,
 } from '../persistence/cmsPluginRecords'
+import { parseJsonResponse } from '@core/utils/jsonValidate'
 import type {
   PluginAdminAppApi,
   PluginAdminAppContext,
@@ -46,21 +48,13 @@ function createAdminPluginApi(pluginId: string, fetchImpl: FetchLike): PluginAdm
             ...init,
           })
         },
-        // NOTE — this `json<T>` method is part of the plugin SDK *contract*
-        // exposed to third-party admin app code. The `as T` cast is here on
-        // purpose: T defaults to `unknown`, so plugin authors who supply a
-        // narrower T are explicitly opting out of runtime validation. Plugins
-        // wanting type-safe responses should use the cms.routes.fetch() raw
-        // form combined with their own Zod schema (or import @core/utils/
-        // jsonValidate via the SDK's helpers in a future SDK release).
-        // Surfaced by /audit-types — accepted boundary.
-        async json<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+        async json<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
           const res = await fetchImpl(runtimePath(pluginId, path), {
             credentials: 'include',
             ...init,
           })
           if (!res.ok) throw new Error(`Plugin route failed with ${res.status}`)
-          return await res.json() as T
+          return await parseJsonResponse(res, schema)
         },
       },
       storage: {

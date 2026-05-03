@@ -20,7 +20,12 @@ export async function render({ root, api }) {
 
   const items = api.cms.storage.collection('items')
   const [statusPayload, list] = await Promise.all([
-    api.cms.routes.json('status').catch(() => ({ total: 0 })),
+    // Raw fetch — this example doesn't import zod. Plugins that DO want
+    // typed responses should use api.cms.routes.json(path, schema).
+    api.cms.routes
+      .fetch('status')
+      .then((r) => r.json())
+      .catch(() => ({ total: 0 })),
     items.list(),
   ])
 

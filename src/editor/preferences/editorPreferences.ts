@@ -4,27 +4,29 @@ import { parseJsonWithFallback } from '@core/utils/jsonValidate'
 export const EDITOR_PREFS_KEY = 'pb-editor-prefs'
 const EDITOR_PREFS_CHANGED_EVENT = 'pb-editor-prefs-changed'
 
-// EditorPrefsSchema covers only the keys this module reads. Other call sites
-// (e.g. PreferencesSection) use their own EditorPrefs type for the full UI
-// model — these readers only need the fields they consume, with everything
-// else allowed via .passthrough() so future fields don't crash older readers.
+// Single source of truth for editor preferences. The UI section
+// (PreferencesSection) imports both the schema and the type from here.
+// .passthrough() so future fields written by other parts of the editor
+// don't crash older readers.
 //
 // Surfaced by /audit-types — was `JSON.parse(raw) as { autoSave?: unknown }`.
-const EditorPrefsSchema = z
+export const EditorPrefsSchema = z
   .object({
     autoSave: z.boolean().optional(),
     classHoverPreview: z.boolean().optional(),
   })
   .passthrough()
 
-const DEFAULT_PREFS: z.infer<typeof EditorPrefsSchema> = {
+export type EditorPrefs = z.infer<typeof EditorPrefsSchema>
+
+export const DEFAULT_EDITOR_PREFS: Required<EditorPrefs> = {
   autoSave: true,
   classHoverPreview: true,
 }
 
 function readEditorPrefs() {
   const raw = globalThis.localStorage?.getItem(EDITOR_PREFS_KEY) ?? null
-  return parseJsonWithFallback(raw, EditorPrefsSchema, DEFAULT_PREFS)
+  return parseJsonWithFallback(raw, EditorPrefsSchema, DEFAULT_EDITOR_PREFS)
 }
 
 export function readAutoSavePreference(): boolean {
