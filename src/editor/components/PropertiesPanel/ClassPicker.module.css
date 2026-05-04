@@ -23,9 +23,14 @@
     max-width: 100%;
     min-height: 20px;
     gap: 4px;
-    padding: 0 7px;
+    /* Asymmetric padding intentionally compensates for the trailing × button:
+       the icon is visually counted toward the right inset so the optical
+       distance from the chip edge to the text on the left matches the
+       distance from the chip edge to the × icon on the right. */
+    padding: 0 6px 0 8px;
+    padding-right: 4px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     user-select: none;
     transition:
@@ -108,23 +113,14 @@
     font-weight: 620;
 }
 
-/* × remove button — width-collapsed at rest, slides in on chip hover/focus.
-   Chip stays genuinely compact; × reveals smoothly without layout jitter
-   on non-hovered siblings (they only shift when this chip expands, which
-   is intentional and transitions smoothly at 140ms). */
-.pillRemoveBtn {
-    width: 10px;
-    overflow: hidden;
-    transition:
-        width 140ms ease,
-        opacity 120ms ease,
-        margin-left 140ms ease;
-}
-
-.pill:hover .pillRemoveBtn,
-.pill:focus-within .pillRemoveBtn {
-    width: 10px;
-    background: transparent;
+/* × remove button — always-visible inline icon with stable width.
+   Overrides Button's `.size-micro.iconOnly { width: 18px }` (specificity 0,2,0)
+   with the compound `.pill button.pillRemoveBtn` selector (0,2,1). The chip
+   never changes width across hover/active/focus states. */
+.pill button.pillRemoveBtn {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
 }
 
 /* Input + optional trailing action (e.g. the Componentize button).

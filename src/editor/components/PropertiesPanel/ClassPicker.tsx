@@ -301,59 +301,6 @@ function ClassPickerInner({ nodeId, trailingAction }: ClassPickerProps, ref) {
 
   return (
     <div className={styles.container}>
-      {/* Assigned class chips */}
-      {visibleAssignedIds.length > 0 && (
-        <div className={styles.pillsContainer}>
-          {visibleAssignedIds.map((id) => {
-            const cls = site?.classes[id]
-            if (!cls) return null
-            const isActive = activeClassId === id
-            return (
-              <div
-                key={id}
-                className={cn(styles.pill, isActive ? styles.pillActive : styles.pillInactive)}
-                data-accent={pillAccent(cls.name)}
-                onClick={() => {
-                  setActiveClass(isActive ? null : id)
-                }}
-                role="button"
-                aria-pressed={isActive}
-                aria-label={`${isActive ? 'Deselect' : 'Edit'} class ${cls.name}`}
-                tabIndex={0}
-                onContextMenu={(e) => openClassContextMenu(id, e)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setActiveClass(isActive ? null : id)
-                    return
-                  }
-                  openKeyboardClassContextMenu(id, e)
-                }}
-              >
-                <span className={styles.pillName}>{cls.name}</span>
-
-                {/* Remove from this element (does NOT delete the class globally) */}
-                <Button
-                  variant="ghost"
-                  size="micro"
-                  iconOnly
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeAssignedClass(id)
-                  }}
-                  aria-label={`Remove class ${cls.name}`}
-                  tooltip="Remove from this element"
-                  dangerHover
-                  className={styles.pillRemoveBtn}
-                >
-                  <CloseIcon size={10} color="currentColor" aria-hidden="true" />
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
       {contextMenu && contextClass && createPortal(
         <ClassPillContextMenu
           x={contextMenu.x}
@@ -469,6 +416,61 @@ function ClassPickerInner({ nodeId, trailingAction }: ClassPickerProps, ref) {
           document.body,
         )}
       </div>
+
+      {/* Assigned class chips — rendered below the input row so the
+          add-class control and Componentize button sit at the top of the
+          panel, with the active chip stack underneath. */}
+      {visibleAssignedIds.length > 0 && (
+        <div className={styles.pillsContainer}>
+          {visibleAssignedIds.map((id) => {
+            const cls = site?.classes[id]
+            if (!cls) return null
+            const isActive = activeClassId === id
+            return (
+              <div
+                key={id}
+                className={cn(styles.pill, isActive ? styles.pillActive : styles.pillInactive)}
+                data-accent={pillAccent(cls.name)}
+                onClick={() => {
+                  setActiveClass(isActive ? null : id)
+                }}
+                role="button"
+                aria-pressed={isActive}
+                aria-label={`${isActive ? 'Deselect' : 'Edit'} class ${cls.name}`}
+                tabIndex={0}
+                onContextMenu={(e) => openClassContextMenu(id, e)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setActiveClass(isActive ? null : id)
+                    return
+                  }
+                  openKeyboardClassContextMenu(id, e)
+                }}
+              >
+                <span className={styles.pillName}>{cls.name}</span>
+
+                {/* Remove from this element (does NOT delete the class globally) */}
+                <Button
+                  variant="ghost"
+                  size="micro"
+                  iconOnly
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeAssignedClass(id)
+                  }}
+                  aria-label={`Remove class ${cls.name}`}
+                  tooltip="Remove from this element"
+                  dangerHover
+                  className={styles.pillRemoveBtn}
+                >
+                  <CloseIcon size={10} color="currentColor" aria-hidden="true" />
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 })
