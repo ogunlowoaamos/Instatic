@@ -36,6 +36,8 @@ import {
   updateContentEntryStatus,
 } from './contentRepository'
 import { normalizeContentCollectionFields } from '@core/content/fields'
+import { createNode } from '@core/page-tree/mutations'
+import type { Page } from '@core/page-tree/schemas'
 import { slugFromTitle } from '@core/utils/slug'
 import {
   createMediaAsset,
@@ -357,6 +359,22 @@ export async function handleCmsRequest(
         email,
         passwordHash: await hashPassword(password),
       })
+      // Seed a starter homepage. SiteDocumentSchema requires pages.length >= 1
+      // — a freshly-set-up site without any pages would fail validation the
+      // moment the editor tried to load it.
+      const rootNode = createNode('base.root')
+      const homePage: Page = {
+        id: nanoid(),
+        title: 'Home',
+        slug: 'index',
+        rootNodeId: rootNode.id,
+        nodes: { [rootNode.id]: rootNode },
+      }
+      await db.query(
+        `insert into pages (id, title, slug, draft_document_json, sort_order)
+         values ($1, $2, $3, $4, $5)`,
+        [homePage.id, homePage.title, homePage.slug, homePage, 0],
+      )
       await db.query('commit')
       return jsonResponse({ ok: true }, { status: 201 })
     } catch (err) {

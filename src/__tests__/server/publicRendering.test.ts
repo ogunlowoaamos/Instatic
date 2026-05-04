@@ -73,6 +73,14 @@ class PublicFakeDb implements DbClient {
         rowCount: this.activeSnapshot ? 1 : 0,
       }
     }
+    // Public-rendering tests assume the CMS is already set up; otherwise the
+    // router would redirect public 404s to /admin (the fresh-install flow).
+    if (normalized.includes('count(*)::int as count from site')) {
+      return { rows: [{ count: 1 } as unknown as Row], rowCount: 1 }
+    }
+    if (normalized.includes('count(*)::int as count from admin_users')) {
+      return { rows: [{ count: 1 } as unknown as Row], rowCount: 1 }
+    }
     return { rows: [], rowCount: 0 }
   }
 }
