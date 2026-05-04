@@ -25,7 +25,7 @@ import type {
   SiteDependencyLock,
   SiteRuntimeConfig,
   SiteScriptRuntimeConfig,
-} from '@core/site-runtime/types'
+} from '@core/site-runtime/schemas'
 import {
   clonePackageJson,
   DEFAULT_SITE_PACKAGE_JSON,

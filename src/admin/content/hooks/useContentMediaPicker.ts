@@ -4,7 +4,7 @@ import {
   type CmsMediaAsset,
 } from '@core/persistence'
 import { createMediaBlock } from '@core/content/markdown'
-import type { ContentBlock } from '@core/content/types'
+import type { ContentBlock } from '@core/content/schemas'
 import { mediaTypeFromAsset } from '../utils/contentEntryUtils'
 
 export type MediaPickerKind = 'media' | 'featured'

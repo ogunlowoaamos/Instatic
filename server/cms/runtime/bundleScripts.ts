@@ -11,7 +11,7 @@ import type {
   RuntimeScriptEntry,
   SiteRuntimeDiagnostic,
   SiteRuntimeTarget,
-} from '@core/site-runtime/types'
+} from '@core/site-runtime/schemas'
 import {
   clonePackageJson,
   DEFAULT_SITE_PACKAGE_JSON,

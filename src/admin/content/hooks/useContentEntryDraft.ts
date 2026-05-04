@@ -9,7 +9,7 @@ import {
   parseMarkdownBlocks,
   serializeMarkdownBlocks,
 } from '@core/content/markdown'
-import type { ContentBlock, ContentEntry, ContentEntryStatus } from '@core/content/types'
+import type { ContentBlock, ContentEntry, ContentEntryStatus } from '@core/content/schemas'
 import { slugFromTitle } from '@core/utils/slug'
 
 export type SaveMessage = 'idle' | 'saving' | 'saved' | 'publishing' | 'published' | 'error'

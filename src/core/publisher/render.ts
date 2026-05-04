@@ -20,8 +20,9 @@ import { generateFrameworkColorRootCss } from '../framework/colors'
 import { generateFrameworkTypographyRootCss } from '../framework/typography'
 import { generateFrameworkSpacingRootCss } from '../framework/spacing'
 import { resolveFrameworkPreferences } from '../framework/preferences'
+import { generateFontsCss } from '../fonts/css'
 import { escapeHtml, isSafeUrl } from './utils'
-import type { PublishedPageRuntimeAssets } from '../site-runtime/types'
+import type { PublishedPageRuntimeAssets } from '../site-runtime/schemas'
 import { hasPublishedRuntimeScripts, scriptTagsForRuntimeAssets } from '../site-runtime'
 import { sanitizeRichtext } from '../sanitize'
 import { instantiateVCAtRef, type InstantiatedVCNode } from '../visualComponents/instantiate'
@@ -409,17 +410,22 @@ const CSS_CUSTOM_PROP_RE = /^--[a-zA-Z0-9_-]+$/
  * Token keys are validated against CSS_CUSTOM_PROP_RE to prevent key-side injection.
  */
 function buildRootCss(site: SiteDocument): string {
-  const { colorTokens, framework } = site.settings
+  const { colorTokens, framework, fonts } = site.settings
   const declarations = Object.entries(colorTokens)
     .filter(([k]) => CSS_CUSTOM_PROP_RE.test(k))
     .map(([k, v]) => `  ${k}: ${sanitizeCssTokenValue(v)};`)
     .join('\n')
   const legacyRootCss = declarations ? `:root {\n${declarations}\n}` : ''
   const preferences = resolveFrameworkPreferences(framework?.preferences)
+  // Fonts emit @font-face rules + --font-<slug> tokens. Emit first so any rule
+  // that references a font family resolves against an already-declared face.
+  // All `src` URLs are restricted to /uploads/fonts/ — no CDN linkage in the
+  // published page (Constraint: published HTML never reaches Google).
+  const fontsCss = generateFontsCss(fonts)
   const frameworkColorCss = generateFrameworkColorRootCss(framework?.colors)
   const frameworkTypographyCss = generateFrameworkTypographyRootCss(framework?.typography, preferences)
   const frameworkSpacingCss = generateFrameworkSpacingRootCss(framework?.spacing, preferences)
-  return [legacyRootCss, frameworkColorCss, frameworkTypographyCss, frameworkSpacingCss]
+  return [fontsCss, legacyRootCss, frameworkColorCss, frameworkTypographyCss, frameworkSpacingCss]
     .filter(Boolean)
     .join('\n')
 }

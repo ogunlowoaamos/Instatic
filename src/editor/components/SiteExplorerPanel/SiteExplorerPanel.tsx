@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { useEditorStore } from '@core/editor-store/store'
-import type { SiteFile } from '@core/files/types'
+import type { SiteFile } from '@core/files/schemas'
 import type { Page } from '@core/page-tree'
 import type { VisualComponent } from '@core/visualComponents/types'
 import { createUniquePageSlug, pagePublicPath } from '@core/page-tree/slugs'

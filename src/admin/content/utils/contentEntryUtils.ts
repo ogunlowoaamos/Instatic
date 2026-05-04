@@ -1,5 +1,5 @@
 import type { CmsMediaAsset } from '@core/persistence'
-import type { ContentEntry, ContentMediaType } from '@core/content/types'
+import type { ContentEntry, ContentMediaType } from '@core/content/schemas'
 
 export function updateEntryList(entries: ContentEntry[], entry: ContentEntry): ContentEntry[] {
   const existing = entries.findIndex((candidate) => candidate.id === entry.id)

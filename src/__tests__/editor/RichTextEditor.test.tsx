@@ -207,7 +207,12 @@ describe('RTE-4 — disabled prop disables editing and toolbar', () => {
 
     expect(btns.length).toBeGreaterThan(0)
     for (const btn of btns) {
-      expect((btn as HTMLButtonElement).disabled).toBe(true)
+      // Buttons with a tooltip use aria-disabled (so tooltips still fire on hover);
+      // buttons without a tooltip use native disabled. Both are valid disabled states.
+      const isDisabled =
+        (btn as HTMLButtonElement).disabled ||
+        btn.getAttribute('aria-disabled') === 'true'
+      expect(isDisabled).toBe(true)
     }
   })
 

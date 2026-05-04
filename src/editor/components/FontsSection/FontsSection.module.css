@@ -1,0 +1,459 @@
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.empty {
+    color: var(--editor-text-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.list {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 4px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--editor-radius-sm);
+    background: var(--editor-bg);
+    color: var(--editor-text);
+    min-width: 0;
+}
+
+.rowMain {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 2px;
+    min-width: 0;
+}
+
+.rowFamily {
+    color: var(--editor-text);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rowMeta {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rowActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.addRow {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.errorAlert {
+    margin: 0;
+    color: var(--editor-danger, var(--editor-text));
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* ─── Add-Font dialog ────────────────────────────────────────────────── */
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 95;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgb(8 10 14 / 50%);
+}
+
+.dialog {
+    width: min(720px, 100%);
+    max-height: min(820px, calc(100vh - 48px));
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    background: var(--editor-surface);
+    box-shadow: 0 18px 48px rgb(0 0 0 / 28%);
+    color: var(--editor-text);
+    overflow: hidden;
+}
+
+.dialogHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 26px;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    background: var(--editor-surface-2);
+    padding: 8px 10px 8px 14px;
+}
+
+.dialogTitle {
+    margin: 0;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dialogBody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.dialogActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--editor-surface-2);
+}
+
+/* ─── Family picker ──────────────────────────────────────────────────── */
+
+.pickerSearch {
+    flex-shrink: 0;
+}
+
+/* 2-column responsive grid of font tiles. Each tile renders the family name
+ * large in its own font; meta (category + variants count) sits below in
+ * muted text. The whole grid scrolls inside the dialog body — never the
+ * dialog itself, so the search bar and dialog actions stay anchored. */
+.pickerList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    list-style: none;
+    margin: 0;
+    gap: 8px;
+    overflow-y: auto;
+}
+
+@media (max-width: 520px) {
+    .pickerList {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.pickerItem {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 96px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 0;
+    background: var(--editor-surface-2);
+    color: var(--editor-text);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    overflow: hidden;
+    min-width: 0;
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease,
+        transform 120ms ease;
+}
+
+.pickerItem:hover,
+.pickerItem:focus-visible {
+    border-color: var(--editor-text-subtle, var(--editor-text-muted));
+    background: var(--editor-surface-2);
+    outline: none;
+}
+
+.pickerItem:active {
+    transform: scale(0.99);
+}
+
+.pickerItem:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.pickerName {
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--editor-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pickerMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pickerCategory {
+    color: var(--editor-text-muted);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.pickerInstalled {
+    color: var(--editor-text-muted);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.pickerEmpty {
+    grid-column: 1 / -1;
+    padding: 32px 18px;
+    color: var(--editor-text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.pickerInfo {
+    color: var(--editor-text-muted);
+    font-size: 11px;
+}
+
+/* ─── Variants + subsets picker (step 2) ─────────────────────────────── */
+
+/* Hero preview — large family render that takes the top of the dialog body.
+ * Doubles as a typing playground via contenteditable; the user can rewrite
+ * the sample text and the live render updates instantly. */
+.preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 20px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: var(--editor-bg);
+    min-width: 0;
+}
+
+.previewMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.previewFamilyName {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.previewCategory {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.previewSample {
+    color: var(--editor-text);
+    font-size: 36px;
+    line-height: 1.15;
+    margin: 0;
+    word-break: break-word;
+    /* contenteditable surface — must accept clicks/typing without an outline
+     * border to keep the preview chrome calm. Browser still gives keyboard
+     * focus indication via the parent's :focus-within if needed. */
+    outline: none;
+    cursor: text;
+    min-height: 1.15em;
+}
+
+.previewSample:focus-visible {
+    outline: none;
+}
+
+.dialogSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dialogSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dialogSectionTitle {
+    color: var(--editor-text);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.dialogSectionSelectAll {
+    color: var(--editor-text-muted);
+    font-size: 11px;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+
+.dialogSectionSelectAll:hover,
+.dialogSectionSelectAll:focus-visible {
+    color: var(--editor-text);
+    outline: none;
+    text-decoration: underline;
+}
+
+/* Variant rows — one row per weight/italic combo, each labelled with the
+ * weight name (Regular 400, Bold 700, etc.) AND a sample word rendered in
+ * the actual weight/style so the user can compare at a glance. */
+.variantList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 4px 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.variantRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--editor-bg);
+    border: 1px solid transparent;
+    color: var(--editor-text);
+    cursor: pointer;
+    line-height: 1.2;
+    min-width: 0;
+}
+
+.variantRow:hover {
+    background: var(--editor-surface-2);
+}
+
+.variantRow[data-checked="true"] {
+    background: var(--editor-surface-2);
+    border-color: var(--editor-text-subtle, var(--editor-text-muted));
+}
+
+.variantRow input {
+    accent-color: var(--editor-text);
+    margin: 0;
+}
+
+.variantSample {
+    font-size: 18px;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variantWeightLabel {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+
+/* Subset chips — compact pill toggles. Subset list is short (1-15 entries)
+ * so a wrap row reads better than a checkbox column. */
+.subsetChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.subsetChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: var(--editor-bg);
+    color: var(--editor-text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+.subsetChip:hover {
+    background: var(--editor-surface-2);
+}
+
+.subsetChip[aria-pressed="true"] {
+    background: var(--editor-surface-3, var(--editor-surface-2));
+    border-color: var(--editor-text);
+    color: var(--editor-text);
+}
+
+.subsetChip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}

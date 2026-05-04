@@ -8,7 +8,7 @@ import type {
   CreateContentEntryInput,
   UpdateContentEntryCollectionInput,
   UpdateContentCollectionInput,
-} from '../content/types'
+} from '../content/schemas'
 import { readEnvelope } from './httpJson'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>

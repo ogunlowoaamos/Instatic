@@ -60,6 +60,7 @@ const NAME_VALIDATION  = join(ROOT, 'src/core/visualComponents/nameValidation.ts
 const RECURSION_GUARD  = join(ROOT, 'src/core/visualComponents/recursionGuard.ts')
 const VC_SLICE_TS      = join(ROOT, 'src/core/editor-store/slices/visualComponentsSlice.ts')
 const PAGE_TREE_TYPES  = join(ROOT, 'src/core/page-tree/types.ts')
+const PAGE_TREE_SCHEMAS = join(ROOT, 'src/core/page-tree/schemas.ts')
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded functional modules (fail gracefully if not yet implemented)
@@ -270,23 +271,51 @@ describe('Gate DD-2 — visualComponentsSlice has no editor/ imports', () => {
 // Section 3 — Type shape (static source scan on page-tree/types.ts)
 // ============================================================================
 
-describe('Gate TS-1 — SiteDocument.visualComponents field declared in types.ts', () => {
-  it('page-tree/types.ts declares visualComponents: VisualComponent[]', () => {
-    const source = readFileSync(PAGE_TREE_TYPES, 'utf8')
-    // Must contain a visualComponents field declaration
-    expect(source).toMatch(/visualComponents\s*:\s*VisualComponent\[\]/)
+describe('Gate TS-1 — SiteDocument.visualComponents field declared in schemas.ts', () => {
+  it('page-tree/schemas.ts declares visualComponents in SiteDocumentSchema (Step 4 migration: interface moved to Zod schema)', () => {
+    // After Step 4: SiteDocument is derived from SiteDocumentSchema in schemas.ts.
+    // types.ts is now a pure re-export shim — no interface declarations live there.
+    const schemas = readFileSync(PAGE_TREE_SCHEMAS, 'utf8')
+    // Must have a visualComponents field inside SiteDocumentSchema
+    expect(schemas).toMatch(/visualComponents\s*:/)
+    // types.ts must re-export SiteDocument from ./schemas (not declare it as interface)
+    const types = readFileSync(PAGE_TREE_TYPES, 'utf8')
+    expect(types).toMatch(/SiteDocument/)
+    expect(types).not.toMatch(/interface SiteDocument/)
   })
 })
 
-describe('Gate TS-2 — PageNode.propBindings optional field declared', () => {
-  it('page-tree types declare optional propBindings on the shared BaseNode', () => {
-    // `propBindings?` lives on `BaseNode` (which `PageNode` extends).
-    // `BaseNode` was extracted into its own `baseNode.ts` module to break the
-    // page-tree ↔ visualComponents cycle, so check both files.
-    const baseNodeSource = readFileSync(join(ROOT, 'src/core/page-tree/baseNode.ts'), 'utf8')
-    const typesSource = readFileSync(PAGE_TREE_TYPES, 'utf8')
-    const combined = `${baseNodeSource}\n${typesSource}`
-    expect(combined).toMatch(/propBindings\s*\?/)
+describe('Gate TS-2 — BaseNode.propBindings optional field declared', () => {
+  it('BaseNodeSchema declares propBindings as an optional record of paramId references', async () => {
+    const { BaseNodeSchema } = await import('@core/page-tree/baseNode')
+    const shape = (BaseNodeSchema as { shape?: Record<string, unknown> }).shape
+    expect(shape).toBeDefined()
+    expect(shape!['propBindings']).toBeDefined()
+
+    // Optional: parsing without propBindings succeeds and produces undefined
+    const probe = BaseNodeSchema.safeParse({
+      id: 'n1',
+      moduleId: 'm',
+      props: {},
+      breakpointOverrides: {},
+      children: [],
+      classIds: [],
+    })
+    expect(probe.success).toBe(true)
+    if (probe.success) expect(probe.data.propBindings).toBeUndefined()
+
+    // Accepts a valid propBindings record
+    const withBinding = BaseNodeSchema.safeParse({
+      id: 'n1',
+      moduleId: 'm',
+      props: {},
+      breakpointOverrides: {},
+      children: [],
+      classIds: [],
+      propBindings: { text: { paramId: 'p1' } },
+    })
+    expect(withBinding.success).toBe(true)
+    if (withBinding.success) expect(withBinding.data.propBindings).toEqual({ text: { paramId: 'p1' } })
   })
 })
 

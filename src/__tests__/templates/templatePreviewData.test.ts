@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { ContentEntry } from '@core/content/types'
+import type { ContentEntry } from '@core/content/schemas'
 import type { CmsMediaAsset } from '@core/persistence/cmsMedia'
 import {
   contentEntryToTemplateEntryData,

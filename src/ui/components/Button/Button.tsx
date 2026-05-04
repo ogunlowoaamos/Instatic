@@ -70,7 +70,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       "aria-label": ariaLabel,
       tooltip,
       tooltipSide,
-      // Explicitly destructured so we can intercept disabled+tooltip combos.
+      // Explicitly destructured so we can intercept disabled+tooltip combos
+      // and preserve any direct aria-disabled prop passed by callers.
       disabled,
       onClick,
       ...rest
@@ -83,11 +84,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       );
     }
 
+    // Extract aria-disabled from rest so we can merge it with our own logic.
+    const { 'aria-disabled': ariaDisabledRest, ...restProps } = rest
+
     // When a tooltip is provided alongside disabled, use aria-disabled instead
     // of the native disabled attribute so that mouseenter still fires and the
     // tooltip can show (native disabled silently swallows pointer events).
-    // The click handler is intercepted so the button remains non-interactive.
     const useAriaDisabled = !!disabled && !!tooltip;
+
+    // effectiveAriaDisabled is true when:
+    //   • disabled+tooltip combo (converts to aria-disabled), OR
+    //   • caller passed aria-disabled directly (e.g. PagesSection delete button)
+    const effectiveAriaDisabled =
+      useAriaDisabled || ariaDisabledRest === true || ariaDisabledRest === 'true'
 
     const button = (
       <button
@@ -111,12 +120,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           numeric && styles.numeric,
           className,
         )}
-        {...rest}
-        // These three override anything in ...rest to ensure correct disabled/
-        // aria semantics when a tooltip is provided with a disabled button.
+        {...restProps}
+        // Override disabled/aria semantics and click interception for both the
+        // disabled+tooltip case and the direct aria-disabled case.
         disabled={useAriaDisabled ? undefined : (disabled || undefined)}
-        aria-disabled={useAriaDisabled ? true : undefined}
-        onClick={useAriaDisabled ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault() : onClick}
+        aria-disabled={effectiveAriaDisabled ? true : undefined}
+        onClick={effectiveAriaDisabled ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault() : onClick}
       >
         {children}
       </button>

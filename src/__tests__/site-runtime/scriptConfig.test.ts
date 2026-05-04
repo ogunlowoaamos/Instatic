@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { SiteFile } from '@core/files/types'
+import type { SiteFile } from '@core/files/schemas'
 import type { Page } from '@core/page-tree/types'
 import {
   DEFAULT_SCRIPT_RUNTIME_CONFIG,

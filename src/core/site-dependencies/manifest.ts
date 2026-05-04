@@ -1,9 +1,24 @@
+import { z } from 'zod'
 import { isSafePackageName } from './packageNames'
 
-export interface SitePackageJson {
-  dependencies: Record<string, string>
-  devDependencies: Record<string, string>
-}
+// ---------------------------------------------------------------------------
+// SitePackageJsonSchema — thin schema for the site's package manifest shape.
+//
+// NOTE: normalizeSitePackageJson (below) also filters unsafe package names via
+// isSafePackageName(). That per-entry sanitisation is intentionally NOT in
+// this schema because Zod's `.catch({})` would silently discard the entire
+// dependencies map on any failure. Step 5 can add a `.transform()` or
+// `.superRefine()` here to replicate the name sanitisation if needed.
+// For now the schema captures the structural shape and is used as the
+// persistence-boundary type source of truth.
+// ---------------------------------------------------------------------------
+
+export const SitePackageJsonSchema = z.object({
+  dependencies: z.record(z.string(), z.string()).catch({}),
+  devDependencies: z.record(z.string(), z.string()).catch({}),
+}).catch({ dependencies: {}, devDependencies: {} })
+
+export type SitePackageJson = z.infer<typeof SitePackageJsonSchema>
 
 /**
  * Empty default. The dependencies feature is opt-in: a fresh site has no

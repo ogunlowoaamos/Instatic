@@ -84,3 +84,15 @@
 .sectionContent {
     padding: 8px 0 8px 8px;
 }
+
+/**
+ * sectionBody — grid wrapper for property rows inside a Section.
+ *
+ * Used by both ClassStyleSection (CSS property rows) and the Module section
+ * (PropertyControlRenderer / ParamPromotableRow rows) so both have identical
+ * vertical rhythm. Single source of truth for the row gap.
+ */
+.sectionBody {
+    display: grid;
+    gap: 8px;
+}

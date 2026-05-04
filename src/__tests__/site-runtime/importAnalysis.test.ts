@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { SiteFile } from '@core/files/types'
+import type { SiteFile } from '@core/files/schemas'
 import {
   analyzeRuntimeScriptImports,
   extractRuntimeImportSpecifiers,

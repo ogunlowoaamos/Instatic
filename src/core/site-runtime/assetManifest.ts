@@ -2,7 +2,7 @@ import type {
   PublishedPageRuntimeAssets,
   PublishedRuntimeScriptAsset,
   SiteScriptPlacement,
-} from './types'
+} from './schemas'
 
 function escapeAttribute(value: string): string {
   return value

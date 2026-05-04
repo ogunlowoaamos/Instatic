@@ -19,6 +19,7 @@ import {
   type ClassStyleSectionDefinition,
 } from './cssControlTypes'
 import styles from './ClassComposer.module.css'
+import sectionStyles from './Section.module.css'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -48,10 +49,10 @@ export function ClassComposer({
 
   const activeTab = getActiveStyleTab(activeBreakpointId)
 
-  const storedStyles: Partial<CSSPropertyBag> = activeTab !== 'base'
+  const storedStyles: Record<string, unknown> = activeTab !== 'base'
     ? (cls.breakpointStyles[activeTab] ?? {})
     : cls.styles
-  const currentStyles: Partial<CSSPropertyBag> = activeTab !== 'base'
+  const currentStyles: Record<string, unknown> = activeTab !== 'base'
     ? { ...cls.styles, ...storedStyles }
     : cls.styles
 
@@ -103,8 +104,8 @@ export function ClassComposer({
 
 interface ClassStyleSectionProps {
   section: ClassStyleSectionDefinition
-  currentStyles: Partial<CSSPropertyBag>
-  storedStyles: Partial<CSSPropertyBag>
+  currentStyles: Record<string, unknown>
+  storedStyles: Record<string, unknown>
   activeTab: string
   onChange: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
   onRemove: (property: keyof CSSPropertyBag) => void
@@ -129,19 +130,21 @@ function ClassStyleSection({
       indicatorTestId={`class-style-section-dot-${section.id}`}
       meta={setCount > 0 ? `${setCount} set` : undefined}
     >
-      <div className={styles.styleSectionBody}>
+      <div className={sectionStyles.sectionBody}>
         {section.properties.map((prop) => {
           const storedValue = storedStyles[prop]
           const isSet = hasStyleValue(storedValue)
-          const fallbackValue = hasStyleValue(currentStyles[prop])
-            ? currentStyles[prop]
+          const currentValue = currentStyles[prop]
+          const fallbackValue = hasStyleValue(currentValue)
+            ? currentValue
             : getCSSPropertyDefaultValue(prop)
 
           return (
             <ClassPropertyRow
               key={`${activeTab}-${String(prop)}`}
               property={prop}
-              value={isSet ? storedValue : undefined}
+              // storedValue is narrowed to string | number by the isSet guard above
+              value={isSet ? (storedValue as string | number) : undefined}
               placeholder={!isSet ? fallbackValue : undefined}
               isSet={isSet}
               onChange={onChange}
@@ -186,6 +189,6 @@ function propertyMatchesQuery(prop: keyof CSSPropertyBag, query: string): boolea
   return raw.includes(query) || label.includes(query)
 }
 
-function hasStyleValue(value: string | number | undefined): value is string | number {
+function hasStyleValue(value: unknown): value is string | number {
   return value !== undefined && value !== null && value !== ''
 }

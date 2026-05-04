@@ -20,7 +20,7 @@ import { produce } from 'immer'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
 import type { EditorStore } from '../types'
-import type { SiteFile, SiteFileType } from '@core/files/types'
+import type { SiteFile, SiteFileType } from '@core/files/schemas'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
 
 // ---------------------------------------------------------------------------

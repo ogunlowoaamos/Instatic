@@ -43,6 +43,8 @@ import {
   listMediaAssets,
   renameMediaAsset,
 } from './mediaRepository'
+import { FontInstallError, installGoogleFont, uninstallFontFamily } from './fontsRepository'
+import { listGoogleFonts } from '@core/fonts/googleDirectory'
 import {
   createPluginRecord,
   deletePluginRecord,
@@ -962,6 +964,72 @@ export async function handleCmsRequest(
       return jsonResponse({ error: 'Collection not found' }, { status: 404 })
     }
     return jsonResponse({ error: 'Content entry not found' }, { status: 404 })
+  }
+
+  // ─── Fonts library ───────────────────────────────────────────────────────
+  // GET  /api/cms/fonts/google         — bundled Google Fonts directory (no CDN hit)
+  // POST /api/cms/fonts/install        — download woff2 files, return FontEntry
+  // DELETE /api/cms/fonts/family/:family — remove on-disk font files for a family
+  //
+  // The fonts library itself lives inside `site.settings.fonts`, so the
+  // create/delete REST surface is intentionally narrow: install + uninstall
+  // perform on-disk work; the metadata is persisted with the rest of the site
+  // settings via the existing PUT /api/cms/site path.
+  if (url.pathname === '/api/cms/fonts/google') {
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
+    if (req.method !== 'GET') return methodNotAllowed()
+    return jsonResponse({ families: listGoogleFonts() })
+  }
+
+  if (url.pathname === '/api/cms/fonts/install') {
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
+    if (req.method !== 'POST') return methodNotAllowed()
+    if (!options.uploadsDir) {
+      return jsonResponse({ error: 'Uploads directory is not configured' }, { status: 500 })
+    }
+
+    const body = await readJsonObject(req)
+    const family = readString(body, 'family')
+    const variants = Array.isArray(body.variants)
+      ? (body.variants as unknown[]).filter((v): v is string => typeof v === 'string')
+      : []
+    const subsets = Array.isArray(body.subsets)
+      ? (body.subsets as unknown[]).filter((s): s is string => typeof s === 'string')
+      : []
+
+    if (!family) return badRequest('Missing font family')
+    if (variants.length === 0) return badRequest('Pick at least one variant')
+    if (subsets.length === 0) return badRequest('Pick at least one subset')
+
+    try {
+      const entry = await installGoogleFont({ family, variants, subsets }, options.uploadsDir)
+      return jsonResponse({ font: entry }, { status: 201 })
+    } catch (err) {
+      if (err instanceof FontInstallError) return badRequest(err.message)
+      console.error('[fonts:install]', err)
+      return jsonResponse({ error: 'Font install failed' }, { status: 500 })
+    }
+  }
+
+  const fontFamilyMatch = url.pathname.match(/^\/api\/cms\/fonts\/family\/([^/]+)$/)
+  if (fontFamilyMatch) {
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
+    if (req.method !== 'DELETE') return methodNotAllowed()
+    if (!options.uploadsDir) {
+      return jsonResponse({ error: 'Uploads directory is not configured' }, { status: 500 })
+    }
+
+    const family = decodeURIComponent(fontFamilyMatch[1])
+    try {
+      await uninstallFontFamily(family, options.uploadsDir)
+      return jsonResponse({ ok: true })
+    } catch (err) {
+      console.error('[fonts:uninstall]', err)
+      return jsonResponse({ error: 'Font uninstall failed' }, { status: 500 })
+    }
   }
 
   if (url.pathname === '/api/cms/publish') {

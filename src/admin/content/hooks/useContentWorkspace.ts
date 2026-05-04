@@ -19,7 +19,7 @@ import type {
   ContentEntryStatus,
   CreateContentCollectionInput,
   UpdateContentCollectionInput,
-} from '@core/content/types'
+} from '@core/content/schemas'
 import { updateEntryList } from '../utils/contentEntryUtils'
 
 export function useContentWorkspace() {

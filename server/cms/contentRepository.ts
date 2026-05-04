@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import type { DbClient } from './db'
 import { normalizeRouteBase } from '@core/templates/templateMatching'
 import { normalizeContentCollectionFields } from '@core/content/fields'
-import type { ContentCollectionFieldSchema } from '@core/content/types'
+import type { ContentCollectionFields } from '@core/content/schemas'
 
 type ContentEntryStatus = 'draft' | 'published' | 'unpublished'
 
@@ -13,7 +13,7 @@ interface ContentCollection {
   routeBase: string
   singularLabel: string
   pluralLabel: string
-  fields: ContentCollectionFieldSchema
+  fields: ContentCollectionFields
   createdAt: string
   updatedAt: string
 }
@@ -73,7 +73,7 @@ interface CreateContentCollectionInput {
   routeBase?: string
   singularLabel: string
   pluralLabel: string
-  fields?: ContentCollectionFieldSchema
+  fields?: ContentCollectionFields
 }
 
 interface UpdateContentCollectionInput {
@@ -82,7 +82,7 @@ interface UpdateContentCollectionInput {
   routeBase?: string
   singularLabel?: string
   pluralLabel?: string
-  fields?: ContentCollectionFieldSchema
+  fields?: ContentCollectionFields
 }
 
 interface CreateContentEntryInput {

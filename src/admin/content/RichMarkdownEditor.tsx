@@ -19,7 +19,7 @@ import { HeadingIcon } from 'pixel-art-icons/icons/heading'
 import { ImagesIcon } from 'pixel-art-icons/icons/images'
 import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 import { autoformatMarkdownShortcut, createMediaBlock, createParagraphBlock } from '@core/content/markdown'
-import type { ContentBlock, ContentMediaType } from '@core/content/types'
+import type { ContentBlock, ContentMediaType } from '@core/content/schemas'
 import styles from './RichMarkdownEditor.module.css'
 
 type BodyHeadingLevel = 2 | 3 | 4

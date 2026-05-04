@@ -4,7 +4,7 @@ import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import { SaveIcon } from 'pixel-art-icons/icons/save'
 import { SendIcon } from 'pixel-art-icons/icons/send'
-import type { ContentCollection, ContentEntry } from '@core/content/types'
+import type { ContentCollection, ContentEntry } from '@core/content/schemas'
 import {
   PublishActionGroup,
   type PublishActionMenuItem,

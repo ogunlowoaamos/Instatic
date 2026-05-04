@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import { BaseNodeSchema } from '@core/page-tree/baseNode'
 
 // ---------------------------------------------------------------------------
 // VCParamType — valid param type values
@@ -35,13 +35,12 @@ export type VCParamType = z.infer<typeof VCParamTypeSchema>
 // VCNode uses a nested structure (childNodes) rather than the flat-map structure
 // of Page.nodes — tree traversal is simpler for VC authoring.
 //
-// VCNodeSchema is self-referential and requires z.lazy() with an explicit type
-// annotation (standard Zod recursive schema pattern).
+// VCNodeSchema extends BaseNodeSchema with a recursive childNodes field.
+// z.lazy() + an explicit TypeScript type annotation handle the self-reference
+// (standard Zod recursive schema pattern).
+// Unlike PageNode, VCNode carries no `dynamicBindings` — that field is
+// exclusive to CMS template pages.
 // ---------------------------------------------------------------------------
-
-const PropBindingSchema = z.object({
-  paramId: z.string(),
-})
 
 /**
  * A node inside a Visual Component tree.
@@ -51,31 +50,14 @@ const PropBindingSchema = z.object({
  * `VCNode` carries no `dynamicBindings` — that field is exclusive to CMS
  * template pages.
  *
- * The `breakpointOverrides` value type matches `BaseNode`
- * (`Partial<Record<string, unknown>>`). The Zod schema uses
- * `z.record(z.string(), z.unknown())` for the inner map, whose output is
- * assignable to that shape.
- *
  * Explicit TypeScript type annotation required for z.lazy() recursive schema.
  * All props are flat (no dot-path keys) — same invariant as PageNode.
  */
-export type VCNode = BaseNode & { childNodes?: VCNode[] }
+export type VCNode = z.infer<typeof BaseNodeSchema> & { childNodes?: VCNode[] }
 
-export const VCNodeSchema: z.ZodType<VCNode> = z.lazy(() =>
-  z.object({
-    id: z.string(),
-    moduleId: z.string(),
-    props: z.record(z.string(), z.unknown()).default({}),
-    breakpointOverrides: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
-    children: z.array(z.string()).default([]),
-    label: z.string().optional(),
-    locked: z.boolean().optional(),
-    hidden: z.boolean().optional(),
-    classIds: z.array(z.string()).default([]),
-    propBindings: z.record(z.string(), PropBindingSchema).optional(),
-    childNodes: z.array(VCNodeSchema).optional(),
-  })
-)
+export const VCNodeSchema: z.ZodType<VCNode> = BaseNodeSchema.extend({
+  childNodes: z.lazy(() => z.array(VCNodeSchema)).optional().catch(undefined),
+})
 
 // ---------------------------------------------------------------------------
 // VCParam — a named parameter on a Visual Component

@@ -1,10 +1,10 @@
 import type {
   BuiltInContentCollectionField,
   ContentCollection,
-  ContentCollectionFieldSchema,
+  ContentCollectionFields,
 } from './types'
 
-export const DEFAULT_CONTENT_COLLECTION_FIELDS: ContentCollectionFieldSchema = {
+export const DEFAULT_CONTENT_COLLECTION_FIELDS: ContentCollectionFields = {
   builtIn: {
     body: true,
     featuredMedia: true,
@@ -13,7 +13,7 @@ export const DEFAULT_CONTENT_COLLECTION_FIELDS: ContentCollectionFieldSchema = {
   custom: [],
 }
 
-export function normalizeContentCollectionFields(value: unknown): ContentCollectionFieldSchema {
+export function normalizeContentCollectionFields(value: unknown): ContentCollectionFields {
   if (!value || typeof value !== 'object') return DEFAULT_CONTENT_COLLECTION_FIELDS
 
   const raw = value as {

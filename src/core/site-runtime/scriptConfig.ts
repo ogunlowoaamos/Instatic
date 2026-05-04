@@ -1,6 +1,6 @@
 import { isSafePackageName } from '../site-dependencies/packageNames'
 import type { Page } from '../page-tree/types'
-import type { SiteFile } from '../files/types'
+import type { SiteFile } from '../files/schemas'
 import type {
   LockedSiteDependency,
   SiteDependencyLock,
@@ -8,7 +8,7 @@ import type {
   SiteRuntimeTarget,
   SiteScriptRuntimeConfig,
   SiteScriptScope,
-} from './types'
+} from './schemas'
 
 /**
  * Input shape for `collectRuntimeScripts`. Lives here (next to the function)

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { createHeadingBlock, createParagraphBlock, serializeMarkdownBlocks } from '@core/content/markdown'
-import type { ContentCollection, ContentEntry, UpdateContentCollectionInput } from '@core/content/types'
+import type { ContentCollection, ContentEntry, UpdateContentCollectionInput } from '@core/content/schemas'
 import { useEditorStore } from '@core/editor-store/store'
 import { HeadingIcon } from 'pixel-art-icons/icons/heading'
 import { ImagesIcon } from 'pixel-art-icons/icons/images'

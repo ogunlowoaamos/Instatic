@@ -1,4 +1,4 @@
-import type { CSSClass, CSSPropertyBag } from '../page-tree/types'
+import type { CSSClass } from '../page-tree/types'
 import { cssClassSelector } from '../page-tree/classNames'
 import { sanitiseCssValue } from './utils'
 
@@ -37,10 +37,12 @@ const ALLOWED_PROPS = new Set<string>([
 ])
 
 /**
- * Serialise a CSSPropertyBag to a CSS declaration block string.
+ * Serialise a style map to a CSS declaration block string.
  * Only emits properties in the allowlist with sanitised values.
+ * Accepts the wide persistence type (Record<string, unknown>) since styles are
+ * stored without per-property narrowing at the persistence boundary.
  */
-export function bagToCSS(bag: Partial<CSSPropertyBag>): string {
+export function bagToCSS(bag: Record<string, unknown>): string {
   const lines: string[] = []
   for (const [prop, value] of Object.entries(bag)) {
     if (!ALLOWED_PROPS.has(prop)) continue

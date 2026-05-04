@@ -1,4 +1,4 @@
-import type { ContentEntry } from '../content/types'
+import type { ContentEntry } from '../content/schemas'
 import type { CmsMediaAsset } from '../persistence/cmsMedia'
 import { firstImagePathFromMarkdown } from '../markdown/renderContentMarkdown'
 import type { TemplateEntryData } from './dynamicBindings'

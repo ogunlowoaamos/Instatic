@@ -1,4 +1,4 @@
-import type { SiteFile } from '../files/types'
+import type { SiteFile } from '../files/schemas'
 import type { SitePackageJson } from '../site-dependencies/manifest'
 import { isSafePackageName } from '../site-dependencies/packageNames'
 import type {
@@ -7,7 +7,7 @@ import type {
   RuntimePackageDependencyUsage,
   RuntimeScriptImportAnalysis,
   SiteRuntimeDiagnostic,
-} from './types'
+} from './schemas'
 
 const NODE_BUILTIN_PACKAGES = new Set([
   'assert',

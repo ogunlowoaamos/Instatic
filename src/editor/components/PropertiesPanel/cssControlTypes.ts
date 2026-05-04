@@ -411,7 +411,7 @@ export const CLASS_STYLE_SECTIONS: ReadonlyArray<ClassStyleSectionDefinition> = 
  * Used to render the set-style dot badges on the StyleCategoryRail.
  */
 export function getClassStyleSectionSetCounts(
-  storedStyles: Partial<CSSPropertyBag>,
+  storedStyles: Record<string, unknown>,
 ): ReadonlyMap<string, number> {
   return new Map(
     CLASS_STYLE_SECTIONS.map((section) => [
@@ -430,6 +430,6 @@ export function getActiveStyleTab(activeBreakpointId: string | undefined): strin
 }
 
 // Private helper (also used in getClassStyleSectionSetCounts above)
-function hasStyleValue(value: string | number | undefined): value is string | number {
+function hasStyleValue(value: unknown): value is string | number {
   return value !== undefined && value !== null && value !== ''
 }

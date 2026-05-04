@@ -8,6 +8,7 @@ import type { VCNode } from '@core/visualComponents/types'
 import { VisualComponentRecursionError } from './visualComponentsSlice'
 import {
   type CSSClass,
+  type FontEntry,
   type SiteDocument,
   type Page,
   type PageNode,
@@ -162,6 +163,18 @@ export interface SiteSlice {
     patch: Partial<FrameworkScaleManualSize>,
   ) => void
   setFrameworkSpacingClassGenerators: (classes: FrameworkSpacingClassGenerator[]) => void
+
+  // ─── Site fonts library ─────────────────────────────────────────────────
+  /**
+   * Add a font to the library. The caller (UI) is responsible for first calling
+   * the server install endpoint, which downloads the woff2 files; the resulting
+   * `FontEntry` returned by the server is what gets passed here. The action
+   * itself is purely client-side — it only mutates `settings.fonts.items`.
+   * Duplicate `family` (case-insensitive) on the same `source` is a no-op.
+   */
+  addFont: (entry: FontEntry) => void
+  /** Remove an installed font by id. Server file cleanup is the caller's job. */
+  removeFont: (fontId: string) => void
 
   /**
    * Preview the destructive impact of a framework-related change without
@@ -1257,6 +1270,32 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
         const typography = ensureFrameworkTypography(site)
         typography.classes = classes
         reconcileFrameworkTypographyClasses(site)
+      })
+    },
+
+    // ─── Site fonts library ─────────────────────────────────────────────
+    addFont: (entry) => {
+      mutateSite((site) => {
+        site.settings.fonts ??= { items: [] }
+        const lib = site.settings.fonts
+        const familyLower = entry.family.toLowerCase()
+        const idx = lib.items.findIndex(
+          (f) => f.family.toLowerCase() === familyLower && f.source === entry.source,
+        )
+        if (idx >= 0) {
+          // Re-install of the same font: replace the existing entry so newly
+          // selected variants/subsets supersede the previous selection.
+          lib.items[idx] = { ...entry, updatedAt: Date.now() }
+        } else {
+          lib.items.push(entry)
+        }
+      })
+    },
+
+    removeFont: (fontId) => {
+      mutateSite((site) => {
+        if (!site.settings.fonts) return
+        site.settings.fonts.items = site.settings.fonts.items.filter((f) => f.id !== fontId)
       })
     },
 

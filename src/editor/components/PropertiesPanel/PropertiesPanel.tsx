@@ -187,7 +187,7 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   // ── Module tab content — pre-rendered, passed to StyleSurface as a ReactNode
   const moduleTabContent = definition && selectedNode && resolvedPropsForBreakpoint
     ? (
-      <div key={selectedNodeId ?? ''}>
+      <>
         {Object.entries(definition.schema).map(([key, control]: [string, PropertyControl]) => {
           if (control.condition && !evaluateCondition(control.condition, resolvedPropsForBreakpoint)) {
             return null
@@ -230,7 +230,7 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
             />
           )
         })}
-      </div>
+      </>
     )
     : null
 

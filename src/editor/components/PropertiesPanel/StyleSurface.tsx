@@ -35,6 +35,7 @@ import {
   getActiveStyleTab,
 } from './cssControlTypes'
 import styles from './StyleSurface.module.css'
+import sectionStyles from './Section.module.css'
 
 // ---------------------------------------------------------------------------
 // Public exports
@@ -150,7 +151,7 @@ export function StyleSurface({
 
   // Rail dot badges from stored styles at the current breakpoint.
   const activeTab = getActiveStyleTab(activeBreakpointId)
-  const storedStyles: Partial<CSSPropertyBag> = activeClass
+  const storedStyles: Record<string, unknown> = activeClass
     ? (activeTab !== 'base' ? (activeClass.breakpointStyles[activeTab] ?? {}) : activeClass.styles)
     : {}
   const sectionSetCounts = getClassStyleSectionSetCounts(storedStyles)
@@ -158,6 +159,10 @@ export function StyleSurface({
   // Module section visibility: always visible unless search has no match.
   const hasModuleContent = definition != null && moduleContent != null
   const moduleVisible = hasModuleContent && (!styleQuery || moduleMatchesQuery(styleQuery, definition!))
+
+  // Hide search bar when the CSS area shows the generated utility lock —
+  // there are no CSS properties to search in that state.
+  const showSearchBar = !activeClass || !isGeneratedClassLocked(activeClass)
 
   // CSS area content.
   let cssContent: ReactNode
@@ -192,8 +197,9 @@ export function StyleSurface({
       {/* ── Left column: search + module section + CSS area ─────────── */}
       <div className={styles.surfaceContent}>
 
-        {/* Search bar — sticky at the top, searches both module and CSS */}
-        <div className={styles.searchBarRow}>
+        {/* Search bar — sticky at the top, searches both module and CSS.
+            Hidden when a generated utility class is active (nothing to search). */}
+        {showSearchBar && <div className={styles.searchBarRow}>
           <SearchBar
             value={styleQuery}
             onValueChange={setStyleQuery}
@@ -213,7 +219,7 @@ export function StyleSurface({
             }
             aria-label="Search class style properties to add"
           />
-        </div>
+        </div>}
 
         {/* Module section — same Section accordion as CSS sections */}
         {moduleVisible && (
@@ -223,7 +229,11 @@ export function StyleSurface({
               icon={ModuleIcon}
               defaultOpen
             >
-              {moduleContent}
+              {/* sectionBody gives the same display:grid + gap as CSS sections.
+                  key={nodeId} remounts on node change (replaces the old div wrapper). */}
+              <div key={nodeId} className={sectionStyles.sectionBody}>
+                {moduleContent}
+              </div>
             </Section>
           </div>
         )}

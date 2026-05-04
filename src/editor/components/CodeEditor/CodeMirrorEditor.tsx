@@ -38,7 +38,7 @@ import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { tags as t } from '@lezer/highlight'
 import type { Extension } from '@codemirror/state'
-import type { SiteFile, SiteFileType } from '@core/files/types'
+import type { SiteFile, SiteFileType } from '@core/files/schemas'
 
 // ---------------------------------------------------------------------------
 // GitHub Dark-inspired CM6 theme — CSS custom properties only.

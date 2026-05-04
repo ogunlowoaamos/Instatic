@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { normalizeContentCollectionFields } from '@core/content/fields'
-import type { ContentCollection, UpdateContentCollectionInput } from '@core/content/types'
+import type { ContentCollection, UpdateContentCollectionInput } from '@core/content/schemas'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { CloseIcon } from 'pixel-art-icons/icons/close'

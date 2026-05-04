@@ -156,16 +156,21 @@ export interface ScaleAdapter<G, C> {
    */
   scalesSectionIcon?: IconComponent
   /**
-   * Optional extra collapsible sections rendered after the built-in
-   * "Scales" + "Utilities" sections. Used by TypographyPanel today to host
-   * the future "Font settings" section (font loader). Each entry is its own
+   * Optional extra collapsible sections rendered alongside the built-in
+   * "Scales" + "Utilities" sections. Used by TypographyPanel to host the
+   * "Fonts" section (Google + custom font library). Each entry is its own
    * Section with its own collapse state.
+   *
+   * `position`: 'top' renders BEFORE the built-in Scales section (e.g. fonts
+   *   live above scales for typography). 'bottom' renders AFTER Utilities
+   *   (the original behaviour). Default: 'bottom'.
    */
   extraSections?: ReadonlyArray<{
     id: string
     title: string
     icon?: IconComponent
     defaultOpen?: boolean
+    position?: 'top' | 'bottom'
     render: (group: G) => React.ReactNode
   }>
 }
@@ -362,8 +367,26 @@ function GroupEditor<G extends GroupShape, C extends GeneratorShape>({
   onAddGroup,
   classGenerators,
 }: GroupEditorProps<G, C>) {
+  // Split extra sections by position so we can render the 'top' ones before
+  // the built-in Scales section and the 'bottom' ones after Utilities.
+  const topExtraSections = adapter.extraSections?.filter((s) => s.position === 'top') ?? []
+  const bottomExtraSections = adapter.extraSections?.filter((s) => s.position !== 'top') ?? []
+
   return (
     <div className={styles.editor}>
+      {/* Top-positioned extra sections — e.g. Typography → Fonts library lives
+          above the Scales section so the user encounters fonts first. */}
+      {topExtraSections.map((section) => (
+        <Section
+          key={section.id}
+          title={section.title}
+          defaultOpen={section.defaultOpen ?? false}
+          icon={section.icon}
+        >
+          <div className={styles.sectionBody}>{section.render(group)}</div>
+        </Section>
+      ))}
+
       {/* Scales section — scale picker (FilterBar), name + prefix, mode toggle,
           fluid/manual editor with chart. The scale picker lives inside the
           section because it's part of managing scales. The icon comes from
@@ -436,8 +459,8 @@ function GroupEditor<G extends GroupShape, C extends GeneratorShape>({
         </div>
       </Section>
 
-      {/* Adapter-supplied extra sections (e.g. Typography → Font settings) */}
-      {adapter.extraSections?.map((section) => (
+      {/* Bottom-positioned extra sections (default placement). */}
+      {bottomExtraSections.map((section) => (
         <Section
           key={section.id}
           title={section.title}

@@ -49,6 +49,7 @@ export function ClassStyleInjector() {
   const frameworkTypography = useEditorStore((s) => s.site?.settings.framework?.typography ?? null)
   const frameworkSpacing = useEditorStore((s) => s.site?.settings.framework?.spacing ?? null)
   const frameworkPreferences = useEditorStore((s) => s.site?.settings.framework?.preferences ?? null)
+  const fonts = useEditorStore((s) => s.site?.settings.fonts ?? null)
 
   useEffect(() => {
     // Get or create the <style> element
@@ -69,6 +70,7 @@ export function ClassStyleInjector() {
           frameworkTypography,
           frameworkSpacing,
           frameworkPreferences,
+          fonts,
         ) || '/* no classes */'
       return
     }
@@ -80,8 +82,9 @@ export function ClassStyleInjector() {
       frameworkTypography,
       frameworkSpacing,
       frameworkPreferences,
+      fonts,
     )
-  }, [classes, breakpoints, frameworkColors, frameworkTypography, frameworkSpacing, frameworkPreferences])
+  }, [classes, breakpoints, frameworkColors, frameworkTypography, frameworkSpacing, frameworkPreferences, fonts])
 
   // Cleanup: remove the style element when the component unmounts
   useEffect(() => {

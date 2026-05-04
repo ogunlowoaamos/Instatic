@@ -1,0 +1,79 @@
+/**
+ * Client-side wrappers for the fonts CMS endpoints.
+ *
+ * - `listCmsGoogleFonts` returns the bundled directory snapshot via the server
+ *   (rather than importing the JSON directly) so the editor stays a thin client.
+ * - `installCmsGoogleFont` posts the user's chosen variants/subsets and returns
+ *   a fully-shaped `FontEntry` to merge into `site.settings.fonts`.
+ * - `deleteCmsFontFamily` removes the on-disk woff2 files for a family slug.
+ */
+
+import { parseJsonResponse } from '@core/utils/jsonValidate'
+import type { FontEntry } from '@core/page-tree/types'
+import { responseErrorMessage } from './httpErrors'
+import {
+  CmsFontEntryEnvelopeSchema,
+  CmsGoogleFontsEnvelopeSchema,
+  type GoogleFontFamilyDto,
+} from './responseSchemas'
+
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
+
+export async function listCmsGoogleFonts(
+  fetchImpl: FetchLike = defaultFetch,
+  basePath = '/api/cms',
+): Promise<GoogleFontFamilyDto[]> {
+  const res = await fetchImpl(`${basePath}/fonts/google`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Google fonts list failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsGoogleFontsEnvelopeSchema)
+  return payload.families
+}
+
+export interface InstallGoogleFontRequest {
+  family: string
+  variants: string[]
+  subsets: string[]
+}
+
+export async function installCmsGoogleFont(
+  request: InstallGoogleFontRequest,
+  fetchImpl: FetchLike = defaultFetch,
+  basePath = '/api/cms',
+): Promise<FontEntry> {
+  const res = await fetchImpl(`${basePath}/fonts/install`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Font install failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsFontEntryEnvelopeSchema)
+  // Server-side `installGoogleFont` returns a fully-shaped FontEntry; the
+  // envelope schema treats the inner shape as `unknown` to avoid duplicating
+  // FontEntry's structure here. validateSite() will catch any drift the next
+  // time the site is saved.
+  return payload.font as FontEntry
+}
+
+export async function deleteCmsFontFamily(
+  family: string,
+  fetchImpl: FetchLike = defaultFetch,
+  basePath = '/api/cms',
+): Promise<void> {
+  const res = await fetchImpl(`${basePath}/fonts/family/${encodeURIComponent(family)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Font delete failed with ${res.status}`))
+  }
+}

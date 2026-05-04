@@ -17,11 +17,13 @@ import type {
   SiteDocument,
 } from '@core/page-tree/types'
 import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
+import { TextColumsIcon } from 'pixel-art-icons/icons/text-colums'
 import {
   FrameworkScalePanel,
   type ScaleAdapter,
 } from '../shared/FrameworkScalePanel'
 import { useFrameworkChangeConfirm } from '../shared/FrameworkChangeConfirmDialog'
+import { FontsSection } from '../FontsSection'
 import styles from '../shared/FrameworkScalePanel/FrameworkScalePanel.module.css'
 
 interface TypographyPanelProps {
@@ -159,6 +161,18 @@ export function TypographyPanel({ variant = 'docked' }: TypographyPanelProps) {
     onDeleteGroup: wrappedDeleteGroup,
     onUpsertManualSize,
     onSetClassGenerators: wrappedSetClassGenerators,
+    extraSections: [
+      {
+        id: 'fonts',
+        title: 'Fonts',
+        // Show above Scales — fonts are loaded once per site and live above
+        // the scale-tweaking workflow.
+        position: 'top',
+        defaultOpen: true,
+        icon: TextColumsIcon,
+        render: () => <FontsSection />,
+      },
+    ],
   }
 
   return (

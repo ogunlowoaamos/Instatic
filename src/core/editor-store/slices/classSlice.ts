@@ -95,14 +95,13 @@ export interface ClassSlice {
 // ---------------------------------------------------------------------------
 
 function hasStylePatchChanges(
-  current: Partial<CSSPropertyBag>,
+  current: Record<string, unknown>,
   patch: Partial<CSSPropertyBag>,
 ): boolean {
   for (const [key, value] of Object.entries(patch)) {
-    const prop = key as keyof CSSPropertyBag
     if (value === undefined || value === null) {
-      if (prop in current) return true
-    } else if (!Object.is(current[prop], value)) {
+      if (key in current) return true
+    } else if (!Object.is(current[key], value)) {
       return true
     }
   }
@@ -218,7 +217,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         // Remove keys explicitly set to undefined/null (allow clearing a property)
         for (const [k, v] of Object.entries(patch)) {
           if (v === undefined || v === null) {
-            delete draftClass.styles[k as keyof CSSPropertyBag]
+            delete draftClass.styles[k]
           }
         }
         draftClass.updatedAt = Date.now()
@@ -248,7 +247,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         // Remove keys explicitly set to undefined/null
         for (const [k, v] of Object.entries(patch)) {
           if (v === undefined || v === null) {
-            delete draftClass.breakpointStyles[breakpointId][k as keyof CSSPropertyBag]
+            delete draftClass.breakpointStyles[breakpointId][k]
           }
         }
         draftClass.updatedAt = Date.now()

@@ -17,7 +17,26 @@ export type {
   SiteScriptRuntimeConfig,
   SiteScriptScope,
   SiteScriptTiming,
-} from './types'
+} from './schemas'
+export {
+  LockedSiteDependencySchema,
+  SiteDependencyLockSchema,
+  SiteScriptPlacementSchema,
+  SiteScriptTimingSchema,
+  SiteScriptScopeSchema,
+  SiteScriptRuntimeConfigSchema,
+  SiteRuntimeConfigSchema,
+  SiteRuntimeTargetSchema,
+  SiteRuntimeDiagnosticSeveritySchema,
+  SiteRuntimeDiagnosticSchema,
+  RuntimeImportKindSchema,
+  RuntimeImportSpecifierSchema,
+  RuntimePackageUsageFileSchema,
+  RuntimePackageDependencyUsageSchema,
+  PublishedRuntimeScriptAssetSchema,
+  PublishedPageRuntimeAssetsSchema,
+  RuntimeScriptEntrySchema,
+} from './schemas'
 export type { CollectRuntimeScriptsInput } from './scriptConfig'
 export {
   DEFAULT_SCRIPT_RUNTIME_CONFIG,

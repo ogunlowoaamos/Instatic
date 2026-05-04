@@ -12,7 +12,7 @@ import {
   getSelectorUsage,
 } from '../../editor/components/SelectorsPanel/selectorUsage'
 import { useEditorStore } from '@core/editor-store/store'
-import type { CSSClass, CSSPropertyBag } from '@core/page-tree/types'
+import type { CSSClass } from '@core/page-tree/types'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import '../../modules/base/index'
 
@@ -50,7 +50,7 @@ beforeEach(resetStore)
 function makeClass(
   id: string,
   name: string,
-  styles: Partial<CSSPropertyBag> = {},
+  styles: Record<string, unknown> = {},
   overrides: Partial<CSSClass> = {},
 ): CSSClass {
   return {

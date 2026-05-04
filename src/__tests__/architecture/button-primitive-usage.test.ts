@@ -112,8 +112,13 @@ const ALLOWLIST = new Set([
   // multi-cell row. TokenizedColorField renders role="option" items inside
   // a role="listbox" with a swatch + token name + variant meta — Button's
   // inline-flex layout cannot represent the option grid.
+  // AddGoogleFontDialog renders role="option" tiles inside a 2-column grid
+  // with stacked content (large family-rendered preview on top, category
+  // label below) — Button's fixed-height inline-flex row layout cannot
+  // represent the card-style grid the font picker needs.
   'editor/components/ColorsPanel/ColorsPanel.tsx',
   'editor/components/PropertyControls/TokenizedColorField.tsx',
+  'editor/components/FontsSection/AddGoogleFontDialog.tsx',
 ])
 
 // ---------------------------------------------------------------------------

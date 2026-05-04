@@ -1,9 +1,13 @@
 export type {
   CSSClass,
+  FontEntry,
+  FontFile,
+  FontSource,
   Page,
   PageNode,
   BaseNode,
   SiteDocument,
+  SiteFontsSettings,
   Breakpoint,
   SiteSettings,
   PageTemplateConfig,

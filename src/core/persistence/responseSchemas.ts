@@ -121,3 +121,30 @@ export const CmsSiteEnvelopeSchema = z
     site: z.unknown().optional(),
   })
   .passthrough()
+
+// ---------------------------------------------------------------------------
+// fonts API — bundled Google directory + install/uninstall envelopes
+// ---------------------------------------------------------------------------
+
+export const GoogleFontFamilySchema = z.object({
+  family: z.string(),
+  category: z.string(),
+  subsets: z.array(z.string()),
+  variants: z.array(z.string()),
+  popularity: z.number().optional(),
+})
+
+export type GoogleFontFamilyDto = z.infer<typeof GoogleFontFamilySchema>
+
+export const CmsGoogleFontsEnvelopeSchema = z.object({
+  families: z.array(GoogleFontFamilySchema),
+})
+
+// FontEntry mirrors @core/page-tree's FontEntry. We schema the envelope
+// shallowly here — full structural validation runs server-side via
+// validateSite when the next save happens, so the install response is
+// consumed as `unknown` and immediately committed via the addFont action
+// which only reads stable top-level fields.
+export const CmsFontEntryEnvelopeSchema = z.object({
+  font: z.unknown(),
+})

@@ -8,11 +8,6 @@
     padding-bottom: 16px;
 }
 
-.styleSectionBody {
-    display: grid;
-    gap: 8px;
-}
-
 .noStyleMatches {
     padding: 12px 14px;
     color: var(--editor-text-muted);
