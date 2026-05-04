@@ -1,26 +1,24 @@
 import { describe, expect, it } from 'bun:test'
 import type { SiteDocument } from '@core/page-tree/schemas'
 import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
-import type { DbClient, DbResult } from '../../../server/cms/db'
+import type { DbResult } from '../../../server/cms/db'
 import {
   loadDraftSite,
   saveDraftSite,
 } from '../../../server/cms/siteRepository'
+import { createFakeDb } from './dbTestFake'
 
-class SiteFakeDb implements DbClient {
-  site: Record<string, unknown> | null = null
-  pages: Record<string, unknown>[] = []
+function createSiteFakeDb() {
+  const state = {
+    site: null as Record<string, unknown> | null,
+    pages: [] as Record<string, unknown>[],
+  }
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
-    const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized === 'begin' || normalized === 'commit' || normalized === 'rollback') {
-      return { rows: [], rowCount: 0 }
-    }
-    if (normalized.startsWith('insert into site')) {
-      this.site = {
+  const db = createFakeDb(async (rawSql, params): Promise<DbResult> => {
+    const sql = rawSql.replace(/\s+/g, ' ').trim().toLowerCase()
+
+    if (sql.startsWith('insert into site')) {
+      state.site = {
         id: 'default',
         name: params[0],
         settings_json: params[1],
@@ -29,7 +27,7 @@ class SiteFakeDb implements DbClient {
       }
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('insert into pages')) {
+    if (sql.startsWith('insert into pages')) {
       const page = {
         id: params[0],
         title: params[1],
@@ -39,27 +37,32 @@ class SiteFakeDb implements DbClient {
         created_at: new Date('2026-01-01').toISOString(),
         updated_at: new Date('2026-01-02').toISOString(),
       }
-      const index = this.pages.findIndex((p) => p.id === page.id)
-      if (index >= 0) this.pages[index] = page
-      else this.pages.push(page)
+      const index = state.pages.findIndex((p) => p.id === page.id)
+      if (index >= 0) state.pages[index] = page
+      else state.pages.push(page)
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('delete from pages where not')) {
+    if (sql.startsWith('delete from pages where not')) {
       const ids = params[0] as string[]
-      this.pages = this.pages.filter((p) => ids.includes(String(p.id)))
+      state.pages = state.pages.filter((p) => ids.includes(String(p.id)))
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('select id, name, settings_json')) {
-      return { rows: this.site ? [this.site as Row] : [], rowCount: this.site ? 1 : 0 }
-    }
-    if (normalized.startsWith('select id, title, slug, draft_document_json')) {
+    if (sql.startsWith('select id, name, settings_json')) {
       return {
-        rows: [...this.pages].sort((a, b) => Number(a.sort_order) - Number(b.sort_order)) as Row[],
-        rowCount: this.pages.length,
+        rows: state.site ? [state.site] : [],
+        rowCount: state.site ? 1 : 0,
       }
     }
-    throw new Error(`Unhandled SQL: ${sql}`)
-  }
+    if (sql.startsWith('select id, title, slug, draft_document_json')) {
+      return {
+        rows: [...state.pages].sort((a, b) => Number(a.sort_order) - Number(b.sort_order)),
+        rowCount: state.pages.length,
+      }
+    }
+    throw new Error(`Unhandled SQL: ${rawSql}`)
+  })
+
+  return { state, db }
 }
 
 function validSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
@@ -117,11 +120,11 @@ function validSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
 
 describe('CMS draft site persistence', () => {
   it('saves the single-site site shell and page draft rows', async () => {
-    const db = new SiteFakeDb()
+    const { state, db } = createSiteFakeDb()
     await saveDraftSite(db, validSite())
 
-    expect(db.site).toMatchObject({ name: 'Example Site' })
-    expect(db.site?.settings_json).toMatchObject({
+    expect(state.site).toMatchObject({ name: 'Example Site' })
+    expect(state.site?.settings_json).toMatchObject({
       cmsSiteSchemaVersion: 1,
       site: {
         id: 'project_1',
@@ -129,8 +132,8 @@ describe('CMS draft site persistence', () => {
         classes: { class_1: { name: 'Hero' } },
       },
     })
-    expect(db.pages).toHaveLength(1)
-    expect(db.pages[0]).toMatchObject({
+    expect(state.pages).toHaveLength(1)
+    expect(state.pages[0]).toMatchObject({
       id: 'page_home',
       title: 'Home',
       slug: 'index',
@@ -139,7 +142,7 @@ describe('CMS draft site persistence', () => {
   })
 
   it('loads a saved draft site without reading published versions', async () => {
-    const db = new SiteFakeDb()
+    const { db } = createSiteFakeDb()
     await saveDraftSite(db, validSite())
 
     const loaded = await loadDraftSite(db)
@@ -154,7 +157,7 @@ describe('CMS draft site persistence', () => {
   })
 
   it('round-trips site runtime settings in the site shell', async () => {
-    const db = new SiteFakeDb()
+    const { db } = createSiteFakeDb()
     await saveDraftSite(db, validSite({
       runtime: normalizeSiteRuntimeConfig({
         scripts: {
@@ -175,7 +178,7 @@ describe('CMS draft site persistence', () => {
   })
 
   it('removes page rows that no longer exist in the draft site', async () => {
-    const db = new SiteFakeDb()
+    const { state, db } = createSiteFakeDb()
     await saveDraftSite(db, validSite({
       pages: [
         validSite().pages[0],
@@ -185,6 +188,6 @@ describe('CMS draft site persistence', () => {
 
     await saveDraftSite(db, validSite())
 
-    expect(db.pages.map((p) => p.id)).toEqual(['page_home'])
+    expect(state.pages.map((p) => p.id)).toEqual(['page_home'])
   })
 })

@@ -1,25 +1,21 @@
 import { describe, expect, it } from 'bun:test'
-import type { DbClient, DbResult } from '../../../server/cms/db'
+import type { DbResult } from '../../../server/cms/db'
 import { handleServerRequest } from '../../../server/router'
 import type { PublishedPageSnapshot } from '../../../server/cms/publishRepository'
 import { makePage, makeSite } from '../publisher/helpers'
+import { createFakeDb } from './dbTestFake'
 
 type QueryHandler = (sql: string, params: unknown[]) => DbResult | undefined
 
-class TemplateRouteFakeDb implements DbClient {
-  constructor(private readonly handlers: QueryHandler[]) {}
-
-  async query<Row = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
-    const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    for (const handler of this.handlers) {
-      const result = handler(normalized, params)
-      if (result) return result as DbResult<Row>
+function makeTemplateRouteFakeDb(handlers: QueryHandler[]) {
+  return createFakeDb(async (rawSql, params): Promise<DbResult> => {
+    const sql = rawSql.replace(/\s+/g, ' ').trim().toLowerCase()
+    for (const handler of handlers) {
+      const result = handler(sql, params)
+      if (result) return result
     }
-    throw new Error(`Unhandled SQL: ${sql}`)
-  }
+    throw new Error(`Unhandled SQL: ${rawSql}`)
+  })
 }
 
 function rowDate(value: string) {
@@ -52,7 +48,7 @@ describe('CMS dynamic template routes', () => {
       site: makeSite({ pages: [page] }),
     }
 
-    const db = new TemplateRouteFakeDb([
+    const db = makeTemplateRouteFakeDb([
       (sql, params) => {
         if (!sql.startsWith('select page_versions.snapshot_json')) return undefined
 
@@ -99,7 +95,7 @@ describe('CMS dynamic template routes', () => {
   })
 
   it('redirects an old published content slug to the active published slug', async () => {
-    const db = new TemplateRouteFakeDb([
+    const db = makeTemplateRouteFakeDb([
       (sql, params) => {
         if (!sql.startsWith('select page_versions.snapshot_json')) return undefined
 

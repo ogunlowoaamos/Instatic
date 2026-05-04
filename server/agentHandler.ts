@@ -19,11 +19,11 @@
  *
  * Constraint #272 — tool calls validated before dispatch:
  * The server validates action JSON structure before forwarding.
- * Full Zod validation happens in the browser executor (executor.ts).
+ * Full TypeBox validation happens in the browser executor (executor.ts).
  */
 
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk'
-import { z } from 'zod'
+import { Type, safeParseValue, formatValueErrors } from '@core/utils/typeboxHelpers'
 import { buildSystemPrompt } from '../src/core/agent/systemPrompt'
 import {
   buildAgentResponseEventsFromText,
@@ -48,21 +48,16 @@ import type {
 //
 // Surfaced by /audit-types — this was an `as AgentRequestBody` cast.
 
-const AgentRequestBodySchema = z.object({
-  prompt: z.string().min(1),
-  sessionId: z.string().optional(),
-  messages: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string(),
+const AgentRequestBodySchema = Type.Object({
+  prompt: Type.String({ minLength: 1 }),
+  sessionId: Type.Optional(Type.String()),
+  messages: Type.Array(Type.Object({
+    role: Type.Union([Type.Literal('user'), Type.Literal('assistant')]),
+    content: Type.String(),
   })),
   // pageContext kept loose for now — see comment above.
-  pageContext: z.unknown(),
-}) satisfies z.ZodType<{
-  prompt: string
-  sessionId?: string
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
-  pageContext: unknown
-}>
+  pageContext: Type.Unknown(),
+})
 
 // ---------------------------------------------------------------------------
 // NDJSON stream helpers
@@ -356,17 +351,17 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
     return new Response('Invalid JSON body', { status: 400 })
   }
 
-  const parsed = AgentRequestBodySchema.safeParse(rawBody)
-  if (!parsed.success) {
+  const parsed = safeParseValue(AgentRequestBodySchema, rawBody)
+  if (!parsed.ok) {
     return new Response(
-      `Invalid request body: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+      `Invalid request body: ${formatValueErrors(AgentRequestBodySchema, rawBody)}`,
       { status: 400 },
     )
   }
-  // The downstream code reads body.pageContext as PageContext; the loose Zod
-  // schema keeps it as unknown for now. Cast back to the interface so the rest
-  // of the file's typing is preserved without invasive changes.
-  const body: AgentRequestBody = parsed.data as AgentRequestBody
+  // The downstream code reads body.pageContext as PageContext; the loose schema
+  // keeps it as unknown for now. Cast back to the interface so the rest of the
+  // file's typing is preserved without invasive changes.
+  const body: AgentRequestBody = parsed.value as AgentRequestBody
   const { prompt, pageContext } = body
 
   const systemPrompt = buildSystemPrompt(pageContext)

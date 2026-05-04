@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
 import type {
   CmsPluginsPayload,
   InstalledPlugin,
@@ -17,20 +17,27 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 // pass deep types through as unknown, cast at the call site. Surfaced by
 // /audit-types — replaces `await res.json() as T` with caller-supplied T.
 
-const PluginsListEnvelope = z.object({
-  plugins: z.array(z.unknown()).optional(),
-  adminPages: z.array(z.unknown()).optional(),
-}).passthrough()
+const PluginsListEnvelope = Type.Object(
+  {
+    plugins: Type.Optional(Type.Array(Type.Unknown())),
+    adminPages: Type.Optional(Type.Array(Type.Unknown())),
+  },
+  { additionalProperties: true },
+)
 
-const PluginActionEnvelope = z.object({
-  plugin: z.unknown().optional(),
-  plugins: z.array(z.unknown()).optional(),
-  adminPages: z.array(z.unknown()).optional(),
-}).passthrough()
+const PluginActionEnvelope = Type.Object(
+  {
+    plugin: Type.Optional(Type.Unknown()),
+    plugins: Type.Optional(Type.Array(Type.Unknown())),
+    adminPages: Type.Optional(Type.Array(Type.Unknown())),
+  },
+  { additionalProperties: true },
+)
 
-const ManifestEnvelope = z.object({
-  manifest: z.unknown().optional(),
-}).passthrough()
+const ManifestEnvelope = Type.Object(
+  { manifest: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
 function emptyPayload(body: Partial<CmsPluginsPayload>): CmsPluginsPayload {
   return {

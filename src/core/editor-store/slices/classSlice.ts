@@ -14,10 +14,8 @@
  * value equals the current value (Object.is) to prevent re-render loops.
  */
 
-import { produce } from 'immer'
 import { nanoid } from 'nanoid'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 import type { CSSClass, CSSPropertyBag } from '@core/page-tree/schemas'
 import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree/classUtils'
 import { assertValidCssClassName } from '@core/page-tree/classNames'
@@ -141,7 +139,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends ClassSlice {}
 }
 
-export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (set, get) => ({
+export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) => ({
   // ── UI state ───────────────────────────────────────────────────────────────
 
   activeClassId: null,
@@ -189,14 +187,12 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     }
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         state.site.classes[newClass.id] = newClass
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
 
     return newClass
   },
@@ -209,8 +205,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (!hasStylePatchChanges(cls.styles, patch)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site?.classes[classId]) return
         const draftClass = state.site.classes[classId]
         Object.assign(draftClass.styles, patch)
@@ -223,8 +218,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         draftClass.updatedAt = Date.now()
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   setClassBreakpointStyles(classId, breakpointId, patch) {
@@ -236,8 +230,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (!hasStylePatchChanges(currentStyles, patch)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site?.classes[classId]) return
         const draftClass = state.site.classes[classId]
         if (!draftClass.breakpointStyles[breakpointId]) {
@@ -253,8 +246,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         draftClass.updatedAt = Date.now()
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   ensureNodeStyleClass(nodeId, moduleName = 'Module') {
@@ -287,8 +279,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     }
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         state.site.classes[newClass.id] = newClass
         for (const p of state.site.pages) {
@@ -304,8 +295,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         }
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
 
     return newClass
   },
@@ -325,15 +315,13 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (existing) throw new Error(`[classSlice] A class named "${name}" already exists`)
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site?.classes[classId]) return
         state.site.classes[classId].name = name
         state.site.classes[classId].updatedAt = Date.now()
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   duplicateClass(classId) {
@@ -355,14 +343,12 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     }
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         state.site.classes[newClass.id] = newClass
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
 
     return newClass
   },
@@ -374,8 +360,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (isGeneratedClassLocked(cls)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         // Remove from registry
         delete state.site.classes[classId]
@@ -396,8 +381,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
           state.selectedSelectorClassId = null
         }
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   // ── Node ↔ class assignment ────────────────────────────────────────────────
@@ -412,8 +396,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (page.nodes[nodeId].classIds?.includes(classId)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         for (const p of state.site.pages) {
           if (p.nodes[nodeId]) {
@@ -424,8 +407,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         }
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   removeNodeClass(nodeId, classId) {
@@ -436,8 +418,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (!classIds?.includes(classId)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         for (const p of state.site.pages) {
           if (p.nodes[nodeId] && p.nodes[nodeId].classIds) {
@@ -447,8 +428,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         }
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   reorderNodeClasses(nodeId, fromIndex, toIndex) {
@@ -461,8 +441,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (!classIds || classIds.length <= Math.max(fromIndex, toIndex)) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         for (const p of state.site.pages) {
           const node = p.nodes[nodeId]
@@ -475,8 +454,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         }
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 
   reorderNodeClass(nodeId, classId, direction) {
@@ -492,8 +470,7 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
     if (newIdx < 0 || newIdx >= classIds.length) return
 
     get().pushHistory()
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         for (const p of state.site.pages) {
           const node = p.nodes[nodeId]
@@ -506,7 +483,6 @@ export const createClassSlice: StateCreator<EditorStore, [], [], ClassSlice> = (
         }
         state.site.updatedAt = Date.now()
         state.hasUnsavedChanges = true
-      }),
-    )
+      })
   },
 })

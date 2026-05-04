@@ -53,13 +53,13 @@ describe('Self-hosted CMS pivot — static ZIP export removal', () => {
   })
 
   it('does not expose local site management routes or dashboard files', () => {
-    const router = read(join(SRC_ROOT, 'admin/router.ts'))
+    const router = read(join(SRC_ROOT, 'admin/router.tsx'))
     expect(router).not.toContain('Dashboard')
     expect(router).not.toContain('/editor/:projectId')
     expect(router).not.toContain('/editor/:siteId')
-    expect(router).toContain("path: '/'")
-    expect(router).toContain("to: '/admin/site'")
-    expect(router).toContain("path: '/admin/content'")
+    expect(router).toContain('path="/"')
+    expect(router).toContain('to="/admin/site"')
+    expect(router).toContain('path="/admin/content"')
     expect(existsSync(join(SRC_ROOT, 'admin/Dashboard.tsx'))).toBe(false)
     expect(existsSync(join(SRC_ROOT, 'admin/Dashboard.module.css'))).toBe(false)
   })

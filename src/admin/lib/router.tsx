@@ -3,19 +3,18 @@
  *
  * What this provides
  * ------------------
- * - `<Router>`              browser router; subscribes to popstate + custom
- *                           'pb:locationchange' event for pushState/replaceState
- * - `<MemoryRouter>`        in-memory router for tests; maintains its own
- *                           pathname/search state
- * - `<Routes>` / `<Route>`  declarative route matching, supports `:param`
- *                           segments. First match wins.
- * - `<Navigate>`            declarative redirect (effect-based push or replace)
- * - `<Link>`                anchor that calls history.pushState on left-click;
- *                           falls back to a plain anchor if no router context
- * - `useLocation()`         returns `{ pathname, search }`
- * - `useNavigate()`         returns `(to, options?) => void`
- * - `useParams()`           returns the matched route's params
- * - `useInRouterContext()`  returns true when inside <Router> or <MemoryRouter>
+ * - `<Router>`         browser router; subscribes to popstate + custom
+ *                      'pb:locationchange' event for pushState/replaceState
+ * - `<MemoryRouter>`   in-memory router for tests; maintains its own
+ *                      pathname/search state
+ * - `<Routes>` /       declarative route matching, supports `:param`
+ *   `<Route>`          segments. First match wins.
+ * - `<Navigate>`       declarative redirect (effect-based push or replace)
+ * - `<Link>`           anchor that calls history.pushState on left-click;
+ *                      falls back to a plain anchor if no router context
+ *
+ * Hooks (`useLocation`, `useNavigate`, `useParams`, `useInRouterContext`)
+ * live in `./routerHooks.ts` so Fast Refresh works for this components file.
  *
  * Why custom (not react-router-dom)
  * ----------------------------------
@@ -31,7 +30,6 @@
  */
 
 import {
-  createContext,
   createElement,
   useCallback,
   useContext,
@@ -44,87 +42,18 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface Location {
-  pathname: string
-  search: string
-}
-
-interface NavigateOptions {
-  replace?: boolean
-}
-
-interface NavigateFn {
-  (to: string, options?: NavigateOptions): void
-}
-
-interface RouteContextValue {
-  /** params from the currently-matched <Route>, or empty object if none. */
-  params: Record<string, string>
-}
-
-interface RouterContextValue {
-  location: Location
-  navigate: NavigateFn
-}
-
-const RouterContext = createContext<RouterContextValue | null>(null)
-const RouteContext = createContext<RouteContextValue>({ params: {} })
-
-// Custom event the navigate functions dispatch so useSyncExternalStore picks
-// up pushState/replaceState (which don't fire popstate natively).
-const LOCATION_CHANGE_EVENT = 'pb:locationchange'
-
-function isBrowser(): boolean {
-  return typeof window !== 'undefined' && typeof window.history !== 'undefined'
-}
-
-// ---------------------------------------------------------------------------
-// Path matching
-// ---------------------------------------------------------------------------
-
-interface CompiledPattern {
-  regex: RegExp
-  paramNames: string[]
-}
-
-function compilePattern(pattern: string): CompiledPattern {
-  const paramNames: string[] = []
-  const escaped = pattern
-    .replace(/\/+$/, '')
-    .split('/')
-    .map((segment) => {
-      if (segment.startsWith(':')) {
-        paramNames.push(segment.slice(1))
-        return '([^/]+)'
-      }
-      return segment.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
-    })
-    .join('/')
-  // Tolerate trailing slash; require full match.
-  const regex = new RegExp(`^${escaped || '/'}/?$`)
-  return { regex, paramNames }
-}
-
-function matchPath(
-  pattern: string,
-  pathname: string,
-): { params: Record<string, string> } | null {
-  const compiled = compilePattern(pattern)
-  const match = compiled.regex.exec(pathname)
-  if (!match) return null
-  const params: Record<string, string> = {}
-  for (let i = 0; i < compiled.paramNames.length; i++) {
-    const name = compiled.paramNames[i]
-    const value = match[i + 1]
-    if (value !== undefined) params[name] = decodeURIComponent(value)
-  }
-  return { params }
-}
+import {
+  LOCATION_CHANGE_EVENT,
+  RouteContext,
+  RouterContext,
+  isBrowser,
+  matchPath,
+  useLocation,
+  useNavigate,
+  type Location,
+  type NavigateFn,
+  type RouterContextValue,
+} from './routerHooks'
 
 // ---------------------------------------------------------------------------
 // Browser <Router>
@@ -226,34 +155,6 @@ export function MemoryRouter({
 }
 
 // ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-function useRouterContext(): RouterContextValue {
-  const ctx = useContext(RouterContext)
-  if (!ctx) {
-    throw new Error('useRouterContext must be used inside <Router> or <MemoryRouter>')
-  }
-  return ctx
-}
-
-export function useInRouterContext(): boolean {
-  return useContext(RouterContext) !== null
-}
-
-export function useLocation(): Location {
-  return useRouterContext().location
-}
-
-export function useNavigate(): NavigateFn {
-  return useRouterContext().navigate
-}
-
-export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
-  return useContext(RouteContext).params as T
-}
-
-// ---------------------------------------------------------------------------
 // <Routes> / <Route>
 //
 // <Route> is a marker component — it carries `path` + `element` props but
@@ -279,14 +180,19 @@ interface RoutesProps {
 export function Routes({ children }: RoutesProps) {
   const { pathname } = useLocation()
 
-  const matched = useMemo(() => {
-    const list = collectRouteChildren(children)
-    for (const route of list) {
-      const result = matchPath(route.path, pathname)
-      if (result) return { element: route.element, params: result.params }
+  // Run the match each render. We don't memoize: `children` is the result of
+  // JSX and gets a new reference every parent render, so the cache would
+  // miss every time anyway. Route matching is a regex against ~4 entries —
+  // cheap.
+  const list = collectRouteChildren(children)
+  let matched: { element: ReactNode; params: Record<string, string> } | null = null
+  for (const route of list) {
+    const result = matchPath(route.path, pathname)
+    if (result) {
+      matched = { element: route.element, params: result.params }
+      break
     }
-    return null
-  }, [children, pathname])
+  }
 
   if (!matched) return null
   return (
@@ -340,11 +246,11 @@ interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'
 }
 
 export function Link({ to, replace = false, onClick, children, ...rest }: LinkProps) {
-  const inRouter = useInRouterContext()
   // Calling useNavigate without router context throws — only call when
   // we have one. Falling back to a plain anchor preserves SSR / pre-mount
   // rendering in places that render outside a Router (rare but safe).
   const ctx = useContext(RouterContext)
+  const inRouter = ctx !== null
   const handleClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
       onClick?.(event)

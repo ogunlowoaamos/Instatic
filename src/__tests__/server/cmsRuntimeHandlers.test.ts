@@ -4,12 +4,15 @@ import type { DbClient, DbResult } from '../../../server/cms/db'
 import { handleCmsRequest } from '../../../server/cms/handlers'
 import type { SiteDocument } from '@core/page-tree/schemas'
 
-class RuntimeHandlerFakeDb implements DbClient {
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-  ): Promise<DbResult<Row>> {
+function makeFakeDb(): DbClient {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select admin_users.id')) {
+    // findAdminBySessionHash — return a hardcoded admin regardless of session hash
+    if (normalized.includes('select admin_users.id')) {
       return {
         rows: [{
           id: 'admin_1',
@@ -22,6 +25,11 @@ class RuntimeHandlerFakeDb implements DbClient {
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return handle as DbClient
 }
 
 function runtimeRequest(url: string, body: unknown): Request {
@@ -79,7 +87,7 @@ describe('CMS runtime handlers', () => {
     const res = await handleCmsRequest(runtimeRequest(
       'http://localhost/api/cms/runtime/dependencies/resolve',
       { packageJson: { dependencies: {}, devDependencies: {} } },
-    ), new RuntimeHandlerFakeDb())
+    ), makeFakeDb())
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toMatchObject({
@@ -91,7 +99,7 @@ describe('CMS runtime handlers', () => {
     const res = await handleCmsRequest(runtimeRequest(
       'http://localhost/api/cms/runtime/preview',
       { site: site(), pageId: 'page_1' },
-    ), new RuntimeHandlerFakeDb())
+    ), makeFakeDb())
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toMatchObject({

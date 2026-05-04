@@ -2,13 +2,13 @@
  * Phase D — Agent tool executor.
  *
  * Maps agent action objects (from the server NDJSON stream) to Zustand
- * store calls. All inputs are validated with Zod before touching the store
- * (Constraint #272 — all tool calls must pass Zod validation before dispatch).
+ * store calls. All inputs are validated with TypeBox before touching the store
+ * (Constraint #272 — all tool calls must pass validation before dispatch).
  *
  * Constraint #283/#286: No Anthropic SDK imports here.
  */
 
-import { z } from 'zod'
+import { Type, type Static, parseValue } from '@core/utils/typeboxHelpers'
 import type { EditorStore } from '../editor-store/types'
 import { registry } from '../module-engine/registry'
 import { sanitizeRichtext, isRichtextPropKey } from '../sanitize'
@@ -27,131 +27,167 @@ const setStoreState = (partial: Partial<EditorStore>): void =>
   getAgentStoreApi<EditorStore>().setState(partial)
 
 // ---------------------------------------------------------------------------
-// Per-action Zod schemas (Constraint #272)
+// Per-action TypeBox schemas (Constraint #272)
 // ---------------------------------------------------------------------------
 
-const insertNodeSchema = z.object({
-  type: z.literal('insertNode'),
-  moduleId: z.string().min(1),
-  parentId: z.string().min(1).optional(),
-  parentRef: z.string().min(1).optional(),
-  ref: z.string().min(1).optional(),
-  index: z.number().int().nonnegative().optional(),
-  props: z.record(z.string(), z.unknown()).optional().default({}),
-  classIds: z.array(z.string().min(1)).optional().default([]),
-}).refine((action) => Boolean(action.parentId || action.parentRef), {
-  message: 'Either parentId or parentRef is required',
+const insertNodeSchema = Type.Object({
+  type: Type.Literal('insertNode'),
+  moduleId: Type.String({ minLength: 1 }),
+  parentId: Type.Optional(Type.String({ minLength: 1 })),
+  parentRef: Type.Optional(Type.String({ minLength: 1 })),
+  ref: Type.Optional(Type.String({ minLength: 1 })),
+  index: Type.Optional(Type.Integer({ minimum: 0 })),
+  props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+  classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
 })
 
-const classStylePatchSchema = z.record(z.string(), z.union([z.string(), z.number()]))
-const classBreakpointStylesSchema = z.record(z.string().min(1), classStylePatchSchema)
+// Cross-field invariant: either parentId or parentRef must be provided.
+function hasInsertNodeParent(value: Static<typeof insertNodeSchema>): boolean {
+  return Boolean(value.parentId || value.parentRef)
+}
 
-const classDefinitionSchema = z.object({
-  name: z.string().min(1),
-  styles: classStylePatchSchema.optional().default({}),
-  breakpointStyles: classBreakpointStylesSchema.optional().default({}),
+const classStylePatchSchema = Type.Record(
+  Type.String(),
+  Type.Union([Type.String(), Type.Number()]),
+)
+
+const classBreakpointStylesSchema = Type.Record(
+  Type.String({ minLength: 1 }),
+  classStylePatchSchema,
+)
+
+const classDefinitionSchema = Type.Object({
+  name: Type.String({ minLength: 1 }),
+  styles: Type.Optional(classStylePatchSchema),
+  breakpointStyles: Type.Optional(classBreakpointStylesSchema),
 })
 
-const insertTreeNodeSchema: z.ZodType<InsertTreeNode> = z.lazy(() => z.object({
-  moduleId: z.string().min(1),
-  ref: z.string().min(1).optional(),
-  props: z.record(z.string(), z.unknown()).optional().default({}),
-  classIds: z.array(z.string().min(1)).optional().default([]),
-  children: z.array(insertTreeNodeSchema).optional().default([]),
-}))
+const insertTreeNodeSchema = Type.Recursive((Self) =>
+  Type.Object({
+    moduleId: Type.String({ minLength: 1 }),
+    ref: Type.Optional(Type.String({ minLength: 1 })),
+    props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    children: Type.Optional(Type.Array(Self)),
+  }),
+)
 
-const insertTreeSchema = z.object({
-  type: z.literal('insertTree'),
-  parentId: z.string().min(1).optional(),
-  parentRef: z.string().min(1).optional(),
-  index: z.number().int().nonnegative().optional(),
-  classes: z.array(classDefinitionSchema).optional().default([]),
+const insertTreeSchema = Type.Object({
+  type: Type.Literal('insertTree'),
+  parentId: Type.Optional(Type.String({ minLength: 1 })),
+  parentRef: Type.Optional(Type.String({ minLength: 1 })),
+  index: Type.Optional(Type.Integer({ minimum: 0 })),
+  classes: Type.Optional(Type.Array(classDefinitionSchema)),
   tree: insertTreeNodeSchema,
-}).refine((action) => Boolean(action.parentId || action.parentRef), {
-  message: 'Either parentId or parentRef is required',
 })
 
-const deleteNodeSchema = z.object({
-  type: z.literal('deleteNode'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
+// Cross-field invariant: either parentId or parentRef must be provided.
+function hasInsertTreeParent(value: Static<typeof insertTreeSchema>): boolean {
+  return Boolean(value.parentId || value.parentRef)
+}
+
+const deleteNodeSchema = Type.Object({
+  type: Type.Literal('deleteNode'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
 })
 
-const updateNodePropsSchema = z.object({
-  type: z.literal('updateNodeProps'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-  breakpointId: z.string().min(1).optional(),
-  patch: z.record(z.string(), z.unknown()),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
+// Cross-field invariant: either nodeId or nodeRef must be provided.
+function hasDeleteNodeTarget(value: Static<typeof deleteNodeSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+const updateNodePropsSchema = Type.Object({
+  type: Type.Literal('updateNodeProps'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
+  breakpointId: Type.Optional(Type.String({ minLength: 1 })),
+  patch: Type.Record(Type.String(), Type.Unknown()),
 })
 
-const moveNodeSchema = z.object({
-  type: z.literal('moveNode'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-  newParentId: z.string().min(1).optional(),
-  newParentRef: z.string().min(1).optional(),
-  newIndex: z.number().int().nonnegative(),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
-}).refine((action) => Boolean(action.newParentId || action.newParentRef), {
-  message: 'Either newParentId or newParentRef is required',
+// Cross-field invariant: either nodeId or nodeRef must be provided.
+function hasUpdateNodeTarget(value: Static<typeof updateNodePropsSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+const moveNodeSchema = Type.Object({
+  type: Type.Literal('moveNode'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
+  newParentId: Type.Optional(Type.String({ minLength: 1 })),
+  newParentRef: Type.Optional(Type.String({ minLength: 1 })),
+  newIndex: Type.Integer({ minimum: 0 }),
 })
 
-const renameNodeSchema = z.object({
-  type: z.literal('renameNode'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-  label: z.string().min(1),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
+// Cross-field invariant 1: either nodeId or nodeRef must be provided.
+function hasMoveNodeSource(value: Static<typeof moveNodeSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+// Cross-field invariant 2: either newParentId or newParentRef must be provided.
+function hasMoveNodeDestination(value: Static<typeof moveNodeSchema>): boolean {
+  return Boolean(value.newParentId || value.newParentRef)
+}
+
+const renameNodeSchema = Type.Object({
+  type: Type.Literal('renameNode'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
+  label: Type.String({ minLength: 1 }),
 })
 
-const createClassSchema = z.object({
-  type: z.literal('createClass'),
-  name: z.string().min(1),
-  styles: classStylePatchSchema.optional(),
-  breakpointStyles: classBreakpointStylesSchema.optional().default({}),
+// Cross-field invariant: either nodeId or nodeRef must be provided.
+function hasRenameNodeTarget(value: Static<typeof renameNodeSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+const createClassSchema = Type.Object({
+  type: Type.Literal('createClass'),
+  name: Type.String({ minLength: 1 }),
+  styles: Type.Optional(classStylePatchSchema),
+  breakpointStyles: Type.Optional(classBreakpointStylesSchema),
 })
 
-const updateClassStylesSchema = z.object({
-  type: z.literal('updateClassStyles'),
-  classId: z.string().min(1),
-  breakpointId: z.string().min(1).optional(),
+const updateClassStylesSchema = Type.Object({
+  type: Type.Literal('updateClassStyles'),
+  classId: Type.String({ minLength: 1 }),
+  breakpointId: Type.Optional(Type.String({ minLength: 1 })),
   patch: classStylePatchSchema,
 })
 
-const assignClassSchema = z.object({
-  type: z.literal('assignClass'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-  classId: z.string().min(1),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
+const assignClassSchema = Type.Object({
+  type: Type.Literal('assignClass'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
+  classId: Type.String({ minLength: 1 }),
 })
 
-const removeClassSchema = z.object({
-  type: z.literal('removeClass'),
-  nodeId: z.string().min(1).optional(),
-  nodeRef: z.string().min(1).optional(),
-  classId: z.string().min(1),
-}).refine((action) => Boolean(action.nodeId || action.nodeRef), {
-  message: 'Either nodeId or nodeRef is required',
+// Cross-field invariant: either nodeId or nodeRef must be provided.
+function hasAssignClassTarget(value: Static<typeof assignClassSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+const removeClassSchema = Type.Object({
+  type: Type.Literal('removeClass'),
+  nodeId: Type.Optional(Type.String({ minLength: 1 })),
+  nodeRef: Type.Optional(Type.String({ minLength: 1 })),
+  classId: Type.String({ minLength: 1 }),
 })
 
-const addPageSchema = z.object({
-  type: z.literal('addPage'),
-  title: z.string().min(1),
-  slug: z.string().optional(),
+// Cross-field invariant: either nodeId or nodeRef must be provided.
+function hasRemoveClassTarget(value: Static<typeof removeClassSchema>): boolean {
+  return Boolean(value.nodeId || value.nodeRef)
+}
+
+const addPageSchema = Type.Object({
+  type: Type.Literal('addPage'),
+  title: Type.String({ minLength: 1 }),
+  slug: Type.Optional(Type.String()),
 })
 
-const updateSiteSettingsSchema = z.object({
-  type: z.literal('updateSiteSettings'),
-  patch: z.record(z.string(), z.unknown()),
+const updateSiteSettingsSchema = Type.Object({
+  type: Type.Literal('updateSiteSettings'),
+  patch: Type.Record(Type.String(), Type.Unknown()),
 })
 
 // ---------------------------------------------------------------------------
@@ -208,6 +244,7 @@ const EMPTY_TREE_CHILDREN: InsertTreeNode[] = []
 const EMPTY_TREE_CLASS_IDS: string[] = []
 const EMPTY_PROPS: Record<string, unknown> = {}
 const EMPTY_CLASS_STYLES: Record<string, string | number> = {}
+const EMPTY_BREAKPOINT_STYLES: Record<string, Record<string, string | number>> = {}
 
 function cloneSerializable<T>(value: T): T {
   return value === null || value === undefined ? value : structuredClone(value)
@@ -241,7 +278,7 @@ function restoreBatchSnapshot(snapshot: AgentBatchSnapshot): void {
 }
 
 function resolveParentId(
-  action: z.infer<typeof insertNodeSchema>,
+  action: Static<typeof insertNodeSchema>,
   context: AgentExecutionContext | undefined,
 ): string | null {
   if (action.parentRef) {
@@ -251,7 +288,7 @@ function resolveParentId(
 }
 
 function resolveTreeParentId(
-  action: z.infer<typeof insertTreeSchema>,
+  action: Static<typeof insertTreeSchema>,
   context: AgentExecutionContext | undefined,
 ): string | null {
   if (action.parentRef) {
@@ -271,7 +308,7 @@ function resolveNodeId(
 }
 
 function resolveMoveParentId(
-  action: z.infer<typeof moveNodeSchema>,
+  action: Static<typeof moveNodeSchema>,
   context: AgentExecutionContext | undefined,
 ): string | null {
   if (action.newParentRef) {
@@ -434,7 +471,7 @@ function insertTreeNode(
 /**
  * Execute a single agent action against the Zustand store.
  *
- * Validates the action with Zod before dispatch (Constraint #272).
+ * Validates the action with TypeBox before dispatch (Constraint #272).
  * Returns `{ success: true, nodeId? }` or `{ success: false, error }`.
  */
 export async function executeAgentAction(
@@ -446,7 +483,10 @@ export async function executeAgentAction(
   try {
     switch (action.type) {
       case 'insertNode': {
-        const a = insertNodeSchema.parse(action)
+        const a = parseValue(insertNodeSchema, action)
+        if (!hasInsertNodeParent(a)) {
+          return { success: false, error: 'Either parentId or parentRef is required' }
+        }
         const moduleError = validateRegisteredModule(a.moduleId)
         if (moduleError) return { success: false, error: moduleError }
         const parentId = resolveParentId(a, context)
@@ -454,7 +494,7 @@ export async function executeAgentAction(
           const ref = a.parentRef ? `parentRef "${a.parentRef}"` : 'parentId'
           return { success: false, error: `Could not resolve ${ref}` }
         }
-        const resolvedClassIds = resolveKnownClassIds(store, a.classIds)
+        const resolvedClassIds = resolveKnownClassIds(store, a.classIds ?? EMPTY_TREE_CLASS_IDS)
         if (resolvedClassIds.missing) {
           return { success: false, error: `Class not found: ${resolvedClassIds.missing}` }
         }
@@ -463,7 +503,7 @@ export async function executeAgentAction(
           return { success: false, error: 'One or more classes could not be resolved for insertNode' }
         }
         // Sanitize richtext-keyed props before writing to store (Constraint #299)
-        const sanitizedProps = sanitizeNodeProps(a.props)
+        const sanitizedProps = sanitizeNodeProps(a.props ?? EMPTY_PROPS)
         const nodeId = store.insertNode(
           a.moduleId,
           sanitizedProps,
@@ -478,44 +518,50 @@ export async function executeAgentAction(
       }
 
       case 'insertTree': {
-        const a = insertTreeSchema.parse(action)
+        const a = parseValue(insertTreeSchema, action)
+        if (!hasInsertTreeParent(a)) {
+          return { success: false, error: 'Either parentId or parentRef is required' }
+        }
         const parentId = resolveTreeParentId(a, context)
         if (!parentId) {
           const ref = a.parentRef ? `parentRef "${a.parentRef}"` : 'parentId'
           return { success: false, error: `Could not resolve ${ref}` }
         }
-        const moduleError = validateTreeModules(a.tree)
+        const moduleError = validateTreeModules(a.tree as InsertTreeNode)
         if (moduleError) return { success: false, error: moduleError }
 
-        for (const classDef of a.classes) {
+        for (const classDef of (a.classes ?? [])) {
           const breakpointError = validateBreakpointStyles(
             getStoreState(),
-            classDef.breakpointStyles as Record<string, Record<string, string | number>>,
+            classDef.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
           )
           if (breakpointError) return { success: false, error: breakpointError }
         }
 
-        for (const classDef of a.classes) {
+        for (const classDef of (a.classes ?? [])) {
           const classId = ensureClassIdWithStyles(
             getStoreState(),
             classDef.name,
-            classDef.styles as Record<string, string | number>,
-            classDef.breakpointStyles as Record<string, Record<string, string | number>>,
+            classDef.styles ?? EMPTY_CLASS_STYLES,
+            classDef.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
           )
           if (!classId) return { success: false, error: `Class could not be created: ${classDef.name}` }
         }
 
-        const unresolvedClass = ensureTreeClassIds(getStoreState(), a.tree)
+        const unresolvedClass = ensureTreeClassIds(getStoreState(), a.tree as InsertTreeNode)
         if (unresolvedClass) {
           return { success: false, error: `Class could not be resolved: ${unresolvedClass}` }
         }
 
-        const nodeId = insertTreeNode(getStoreState(), a.tree, parentId, a.index, context)
+        const nodeId = insertTreeNode(getStoreState(), a.tree as InsertTreeNode, parentId, a.index, context)
         return { success: true, nodeId }
       }
 
       case 'deleteNode': {
-        const a = deleteNodeSchema.parse(action)
+        const a = parseValue(deleteNodeSchema, action)
+        if (!hasDeleteNodeTarget(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -526,7 +572,10 @@ export async function executeAgentAction(
       }
 
       case 'updateNodeProps': {
-        const a = updateNodePropsSchema.parse(action)
+        const a = parseValue(updateNodePropsSchema, action)
+        if (!hasUpdateNodeTarget(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -550,7 +599,13 @@ export async function executeAgentAction(
       }
 
       case 'moveNode': {
-        const a = moveNodeSchema.parse(action)
+        const a = parseValue(moveNodeSchema, action)
+        if (!hasMoveNodeSource(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
+        if (!hasMoveNodeDestination(a)) {
+          return { success: false, error: 'Either newParentId or newParentRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -566,7 +621,10 @@ export async function executeAgentAction(
       }
 
       case 'renameNode': {
-        const a = renameNodeSchema.parse(action)
+        const a = parseValue(renameNodeSchema, action)
+        if (!hasRenameNodeTarget(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -577,33 +635,33 @@ export async function executeAgentAction(
       }
 
       case 'createClass': {
-        const a = createClassSchema.parse(action)
+        const a = parseValue(createClassSchema, action)
         const breakpointError = validateBreakpointStyles(
           store,
-          a.breakpointStyles as Record<string, Record<string, string | number>>,
+          a.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
         )
         if (breakpointError) return { success: false, error: breakpointError }
         const cls = store.createClass(
           a.name,
-          (a.styles ?? EMPTY_CLASS_STYLES) as Record<string, string | number>,
+          a.styles ?? EMPTY_CLASS_STYLES,
         )
         applyClassBreakpointStyles(
           store,
           cls.id,
-          a.breakpointStyles as Record<string, Record<string, string | number>>,
+          a.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
         )
         return { success: true, nodeId: cls.id }
       }
 
       case 'updateClassStyles': {
-        const a = updateClassStylesSchema.parse(action)
+        const a = parseValue(updateClassStylesSchema, action)
         // Resolve classId by ID first, then fall back to name lookup.
         // This lets the agent reference a class it just created in the same
         // batch by name (since nanoid IDs are unknown at generation time).
         const ucsResolvedId = resolveOrCreateClassId(
           store,
           a.classId,
-          a.patch as Record<string, string | number>,
+          a.patch,
         )
         if (!ucsResolvedId) return { success: false, error: `Class not found: ${a.classId}` }
         if (a.breakpointId) {
@@ -612,19 +670,22 @@ export async function executeAgentAction(
           store.setClassBreakpointStyles(
             ucsResolvedId,
             a.breakpointId,
-            a.patch as Record<string, string | number>,
+            a.patch,
           )
         } else {
           store.updateClassStyles(
             ucsResolvedId,
-            a.patch as Record<string, string | number>,
+            a.patch,
           )
         }
         return { success: true }
       }
 
       case 'assignClass': {
-        const a = assignClassSchema.parse(action)
+        const a = parseValue(assignClassSchema, action)
+        if (!hasAssignClassTarget(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -638,7 +699,10 @@ export async function executeAgentAction(
       }
 
       case 'removeClass': {
-        const a = removeClassSchema.parse(action)
+        const a = parseValue(removeClassSchema, action)
+        if (!hasRemoveClassTarget(a)) {
+          return { success: false, error: 'Either nodeId or nodeRef is required' }
+        }
         const nodeId = resolveNodeId(a, context)
         if (!nodeId) {
           const ref = a.nodeRef ? `nodeRef "${a.nodeRef}"` : 'nodeId'
@@ -652,13 +716,13 @@ export async function executeAgentAction(
       }
 
       case 'addPage': {
-        const a = addPageSchema.parse(action)
+        const a = parseValue(addPageSchema, action)
         store.addPage(a.title, a.slug)
         return { success: true }
       }
 
       case 'updateSiteSettings': {
-        const a = updateSiteSettingsSchema.parse(action)
+        const a = parseValue(updateSiteSettingsSchema, action)
         // updateSiteSettings is a shallow merge via updateNodeProps pattern
         // (site settings live in site.settings — use the settings slice if available)
         // For now, emit a warning since there's no direct store method

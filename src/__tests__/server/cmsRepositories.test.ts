@@ -8,47 +8,59 @@ import {
   getSetupStatus,
 } from '../../../server/cms/repositories'
 
-class FakeDb implements DbClient {
-  site: Record<string, unknown>[] = []
-  admins: Record<string, unknown>[] = []
-  sessions: Record<string, unknown>[] = []
+function makeFakeDb() {
+  const site: Record<string, unknown>[] = []
+  const admins: Record<string, unknown>[] = []
+  const sessions: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select count(*)::int as count from site')) {
-      return { rows: [{ count: this.site.length } as Row], rowCount: 1 }
+
+    if (normalized.includes('count(*)::int as count from site')) {
+      return { rows: [{ count: site.length } as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('select count(*)::int as count from admin_users')) {
-      return { rows: [{ count: this.admins.length } as Row], rowCount: 1 }
+    if (normalized.includes('count(*)::int as count from admin_users')) {
+      return { rows: [{ count: admins.length } as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('insert into site')) {
-      this.site.push({ id: 'default', name: params[0], settings_json: params[1] })
+    if (normalized.includes('insert into site')) {
+      // values: [name, settings] — 'default' id is a literal in the SQL
+      site.push({ id: 'default', name: values[0], settings_json: values[1] })
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('insert into admin_users')) {
-      this.admins.push({ id: params[0], email: params[1], password_hash: params[2] })
+    if (normalized.includes('insert into admin_users')) {
+      // values: [id, email, passwordHash]
+      admins.push({ id: values[0], email: values[1], password_hash: values[2] })
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('select id, email, password_hash')) {
+    if (normalized.includes('select id, email, password_hash')) {
+      // values: [email]
       return {
-        rows: this.admins.filter((a) => a.email === params[0]) as Row[],
+        rows: admins.filter((a) => a.email === values[0]) as Row[],
         rowCount: 1,
       }
     }
-    if (normalized.startsWith('insert into sessions')) {
-      this.sessions.push({ id_hash: params[0], admin_user_id: params[1], expires_at: params[2] })
+    if (normalized.includes('insert into sessions')) {
+      // values: [idHash, adminUserId, expiresAt]
+      sessions.push({ id_hash: values[0], admin_user_id: values[1], expires_at: values[2] })
       return { rows: [], rowCount: 1 }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, { site, admins, sessions })
 }
 
 describe('CMS repositories', () => {
   it('reports setup incomplete until site and admin exist', async () => {
-    const db = new FakeDb()
+    const db = makeFakeDb()
     expect(await getSetupStatus(db)).toEqual({ hasSite: false, hasAdmin: false, needsSetup: true })
     await createSite(db, 'Example Site', {})
     await createAdminUser(db, { id: 'admin_1', email: 'owner@example.com', passwordHash: 'hash' })
@@ -56,7 +68,7 @@ describe('CMS repositories', () => {
   })
 
   it('creates and finds admins by normalized email', async () => {
-    const db = new FakeDb()
+    const db = makeFakeDb()
     await createAdminUser(db, { id: 'admin_1', email: 'Owner@Example.com', passwordHash: 'hash' })
     expect(await findAdminByEmail(db, 'owner@example.com')).toMatchObject({
       id: 'admin_1',
@@ -66,7 +78,7 @@ describe('CMS repositories', () => {
   })
 
   it('stores session token hashes only', async () => {
-    const db = new FakeDb()
+    const db = makeFakeDb()
     await createSession(db, { idHash: 'abc123', adminUserId: 'admin_1', expiresAt: new Date('2030-01-01') })
     expect(db.sessions[0]).toMatchObject({ id_hash: 'abc123', admin_user_id: 'admin_1' })
   })

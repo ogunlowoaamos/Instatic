@@ -2,14 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { DbClient, DbResult } from '../../../server/cms/db'
 import { handleServerRequest } from '../../../server/router'
+import { createFakeDb } from './dbTestFake'
 
-class StaticFakeDb implements DbClient {
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(): Promise<DbResult<Row>> {
-    return { rows: [], rowCount: 0 }
-  }
-}
+// Static file serving tests never touch the database.
+const fakeDb = createFakeDb(async (sql) => {
+  throw new Error(`Unexpected DB call in static admin test: ${sql}`)
+})
 
 function createStaticDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'page-builder-static-'))
@@ -24,7 +23,7 @@ describe('self-hosted admin static serving', () => {
     const staticDir = createStaticDir()
     try {
       const res = await handleServerRequest(new Request('http://localhost/admin'), {
-        db: new StaticFakeDb(),
+        db: fakeDb,
         staticDir,
       })
 
@@ -40,7 +39,7 @@ describe('self-hosted admin static serving', () => {
     const staticDir = createStaticDir()
     try {
       const res = await handleServerRequest(new Request('http://localhost/assets/app.js'), {
-        db: new StaticFakeDb(),
+        db: fakeDb,
         staticDir,
       })
 
@@ -58,7 +57,7 @@ describe('self-hosted admin static serving', () => {
       writeFileSync(join(uploadsDir, 'hero.png'), 'image-bytes')
 
       const res = await handleServerRequest(new Request('http://localhost/uploads/hero.png'), {
-        db: new StaticFakeDb(),
+        db: fakeDb,
         uploadsDir,
       })
 

@@ -20,19 +20,11 @@ export async function savePublishedRuntimeAssets(
   files: BuiltRuntimeAssetFile[],
 ): Promise<void> {
   for (const file of files) {
-    await db.query(
-      `insert into published_runtime_assets
-         (id, page_version_id, asset_path, public_path, content_type, content_bytes)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [
-        nanoid(),
-        pageVersionId,
-        file.path,
-        file.publicPath,
-        file.contentType,
-        Buffer.from(file.bytes),
-      ],
-    )
+    await db`
+      insert into published_runtime_assets
+        (id, page_version_id, asset_path, public_path, content_type, content_bytes)
+      values (${nanoid()}, ${pageVersionId}, ${file.path}, ${file.publicPath}, ${file.contentType}, ${Buffer.from(file.bytes)})
+    `
   }
 }
 
@@ -40,14 +32,13 @@ export async function getPublishedRuntimeAsset(
   db: DbClient,
   publicPath: string,
 ): Promise<PublishedRuntimeAssetRecord | null> {
-  const result = await db.query<RuntimeAssetRow>(
-    `select public_path, content_type, content_bytes
-     from published_runtime_assets
-     where public_path = $1
-     limit 1`,
-    [publicPath],
-  )
-  const row = result.rows[0]
+  const { rows } = await db<RuntimeAssetRow>`
+    select public_path, content_type, content_bytes
+    from published_runtime_assets
+    where public_path = ${publicPath}
+    limit 1
+  `
+  const row = rows[0]
   if (!row) return null
 
   return {

@@ -7,8 +7,8 @@ import { SESSION_COOKIE_NAME, hashSessionToken } from '../../../server/cms/auth'
 import type { DbClient, DbResult } from '../../../server/cms/db'
 import { handleCmsRequest } from '../../../server/cms/handlers'
 
-class PluginsFakeDb implements DbClient {
-  admins: Record<string, unknown>[] = [
+function makeFakeDb() {
+  const admins: Record<string, unknown>[] = [
     {
       id: 'admin_1',
       email: 'owner@example.com',
@@ -16,80 +16,97 @@ class PluginsFakeDb implements DbClient {
       created_at: new Date('2026-01-01').toISOString(),
     },
   ]
-  sessions: Record<string, unknown>[] = []
-  plugins: Record<string, unknown>[] = []
-  records: Record<string, unknown>[] = []
+  const sessions: Record<string, unknown>[] = []
+  const plugins: Record<string, unknown>[] = []
+  const records: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select admin_users.id, admin_users.email')) {
-      const session = this.sessions.find((s) => String(s.id_hash) === String(params[0]))
+
+    // findAdminBySessionHash — values[0]=idHash
+    if (normalized.includes('select admin_users.id, admin_users.email')) {
+      const session = sessions.find((s) => String(s.id_hash) === String(values[0]))
       if (!session) return { rows: [], rowCount: 0 }
-      const admin = this.admins.find((a) => a.id === session.admin_user_id)
+      const admin = admins.find((a) => a.id === session.admin_user_id)
       return { rows: admin ? [admin as Row] : [], rowCount: admin ? 1 : 0 }
     }
-    if (normalized.startsWith('select id, name, version, enabled')) {
-      return { rows: [...this.plugins] as Row[], rowCount: this.plugins.length }
+    // listInstalledPlugins — no values
+    if (normalized.includes('select id, name, version, enabled')) {
+      return { rows: [...plugins] as Row[], rowCount: plugins.length }
     }
-    if (normalized.startsWith('insert into installed_plugins')) {
+    // installPlugin — values[0..4]=id, name, version, manifestJson, permsJson
+    if (normalized.includes('insert into installed_plugins')) {
       const now = new Date('2026-05-01T10:00:00.000Z').toISOString()
       const row = {
-        id: params[0],
-        name: params[1],
-        version: params[2],
+        id: values[0],
+        name: values[1],
+        version: values[2],
         enabled: true,
-        manifest_json: params[3],
-        granted_permissions_json: params[4] ?? [],
+        lifecycle_status: 'installed',
+        last_error: null,
+        manifest_json: values[3],
+        granted_permissions_json: values[4] ?? [],
         installed_at: now,
         updated_at: now,
       }
-      const index = this.plugins.findIndex((plugin) => plugin.id === row.id)
-      if (index >= 0) this.plugins[index] = row
-      else this.plugins.push(row)
+      const index = plugins.findIndex((plugin) => plugin.id === row.id)
+      if (index >= 0) plugins[index] = row
+      else plugins.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('update installed_plugins set enabled')) {
-      const row = this.plugins.find((plugin) => plugin.id === params[0])
+    // setPluginEnabled — values[0]=enabled, values[1]=id (note: order changed from old pg API)
+    if (normalized.includes('update installed_plugins set enabled')) {
+      const row = plugins.find((plugin) => plugin.id === values[1])
       if (!row) return { rows: [], rowCount: 0 }
-      row.enabled = params[1]
+      row.enabled = values[0]
       row.updated_at = new Date('2026-05-01T10:05:00.000Z').toISOString()
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('update installed_plugins set lifecycle_status')) {
-      const row = this.plugins.find((plugin) => plugin.id === params[0])
+    // setPluginLifecycleStatus — values[0]=lifecycleStatus, values[1]=lastError, values[2]=id
+    if (normalized.includes('update installed_plugins set lifecycle_status')) {
+      const row = plugins.find((plugin) => plugin.id === values[2])
       if (!row) return { rows: [], rowCount: 0 }
-      row.lifecycle_status = params[1]
-      row.last_error = params[2] ?? null
+      row.lifecycle_status = values[0]
+      row.last_error = values[1] ?? null
       row.updated_at = new Date('2026-05-01T10:06:00.000Z').toISOString()
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('delete from installed_plugins where id')) {
-      const index = this.plugins.findIndex((plugin) => plugin.id === params[0])
+    // deletePlugin — values[0]=id
+    if (normalized.includes('delete from installed_plugins where id')) {
+      const index = plugins.findIndex((plugin) => plugin.id === values[0])
       if (index === -1) return { rows: [], rowCount: 0 }
-      this.plugins.splice(index, 1)
+      plugins.splice(index, 1)
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('insert into plugin_records')) {
+    // createPluginRecord — values[0..3]=id, pluginId, resourceId, dataJson
+    if (normalized.includes('insert into plugin_records')) {
       const now = new Date('2026-05-01T10:10:00.000Z').toISOString()
       const row = {
-        id: params[0],
-        plugin_id: params[1],
-        resource_id: params[2],
-        data_json: params[3],
+        id: values[0],
+        plugin_id: values[1],
+        resource_id: values[2],
+        data_json: values[3],
         created_at: now,
         updated_at: now,
       }
-      this.records.push(row)
+      records.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, { admins, sessions, plugins, records })
 }
 
-async function createCookie(db: PluginsFakeDb): Promise<string> {
+async function createCookie(db: ReturnType<typeof makeFakeDb>): Promise<string> {
   const token = 'valid-session-token'
   db.sessions.push({
     id_hash: await hashSessionToken(token),
@@ -173,14 +190,14 @@ describe('CMS plugin handlers', () => {
   it('requires an admin session for plugin listing', async () => {
     const res = await handleCmsRequest(
       cmsRequest('http://localhost/api/cms/plugins'),
-      new PluginsFakeDb(),
+      makeFakeDb(),
     )
 
     expect(res.status).toBe(401)
   })
 
   it('installs, lists, disables, and removes a declarative plugin manifest', async () => {
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
 
     const install = await handleCmsRequest(
@@ -247,7 +264,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('rejects invalid plugin manifests before persistence', async () => {
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
 
     const res = await handleCmsRequest(
@@ -264,7 +281,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('requires explicit permission grants before installing privileged plugins', async () => {
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const privilegedManifest = {
       ...mapManifest,
@@ -322,7 +339,7 @@ describe('CMS plugin handlers', () => {
 
   it('installs zip plugin packages, writes assets, and activates backend routes', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-plugins-'))
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const manifest = {
       id: 'acme.workflow',
@@ -403,7 +420,7 @@ describe('CMS plugin handlers', () => {
 
   it('runs packaged server plugin lifecycle hooks on install, disable, enable, and remove', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-lifecycle-'))
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const manifest = {
       id: 'acme.lifecycle',
@@ -504,7 +521,7 @@ describe('CMS plugin handlers', () => {
 
   it('stores lifecycle errors for admin diagnostics without losing the plugin row', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-lifecycle-error-'))
-    const db = new PluginsFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const manifest = {
       id: 'acme.broken',

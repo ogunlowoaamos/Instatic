@@ -3,8 +3,8 @@ import { SESSION_COOKIE_NAME, hashSessionToken } from '../../../server/cms/auth'
 import type { DbClient, DbResult } from '../../../server/cms/db'
 import { handleCmsRequest } from '../../../server/cms/handlers'
 
-class PluginResourcesFakeDb implements DbClient {
-  admins: Record<string, unknown>[] = [
+function makeFakeDb() {
+  const admins: Record<string, unknown>[] = [
     {
       id: 'admin_1',
       email: 'owner@example.com',
@@ -12,98 +12,115 @@ class PluginResourcesFakeDb implements DbClient {
       created_at: new Date('2026-01-01').toISOString(),
     },
   ]
-  sessions: Record<string, unknown>[] = []
-  plugins: Record<string, unknown>[] = []
-  records: Record<string, unknown>[] = []
+  const sessions: Record<string, unknown>[] = []
+  const plugins: Record<string, unknown>[] = []
+  const records: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select admin_users.id, admin_users.email')) {
-      const session = this.sessions.find((s) => String(s.id_hash) === String(params[0]))
+
+    // findAdminBySessionHash — values[0]=idHash
+    if (normalized.includes('select admin_users.id, admin_users.email')) {
+      const session = sessions.find((s) => String(s.id_hash) === String(values[0]))
       if (!session) return { rows: [], rowCount: 0 }
-      const admin = this.admins.find((a) => a.id === session.admin_user_id)
+      const admin = admins.find((a) => a.id === session.admin_user_id)
       return { rows: admin ? [admin as Row] : [], rowCount: admin ? 1 : 0 }
     }
-    if (normalized.startsWith('select id, name, version, enabled') && normalized.includes('where id = $1')) {
-      const plugin = this.plugins.find((candidate) => candidate.id === params[0])
+    // getInstalledPlugin — values[0]=id (check with id = $1 to distinguish from list)
+    if (normalized.includes('select id, name, version, enabled') && normalized.includes('where id = $1')) {
+      const plugin = plugins.find((candidate) => candidate.id === values[0])
       return { rows: plugin ? [plugin as Row] : [], rowCount: plugin ? 1 : 0 }
     }
-    if (normalized.startsWith('select id, name, version, enabled')) {
-      return { rows: [...this.plugins] as Row[], rowCount: this.plugins.length }
+    // listInstalledPlugins — no values
+    if (normalized.includes('select id, name, version, enabled')) {
+      return { rows: [...plugins] as Row[], rowCount: plugins.length }
     }
-    if (normalized.startsWith('insert into installed_plugins')) {
+    // installPlugin — values[0..4]=id, name, version, manifestJson, permsJson
+    if (normalized.includes('insert into installed_plugins')) {
       const now = new Date('2026-05-01T10:00:00.000Z').toISOString()
       const row = {
-        id: params[0],
-        name: params[1],
-        version: params[2],
+        id: values[0],
+        name: values[1],
+        version: values[2],
         enabled: true,
         lifecycle_status: 'installed',
         last_error: null,
-        manifest_json: params[3],
-        granted_permissions_json: params[4] ?? [],
+        manifest_json: values[3],
+        granted_permissions_json: values[4] ?? [],
         installed_at: now,
         updated_at: now,
       }
-      this.plugins.push(row)
+      plugins.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('update installed_plugins set lifecycle_status')) {
-      const row = this.plugins.find((plugin) => plugin.id === params[0])
+    // setPluginLifecycleStatus — values[0]=lifecycleStatus, values[1]=lastError, values[2]=id
+    if (normalized.includes('update installed_plugins set lifecycle_status')) {
+      const row = plugins.find((plugin) => plugin.id === values[2])
       if (!row) return { rows: [], rowCount: 0 }
-      row.lifecycle_status = params[1]
-      row.last_error = params[2] ?? null
+      row.lifecycle_status = values[0]
+      row.last_error = values[1] ?? null
       row.updated_at = new Date('2026-05-01T10:06:00.000Z').toISOString()
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('select id, plugin_id, resource_id, data_json')) {
-      const rows = this.records.filter((record) =>
-        record.plugin_id === params[0] && record.resource_id === params[1]
+    // listPluginRecords — values[0]=pluginId, values[1]=resourceId
+    if (normalized.includes('select id, plugin_id, resource_id, data_json')) {
+      const rows = records.filter((record) =>
+        record.plugin_id === values[0] && record.resource_id === values[1]
       )
       return { rows: rows as Row[], rowCount: rows.length }
     }
-    if (normalized.startsWith('insert into plugin_records')) {
+    // createPluginRecord — values[0..3]=id, pluginId, resourceId, dataJson
+    if (normalized.includes('insert into plugin_records')) {
       const now = new Date('2026-05-01T10:10:00.000Z').toISOString()
       const row = {
-        id: params[0],
-        plugin_id: params[1],
-        resource_id: params[2],
-        data_json: params[3],
+        id: values[0],
+        plugin_id: values[1],
+        resource_id: values[2],
+        data_json: values[3],
         created_at: now,
         updated_at: now,
       }
-      this.records.push(row)
+      records.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('update plugin_records set data_json')) {
-      const row = this.records.find((record) =>
-        record.id === params[0] &&
-        record.plugin_id === params[1] &&
-        record.resource_id === params[2]
+    // updatePluginRecord — values[0]=dataJson, values[1]=id, values[2]=pluginId, values[3]=resourceId
+    if (normalized.includes('update plugin_records set data_json')) {
+      const row = records.find((record) =>
+        record.id === values[1] &&
+        record.plugin_id === values[2] &&
+        record.resource_id === values[3]
       )
       if (!row) return { rows: [], rowCount: 0 }
-      row.data_json = params[3]
+      row.data_json = values[0]
       row.updated_at = new Date('2026-05-01T10:15:00.000Z').toISOString()
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('delete from plugin_records')) {
-      const index = this.records.findIndex((record) =>
-        record.id === params[0] &&
-        record.plugin_id === params[1] &&
-        record.resource_id === params[2]
+    // deletePluginRecord — values[0]=id, values[1]=pluginId, values[2]=resourceId
+    if (normalized.includes('delete from plugin_records')) {
+      const index = records.findIndex((record) =>
+        record.id === values[0] &&
+        record.plugin_id === values[1] &&
+        record.resource_id === values[2]
       )
       if (index === -1) return { rows: [], rowCount: 0 }
-      this.records.splice(index, 1)
+      records.splice(index, 1)
       return { rows: [], rowCount: 1 }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, { admins, sessions, plugins, records })
 }
 
-async function createCookie(db: PluginResourcesFakeDb): Promise<string> {
+async function createCookie(db: ReturnType<typeof makeFakeDb>): Promise<string> {
   const token = 'valid-session-token'
   db.sessions.push({
     id_hash: await hashSessionToken(token),
@@ -165,14 +182,14 @@ describe('CMS plugin resource handlers', () => {
   it('requires an admin session for plugin record access', async () => {
     const res = await handleCmsRequest(
       cmsRequest('http://localhost/api/cms/plugins/acme.books/resources/books/records'),
-      new PluginResourcesFakeDb(),
+      makeFakeDb(),
     )
 
     expect(res.status).toBe(401)
   })
 
   it('creates, lists, updates, and deletes backend records for an enabled plugin resource', async () => {
-    const db = new PluginResourcesFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
 
     const install = await handleCmsRequest(cmsRequest('http://localhost/api/cms/plugins', {
@@ -227,7 +244,7 @@ describe('CMS plugin resource handlers', () => {
   })
 
   it('rejects records that do not match the plugin resource schema', async () => {
-    const db = new PluginResourcesFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
 
     await handleCmsRequest(cmsRequest('http://localhost/api/cms/plugins', {

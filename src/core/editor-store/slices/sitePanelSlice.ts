@@ -19,8 +19,7 @@
  * @see Task #441 — Post-#434 Orphan Sweep (panel-toggle fields removed)
  */
 
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 import type {
   SiteDependencyLock,
   SiteRuntimeConfig,
@@ -109,12 +108,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends SitePanelSlice {}
 }
 
-export const createSitePanelSlice: StateCreator<
-  EditorStore,
-  [],
-  [],
-  SitePanelSlice
-> = (set, get) => ({
+export const createSitePanelSlice: EditorStoreSliceCreator<SitePanelSlice> = (set, get) => ({
   packageJson: clonePackageJson(DEFAULT_SITE_PACKAGE_JSON),
   siteRuntime: cloneSiteRuntimeConfig(DEFAULT_SITE_RUNTIME),
 

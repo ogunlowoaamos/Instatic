@@ -20,7 +20,8 @@
  * Constraint #269: This file must NOT import from editor/ or editor-store/.
  */
 
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
 import type { VisualComponent, VCNode } from './schemas'
 import { VCNodeSchema } from './schemas'
 
@@ -122,10 +123,10 @@ export function instantiateVCAtRef(
       const instanceContent = slotContent[slotName]
       const paramDefault = vc.params.find((p) => p.type === 'slot' && p.name === slotName)
       const defaultContentResult = Array.isArray(paramDefault?.defaultValue)
-        ? z.array(VCNodeSchema).safeParse(paramDefault.defaultValue)
-        : null
-      const defaultContent: VCNode[] = defaultContentResult?.success
-        ? defaultContentResult.data
+        ? Value.Check(Type.Array(VCNodeSchema), paramDefault.defaultValue)
+        : false
+      const defaultContent: VCNode[] = defaultContentResult
+        ? (paramDefault!.defaultValue as VCNode[])
         : []
 
       const contentNodes =

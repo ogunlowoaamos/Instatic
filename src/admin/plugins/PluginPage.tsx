@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from '../lib/router'
+import { useParams } from '../lib/routerHooks'
 import type { CmsPluginsPayload, PluginAdminPageRoute } from '@core/plugin-sdk'
 import { listCmsPlugins } from '@core/persistence'
 import AdminLayout from '../AdminLayout'

@@ -1,30 +1,30 @@
 /**
- * JSON validation helpers backed by Zod.
+ * JSON validation helpers backed by TypeBox.
  *
  * The codebase has many `JSON.parse(raw) as Foo` and `await res.json() as Foo`
  * call sites. The cast is the model lying — the runtime trusts whatever shape
  * happens to come back. Use these helpers at the boundary instead.
- *
- * Surfaced by /audit-types — see #1 in /health-check report.
  */
 
-import type { z } from 'zod'
+import type { TSchema, Static } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
+import { formatValueErrors } from './typeboxHelpers'
 
 export type JsonParseResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: z.ZodError }
+  | { ok: false; error: Error }
 
 /**
- * Parse a string as JSON and validate it against a Zod schema.
+ * Parse a string as JSON and validate it against a TypeBox schema.
  *
  * Returns a discriminated union so callers can decide between a hard error and
  * a soft fallback (e.g. for localStorage reads where corrupted data should not
  * brick the editor — fall back to defaults).
  */
-export function safeParseJson<T>(
+export function safeParseJson<T extends TSchema>(
   raw: string,
-  schema: z.ZodType<T>,
-): JsonParseResult<T> {
+  schema: T,
+): JsonParseResult<Static<T>> {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -32,10 +32,12 @@ export function safeParseJson<T>(
     // Treat invalid JSON the same as a failed schema validation. Callers don't
     // need to distinguish "wasn't JSON" from "was JSON but wrong shape" — both
     // mean "discard and use defaults" or "return 400".
-    return { ok: false, error: schema.safeParse(undefined).error! }
+    return { ok: false, error: new Error('Invalid JSON') }
   }
-  const result = schema.safeParse(parsed)
-  return result.success ? { ok: true, value: result.data } : { ok: false, error: result.error }
+  if (!Value.Check(schema, parsed)) {
+    return { ok: false, error: new Error(formatValueErrors(schema, parsed)) }
+  }
+  return { ok: true, value: Value.Decode(schema, parsed) as Static<T> }
 }
 
 /**
@@ -43,11 +45,11 @@ export function safeParseJson<T>(
  * value on any failure. Use for best-effort reads (localStorage, optional
  * config files) where the caller has a reasonable default.
  */
-export function parseJsonWithFallback<T>(
+export function parseJsonWithFallback<T extends TSchema>(
   raw: string | null | undefined,
-  schema: z.ZodType<T>,
-  fallback: T,
-): T {
+  schema: T,
+  fallback: Static<T>,
+): Static<T> {
   if (raw == null || raw === '') return fallback
   const result = safeParseJson(raw, schema)
   return result.ok ? result.value : fallback
@@ -57,14 +59,14 @@ export function parseJsonWithFallback<T>(
  * Parse and validate a Response body. Returns the value or throws — meant for
  * places where a malformed response is genuinely an error condition (the
  * caller should let it bubble up to a top-level error boundary).
- *
- * The thrown error is a ZodError so callers can inspect `.issues` for
- * field-level diagnostics.
  */
-export async function parseJsonResponse<T>(
+export async function parseJsonResponse<T extends TSchema>(
   res: Response,
-  schema: z.ZodType<T>,
-): Promise<T> {
+  schema: T,
+): Promise<Static<T>> {
   const data = (await res.json()) as unknown
-  return schema.parse(data)
+  if (!Value.Check(schema, data)) {
+    throw new Error(formatValueErrors(schema, data))
+  }
+  return Value.Decode(schema, data) as Static<T>
 }

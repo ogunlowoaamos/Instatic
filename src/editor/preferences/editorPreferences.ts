@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
 import { parseJsonWithFallback } from '@core/utils/jsonValidate'
 
 export const EDITOR_PREFS_KEY = 'pb-editor-prefs'
@@ -6,18 +6,19 @@ const EDITOR_PREFS_CHANGED_EVENT = 'pb-editor-prefs-changed'
 
 // Single source of truth for editor preferences. The UI section
 // (PreferencesSection) imports both the schema and the type from here.
-// .passthrough() so future fields written by other parts of the editor
-// don't crash older readers.
+// additionalProperties: true so future fields written by other parts of the
+// editor don't crash older readers.
 //
 // Surfaced by /audit-types — was `JSON.parse(raw) as { autoSave?: unknown }`.
-export const EditorPrefsSchema = z
-  .object({
-    autoSave: z.boolean().optional(),
-    classHoverPreview: z.boolean().optional(),
-  })
-  .passthrough()
+export const EditorPrefsSchema = Type.Object(
+  {
+    autoSave: Type.Optional(Type.Boolean()),
+    classHoverPreview: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: true },
+)
 
-export type EditorPrefs = z.infer<typeof EditorPrefsSchema>
+export type EditorPrefs = Static<typeof EditorPrefsSchema>
 
 export const DEFAULT_EDITOR_PREFS: Required<EditorPrefs> = {
   autoSave: true,

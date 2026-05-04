@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
+import { withFallback } from '@core/utils/typeboxHelpers'
 import { isSafePackageName } from './packageNames'
 
 // ---------------------------------------------------------------------------
@@ -6,19 +7,22 @@ import { isSafePackageName } from './packageNames'
 //
 // NOTE: normalizeSitePackageJson (below) also filters unsafe package names via
 // isSafePackageName(). That per-entry sanitisation is intentionally NOT in
-// this schema because Zod's `.catch({})` would silently discard the entire
+// this schema because fallback handling would silently discard the entire
 // dependencies map on any failure. Instead, name sanitisation runs in
 // validate.ts::runDomainPostChecks via normalizeSitePackageJson after parsing.
 // The schema captures the structural shape and is used as the
 // persistence-boundary type source of truth.
 // ---------------------------------------------------------------------------
 
-export const SitePackageJsonSchema = z.object({
-  dependencies: z.record(z.string(), z.string()).catch({}),
-  devDependencies: z.record(z.string(), z.string()).catch({}),
-}).catch({ dependencies: {}, devDependencies: {} })
+export const SitePackageJsonSchema = withFallback(
+  Type.Object({
+    dependencies: withFallback(Type.Record(Type.String(), Type.String()), {}),
+    devDependencies: withFallback(Type.Record(Type.String(), Type.String()), {}),
+  }),
+  { dependencies: {}, devDependencies: {} },
+)
 
-export type SitePackageJson = z.infer<typeof SitePackageJsonSchema>
+export type SitePackageJson = Static<typeof SitePackageJsonSchema>
 
 /**
  * Empty default. The dependencies feature is opt-in: a fresh site has no

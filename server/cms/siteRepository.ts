@@ -71,63 +71,54 @@ function readStoredShell(row: SiteRow): SiteShell {
 }
 
 export async function saveDraftSite(db: DbClient, site: SiteDocument): Promise<void> {
-  await db.query('begin')
-  try {
-    await db.query(
-      `insert into site (id, name, settings_json)
-       values ('default', $1, $2)
-       on conflict (id) do update
-         set name = excluded.name,
-             settings_json = excluded.settings_json,
-             updated_at = now()`,
-      [site.name, siteShell(site)],
-    )
+  await db.transaction(async (tx) => {
+    await tx`
+      insert into site (id, name, settings_json)
+      values ('default', ${site.name}, ${siteShell(site)})
+      on conflict (id) do update
+        set name = excluded.name,
+            settings_json = excluded.settings_json,
+            updated_at = now()
+    `
 
     for (let index = 0; index < site.pages.length; index++) {
       const page = site.pages[index]
-      await db.query(
-        `insert into pages (id, title, slug, draft_document_json, sort_order)
-         values ($1, $2, $3, $4, $5)
-         on conflict (id) do update
-           set title = excluded.title,
-               slug = excluded.slug,
-               draft_document_json = excluded.draft_document_json,
-               sort_order = excluded.sort_order,
-               updated_at = now()`,
-        [page.id, page.title, page.slug, page, index],
-      )
+      await tx`
+        insert into pages (id, title, slug, draft_document_json, sort_order)
+        values (${page.id}, ${page.title}, ${page.slug}, ${page}, ${index})
+        on conflict (id) do update
+          set title = excluded.title,
+              slug = excluded.slug,
+              draft_document_json = excluded.draft_document_json,
+              sort_order = excluded.sort_order,
+              updated_at = now()
+      `
     }
 
-    await db.query(
-      'delete from pages where not (id = any($1::text[]))',
-      [site.pages.map((page) => page.id)],
-    )
-    await db.query('commit')
-  } catch (err) {
-    await db.query('rollback')
-    throw err
-  }
+    const pageIds = site.pages.map((page) => page.id)
+    await tx`delete from pages where not (id = any(${pageIds}))`
+  })
 }
 
 export async function loadDraftSite(db: DbClient): Promise<SiteDocument | null> {
-  const siteResult = await db.query<SiteRow>(
-    `select id, name, settings_json, created_at, updated_at
-     from site
-     where id = 'default'
-     limit 1`,
-  )
-  const site = siteResult.rows[0]
+  const { rows: siteRows } = await db<SiteRow>`
+    select id, name, settings_json, created_at, updated_at
+    from site
+    where id = 'default'
+    limit 1
+  `
+  const site = siteRows[0]
   if (!site) return null
 
-  const pagesResult = await db.query<PageDraftRow>(
-    `select id, title, slug, draft_document_json, sort_order
-     from pages
-     order by sort_order asc, created_at asc`,
-  )
+  const { rows: pageRows } = await db<PageDraftRow>`
+    select id, title, slug, draft_document_json, sort_order
+    from pages
+    order by sort_order asc, created_at asc
+  `
   const shell = readStoredShell(site)
   return {
     ...shell,
     name: site.name,
-    pages: pagesResult.rows.map((row) => row.draft_document_json),
+    pages: pageRows.map((row) => row.draft_document_json),
   }
 }

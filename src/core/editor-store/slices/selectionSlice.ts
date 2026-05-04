@@ -1,5 +1,4 @@
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStore, EditorStoreSliceCreator } from '../types'
 import { isUserVisibleClass } from '@core/page-tree/classUtils'
 import type { BaseNode } from '@core/page-tree/baseNode'
 
@@ -22,7 +21,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends SelectionSlice {}
 }
 
-export const createSelectionSlice: StateCreator<EditorStore, [], [], SelectionSlice> = (set, get) => ({
+export const createSelectionSlice: EditorStoreSliceCreator<SelectionSlice> = (set, get) => ({
   selectedNodeId: null,
   hoveredNodeId: null,
   hoveredBreakpointId: null,

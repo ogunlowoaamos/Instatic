@@ -48,6 +48,7 @@ import { join } from 'path'
 import { useEditorStore } from '@core/editor-store/store'
 import { validateSite } from '@core/persistence/validate'
 import type { SiteDocument } from '@core/page-tree/schemas'
+import { safeParseValue } from '@core/utils/typeboxHelpers'
 
 // ---------------------------------------------------------------------------
 // Canonical paths
@@ -285,12 +286,12 @@ describe('Gate TS-1 — SiteDocument.visualComponents field declared in schemas.
 describe('Gate TS-2 — BaseNode.propBindings optional field declared', () => {
   it('BaseNodeSchema declares propBindings as an optional record of paramId references', async () => {
     const { BaseNodeSchema } = await import('@core/page-tree/baseNode')
-    const shape = (BaseNodeSchema as { shape?: Record<string, unknown> }).shape
-    expect(shape).toBeDefined()
-    expect(shape!['propBindings']).toBeDefined()
+    const properties = (BaseNodeSchema as { properties?: Record<string, unknown> }).properties
+    expect(properties).toBeDefined()
+    expect(properties!['propBindings']).toBeDefined()
 
     // Optional: parsing without propBindings succeeds and produces undefined
-    const probe = BaseNodeSchema.safeParse({
+    const probe = safeParseValue(BaseNodeSchema, {
       id: 'n1',
       moduleId: 'm',
       props: {},
@@ -298,11 +299,11 @@ describe('Gate TS-2 — BaseNode.propBindings optional field declared', () => {
       children: [],
       classIds: [],
     })
-    expect(probe.success).toBe(true)
-    if (probe.success) expect(probe.data.propBindings).toBeUndefined()
+    expect(probe.ok).toBe(true)
+    if (probe.ok) expect(probe.value.propBindings).toBeUndefined()
 
     // Accepts a valid propBindings record
-    const withBinding = BaseNodeSchema.safeParse({
+    const withBinding = safeParseValue(BaseNodeSchema, {
       id: 'n1',
       moduleId: 'm',
       props: {},
@@ -311,8 +312,8 @@ describe('Gate TS-2 — BaseNode.propBindings optional field declared', () => {
       classIds: [],
       propBindings: { text: { paramId: 'p1' } },
     })
-    expect(withBinding.success).toBe(true)
-    if (withBinding.success) expect(withBinding.data.propBindings).toEqual({ text: { paramId: 'p1' } })
+    expect(withBinding.ok).toBe(true)
+    if (withBinding.ok) expect(withBinding.value.propBindings).toEqual({ text: { paramId: 'p1' } })
   })
 })
 

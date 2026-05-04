@@ -1,5 +1,4 @@
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 
 type CanvasMode = 'select' | 'pan' | 'insert'
 
@@ -86,7 +85,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends CanvasSlice {}
 }
 
-export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> = (set, get) => ({
+export const createCanvasSlice: EditorStoreSliceCreator<CanvasSlice> = (set, get) => ({
   zoom: DEFAULT_ZOOM,
   panX: 0,
   panY: 0,

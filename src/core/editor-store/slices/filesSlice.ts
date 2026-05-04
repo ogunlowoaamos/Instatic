@@ -16,10 +16,8 @@
  * This is a pure data-layer slice.
  */
 
-import { produce } from 'immer'
 import { nanoid } from 'nanoid'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 import type { SiteFile, SiteFileType } from '@core/files/schemas'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
 
@@ -79,7 +77,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends FilesSlice {}
 }
 
-export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (set, get) => ({
+export const createFilesSlice: EditorStoreSliceCreator<FilesSlice> = (set, get) => ({
   createFile(path, type, content) {
     const { site } = get()
     if (!site) throw new Error('[filesSlice] Site document is not initialized')
@@ -97,8 +95,7 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
     const now = Date.now()
     const id = nanoid()
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const newFile: SiteFile = {
           id,
@@ -111,15 +108,13 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
         }
         state.site.files.push(newFile)
         state.site.updatedAt = now
-      }),
-    )
+      })
 
     return id
   },
 
   deleteFile(id) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const idx = state.site.files.findIndex((f) => f.id === id)
         if (idx === -1) return
@@ -128,8 +123,7 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
         delete state.siteRuntime.scripts[id]
         if (state.activeEditorFileId === id) state.activeEditorFileId = null
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   renameFile(id, newPath) {
@@ -147,21 +141,18 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
       throw new Error(`[filesSlice] A file at path "${normalized}" already exists`)
     }
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const file = state.site.files.find((f) => f.id === id)
         if (!file) return
         file.path = normalized
         file.updatedAt = Date.now()
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   updateFileContent(id, content) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const file = state.site.files.find((f) => f.id === id)
         if (!file) return
@@ -169,13 +160,11 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
         if (file.generated) file.ejected = true
         file.updatedAt = Date.now()
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   updateFileBlob(id, blob) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const file = state.site.files.find((f) => f.id === id)
         if (!file) return
@@ -183,7 +172,6 @@ export const createFilesSlice: StateCreator<EditorStore, [], [], FilesSlice> = (
         if (file.generated) file.ejected = true
         file.updatedAt = Date.now()
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 })

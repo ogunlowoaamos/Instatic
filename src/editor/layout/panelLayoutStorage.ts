@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
 import type { PropertiesPanelMode } from '@core/editor-store/slices/uiSlice'
 import { safeParseJson } from '@core/utils/jsonValidate'
 
@@ -51,28 +51,42 @@ export interface StoredEditorLayout {
 // the call site to allow migrating older shapes if we ever add v2.
 // Surfaced by /audit-types.
 
-const PanelPositionSchema = z.object({
-  x: z.number().finite(),
-  y: z.number().finite(),
-}).passthrough()
+const PanelPositionSchema = Type.Object(
+  {
+    x: Type.Number(),
+    y: Type.Number(),
+  },
+  { additionalProperties: true },
+)
 
-const StoredPanelLayoutSchema = z.object({
-  open: z.boolean().optional(),
-  position: PanelPositionSchema.optional(),
-  width: z.number().optional(),
-  // PropertiesPanelMode is a string union; keep loose to avoid coupling to
-  // its exact membership here.
-  mode: z.string().optional(),
-}).passthrough()
+const StoredPanelLayoutSchema = Type.Object(
+  {
+    open: Type.Optional(Type.Boolean()),
+    position: Type.Optional(PanelPositionSchema),
+    width: Type.Optional(Type.Number()),
+    // PropertiesPanelMode is a string union; keep loose to avoid coupling to
+    // its exact membership here.
+    mode: Type.Optional(Type.String()),
+  },
+  { additionalProperties: true },
+)
 
-const StoredEditorLayoutSchema = z.object({
-  version: z.literal(1),
-  panels: z.record(z.string(), StoredPanelLayoutSchema).optional(),
-  sidebars: z.object({
-    leftWidth: z.number().optional(),
-  }).passthrough().optional(),
-  activeEditorFileId: z.string().nullable().optional(),
-}).passthrough()
+const StoredEditorLayoutSchema = Type.Object(
+  {
+    version: Type.Literal(1),
+    panels: Type.Optional(Type.Record(Type.String(), StoredPanelLayoutSchema)),
+    sidebars: Type.Optional(
+      Type.Object(
+        {
+          leftWidth: Type.Optional(Type.Number()),
+        },
+        { additionalProperties: true },
+      ),
+    ),
+    activeEditorFileId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  },
+  { additionalProperties: true },
+)
 
 function storageAvailable() {
   return typeof localStorage !== 'undefined'

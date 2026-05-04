@@ -275,28 +275,25 @@ export const CMS_MIGRATIONS: Migration[] = [
 ]
 
 export async function runMigrations(db: DbClient): Promise<void> {
-  await db.query(`
+  await db`
     create table if not exists schema_migrations (
       id text primary key,
       applied_at timestamptz not null default now()
     )
-  `)
+  `
 
   for (const migration of CMS_MIGRATIONS) {
-    const existing = await db.query<{ id: string }>(
-      'select id from schema_migrations where id = $1',
-      [migration.id],
-    )
-    if (existing.rows.length > 0) continue
+    const { rows } = await db<{ id: string }>`
+      select id from schema_migrations where id = ${migration.id}
+    `
+    if (rows.length > 0) continue
 
-    await db.query('begin')
-    try {
-      await db.query(migration.sql)
-      await db.query('insert into schema_migrations (id) values ($1)', [migration.id])
-      await db.query('commit')
-    } catch (err) {
-      await db.query('rollback')
-      throw err
-    }
+    await db.transaction(async (tx) => {
+      // migration.sql is a stored multi-statement DDL string — sql.unsafe is
+      // required because tagged templates cannot accept a runtime string value,
+      // and multi-statement batches are not supported by the parameterised path.
+      await tx.unsafe(migration.sql)
+      await tx`insert into schema_migrations (id) values (${migration.id})`
+    })
   }
 }

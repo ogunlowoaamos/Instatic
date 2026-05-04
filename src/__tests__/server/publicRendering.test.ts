@@ -52,29 +52,31 @@ function snapshot(text: string): PublishedPageSnapshot {
   }
 }
 
-class PublicFakeDb implements DbClient {
-  constructor(
-    private readonly activeSnapshot: PublishedPageSnapshot | null,
-    private readonly runtimeAssets: Record<string, unknown>[] = [],
-  ) {}
-
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+function makeFakeDb(
+  activeSnapshot: PublishedPageSnapshot | null,
+  runtimeAssets: Record<string, unknown>[] = [],
+): DbClient {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select public_path, content_type, content_bytes')) {
-      const row = this.runtimeAssets.find((asset) => asset.public_path === params[0])
+
+    // getPublishedRuntimeAsset — values[0]=publicPath
+    if (normalized.includes('select public_path, content_type, content_bytes')) {
+      const row = runtimeAssets.find((asset) => asset.public_path === values[0])
       return { rows: row ? [row as Row] : [], rowCount: row ? 1 : 0 }
     }
-    if (normalized.startsWith('select page_versions.snapshot_json')) {
+    // getPublishedPageBySlug / publishRepository queries — return active snapshot
+    if (normalized.includes('select page_versions.snapshot_json')) {
       return {
-        rows: this.activeSnapshot ? [{ snapshot_json: this.activeSnapshot } as Row] : [],
-        rowCount: this.activeSnapshot ? 1 : 0,
+        rows: activeSnapshot ? [{ snapshot_json: activeSnapshot } as Row] : [],
+        rowCount: activeSnapshot ? 1 : 0,
       }
     }
-    // Public-rendering tests assume the CMS is already set up; otherwise the
-    // router would redirect public 404s to /admin (the fresh-install flow).
+    // getSetupStatus — public-rendering tests assume CMS is already set up
     if (normalized.includes('count(*)::int as count from site')) {
       return { rows: [{ count: 1 } as unknown as Row], rowCount: 1 }
     }
@@ -83,6 +85,11 @@ class PublicFakeDb implements DbClient {
     }
     return { rows: [], rowCount: 0 }
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return handle as DbClient
 }
 
 describe('public rendering', () => {
@@ -116,7 +123,7 @@ describe('public rendering', () => {
 
   it('serves / from the active published index snapshot', async () => {
     const res = await handleServerRequest(new Request('http://localhost/'), {
-      db: new PublicFakeDb(snapshot('Homepage')),
+      db: makeFakeDb(snapshot('Homepage')),
     })
 
     expect(res.status).toBe(200)
@@ -126,7 +133,7 @@ describe('public rendering', () => {
 
   it('serves immutable published runtime assets by public path', async () => {
     const res = await handleServerRequest(new Request('http://localhost/_pb/assets/version_1/entries/entry.js'), {
-      db: new PublicFakeDb(null, [
+      db: makeFakeDb(null, [
         {
           public_path: '/_pb/assets/version_1/entries/entry.js',
           content_type: 'text/javascript; charset=utf-8',
@@ -143,7 +150,7 @@ describe('public rendering', () => {
 
   it('returns 404 when there is no active published snapshot', async () => {
     const res = await handleServerRequest(new Request('http://localhost/'), {
-      db: new PublicFakeDb(null),
+      db: makeFakeDb(null),
     })
 
     expect(res.status).toBe(404)

@@ -2,7 +2,10 @@
 
 FROM oven/bun:1.3 AS build
 WORKDIR /app
+# vendor/pixel-art-icons is a `file:` dep — `bun install` needs it on disk to
+# resolve the dependency, so copy it alongside the manifest before installing.
 COPY package.json bun.lock ./
+COPY vendor ./vendor
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
@@ -10,6 +13,7 @@ RUN bun run build
 FROM oven/bun:1.3 AS production-deps
 WORKDIR /app
 COPY package.json bun.lock ./
+COPY vendor ./vendor
 RUN bun install --frozen-lockfile --production
 
 FROM oven/bun:1.3 AS runtime

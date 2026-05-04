@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
 import type {
   InstalledPlugin,
   PluginAdminPage,
@@ -18,95 +18,111 @@ const PAGE_ID_PATTERN = /^[a-z][a-z0-9-]*$/
 const SEMVERISH_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9a-zA-Z.-]+)?$/
 const SAFE_ASSET_PATH_PATTERN = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[a-zA-Z0-9._/-]+$/
 
-const permissionSchema = z.enum(PLUGIN_PERMISSION_VALUES)
+const permissionSchema = Type.Union(
+  PLUGIN_PERMISSION_VALUES.map((v) => Type.Literal(v)),
+)
 
-const pinSchema = z.object({
-  label: z.string().trim().min(1).max(80),
-  detail: z.string().trim().max(160).optional(),
-  x: z.number().min(0).max(100),
-  y: z.number().min(0).max(100),
+const pinSchema = Type.Object({
+  label: Type.String({ minLength: 1, maxLength: 80 }),
+  detail: Type.Optional(Type.String({ maxLength: 160 })),
+  x: Type.Number({ minimum: 0, maximum: 100 }),
+  y: Type.Number({ minimum: 0, maximum: 100 }),
 })
 
-const contentSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('markdown'),
-    heading: z.string().trim().min(1).max(120).optional(),
-    body: z.string().max(20_000),
+// `pins` is optional in the schema so the union default can be handled
+// explicitly in parsePluginManifest post-processing (TypeBox union defaults
+// are not reliably applied within discriminated-union variants).
+const contentSchema = Type.Union([
+  Type.Object({
+    kind: Type.Literal('markdown'),
+    heading: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
+    body: Type.String({ maxLength: 20_000 }),
   }),
-  z.object({
-    kind: z.literal('map'),
-    heading: z.string().trim().min(1).max(120),
-    body: z.string().trim().max(500).optional(),
-    centerLabel: z.string().trim().max(80).optional(),
-    pins: z.array(pinSchema).max(40).default([]),
+  Type.Object({
+    kind: Type.Literal('map'),
+    heading: Type.String({ minLength: 1, maxLength: 120 }),
+    body: Type.Optional(Type.String({ maxLength: 500 })),
+    centerLabel: Type.Optional(Type.String({ maxLength: 80 })),
+    pins: Type.Optional(Type.Array(pinSchema, { maxItems: 40 })),
   }),
-  z.object({
-    kind: z.literal('resource'),
-    heading: z.string().trim().min(1).max(120),
-    resource: z.string().trim().regex(PAGE_ID_PATTERN),
+  Type.Object({
+    kind: Type.Literal('resource'),
+    heading: Type.String({ minLength: 1, maxLength: 120 }),
+    resource: Type.String({ pattern: PAGE_ID_PATTERN.source }),
   }),
-  z.object({
-    kind: z.literal('app'),
-    heading: z.string().trim().min(1).max(120),
-    entry: z.string().trim().regex(SAFE_ASSET_PATH_PATTERN),
-    assetPath: z.string().trim().optional(),
+  Type.Object({
+    kind: Type.Literal('app'),
+    heading: Type.String({ minLength: 1, maxLength: 120 }),
+    entry: Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source }),
+    assetPath: Type.Optional(Type.String()),
   }),
 ])
 
-const resourceFieldSchema = z.object({
-  id: z.string().trim().regex(PAGE_ID_PATTERN),
-  label: z.string().trim().min(1).max(80),
-  type: z.enum(['text', 'longtext', 'number', 'date', 'boolean']),
-  required: z.boolean().optional(),
+const resourceFieldSchema = Type.Object({
+  id: Type.String({ pattern: PAGE_ID_PATTERN.source }),
+  label: Type.String({ minLength: 1, maxLength: 80 }),
+  type: Type.Union([
+    Type.Literal('text'),
+    Type.Literal('longtext'),
+    Type.Literal('number'),
+    Type.Literal('date'),
+    Type.Literal('boolean'),
+  ]),
+  required: Type.Optional(Type.Boolean()),
 })
 
-const resourceSchema = z.object({
-  id: z.string().trim().regex(PAGE_ID_PATTERN),
-  title: z.string().trim().min(1).max(80),
-  singularLabel: z.string().trim().min(1).max(80).optional(),
-  pluralLabel: z.string().trim().min(1).max(80).optional(),
-  fields: z.array(resourceFieldSchema).min(1).max(50),
+const resourceSchema = Type.Object({
+  id: Type.String({ pattern: PAGE_ID_PATTERN.source }),
+  title: Type.String({ minLength: 1, maxLength: 80 }),
+  singularLabel: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
+  pluralLabel: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
+  fields: Type.Array(resourceFieldSchema, { minItems: 1, maxItems: 50 }),
 })
 
-const adminPageSchema = z.object({
-  id: z.string().trim().regex(PAGE_ID_PATTERN),
-  title: z.string().trim().min(1).max(80),
-  navLabel: z.string().trim().min(1).max(30).optional(),
-  icon: z.string().trim().min(1).max(30).optional(),
-  route: z.string().optional(),
+const adminPageSchema = Type.Object({
+  id: Type.String({ pattern: PAGE_ID_PATTERN.source }),
+  title: Type.String({ minLength: 1, maxLength: 80 }),
+  navLabel: Type.Optional(Type.String({ minLength: 1, maxLength: 30 })),
+  icon: Type.Optional(Type.String({ minLength: 1, maxLength: 30 })),
+  route: Type.Optional(Type.String()),
   content: contentSchema,
 })
 
-const manifestSchema = z.object({
-  id: z.string().trim().regex(PLUGIN_ID_PATTERN),
-  name: z.string().trim().min(1).max(80),
-  version: z.string().trim().regex(SEMVERISH_PATTERN),
-  apiVersion: z.literal(1),
-  description: z.string().trim().max(500).optional(),
-  permissions: z.array(permissionSchema).default([]),
-  grantedPermissions: z.array(permissionSchema).optional(),
-  entrypoints: z.object({
-    server: z.string().trim().regex(SAFE_ASSET_PATH_PATTERN).optional(),
-    editor: z.string().trim().regex(SAFE_ASSET_PATH_PATTERN).optional(),
-    admin: z.string().trim().regex(SAFE_ASSET_PATH_PATTERN).optional(),
-  }).optional(),
-  assetBasePath: z.string().trim().optional(),
-  resources: z.array(resourceSchema).max(20).default([]),
-  adminPages: z.array(adminPageSchema).max(20).default([]),
+const manifestSchema = Type.Object({
+  id: Type.String({ pattern: PLUGIN_ID_PATTERN.source }),
+  name: Type.String({ minLength: 1, maxLength: 80 }),
+  version: Type.String({ pattern: SEMVERISH_PATTERN.source }),
+  apiVersion: Type.Literal(1),
+  description: Type.Optional(Type.String({ maxLength: 500 })),
+  permissions: Type.Array(permissionSchema, { default: [] }),
+  grantedPermissions: Type.Optional(Type.Array(permissionSchema)),
+  entrypoints: Type.Optional(Type.Object({
+    server: Type.Optional(Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source })),
+    editor: Type.Optional(Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source })),
+    admin: Type.Optional(Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source })),
+  })),
+  assetBasePath: Type.Optional(Type.String()),
+  resources: Type.Array(resourceSchema, { maxItems: 20, default: [] }),
+  adminPages: Type.Array(adminPageSchema, { maxItems: 20, default: [] }),
 })
+
+type ManifestRaw = Static<typeof manifestSchema>
 
 export function pluginAdminPageRoute(pluginId: string, pageId: string): string {
   return `/admin/plugins/${pluginId}/${pageId}`
 }
 
 export function parsePluginManifest(input: unknown): PluginManifest {
-  const result = manifestSchema.safeParse(input)
-  if (!result.success) {
-    throw new Error(`Invalid plugin manifest: ${result.error.issues[0]?.message ?? 'manifest is malformed'}`)
+  let data: ManifestRaw
+  try {
+    data = Value.Parse(manifestSchema, input) as ManifestRaw
+  } catch {
+    const errors = [...Value.Errors(manifestSchema, input)]
+    throw new Error(`Invalid plugin manifest: ${errors[0]?.message ?? 'manifest is malformed'}`)
   }
 
   const duplicateResources = new Set<string>()
-  const resources: PluginResource[] = result.data.resources.map((resource) => {
+  const resources: PluginResource[] = data.resources.map((resource) => {
     if (duplicateResources.has(resource.id)) {
       throw new Error(`Invalid plugin manifest: duplicate resource "${resource.id}"`)
     }
@@ -124,7 +140,7 @@ export function parsePluginManifest(input: unknown): PluginManifest {
   })
 
   const duplicatePages = new Set<string>()
-  const adminPages: PluginAdminPage[] = result.data.adminPages.map((page) => {
+  const adminPages: PluginAdminPage[] = data.adminPages.map((page) => {
     if (duplicatePages.has(page.id)) {
       throw new Error(`Invalid plugin manifest: duplicate admin page "${page.id}"`)
     }
@@ -133,26 +149,32 @@ export function parsePluginManifest(input: unknown): PluginManifest {
       throw new Error(`Invalid plugin manifest: resource page "${page.id}" references unknown resource "${page.content.resource}"`)
     }
 
+    // Normalise the content: apply the pins default for map pages explicitly,
+    // since TypeBox union defaults are not reliably applied within union variants.
+    const content: PluginPageContent = page.content.kind === 'map'
+      ? { ...page.content, pins: page.content.pins ?? [] }
+      : page.content as PluginPageContent
+
     return {
       id: page.id,
       title: page.title,
       navLabel: page.navLabel,
       icon: page.icon,
-      route: pluginAdminPageRoute(result.data.id, page.id),
-      content: page.content as PluginPageContent,
+      route: pluginAdminPageRoute(data.id, page.id),
+      content,
     }
   })
 
   return {
-    id: result.data.id,
-    name: result.data.name,
-    version: result.data.version,
-    apiVersion: result.data.apiVersion,
-    description: result.data.description,
-    permissions: result.data.permissions,
-    grantedPermissions: result.data.grantedPermissions,
-    entrypoints: result.data.entrypoints,
-    assetBasePath: result.data.assetBasePath,
+    id: data.id,
+    name: data.name,
+    version: data.version,
+    apiVersion: data.apiVersion,
+    description: data.description,
+    permissions: data.permissions as PluginPermission[],
+    grantedPermissions: data.grantedPermissions as PluginPermission[] | undefined,
+    entrypoints: data.entrypoints,
+    assetBasePath: data.assetBasePath,
     resources,
     adminPages,
   }

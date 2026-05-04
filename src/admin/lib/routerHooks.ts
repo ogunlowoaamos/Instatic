@@ -1,0 +1,137 @@
+/**
+ * Router hooks + shared internals — companion to `./router.tsx`.
+ *
+ * Why this file exists separately from `router.tsx`
+ * --------------------------------------------------
+ * Vite's React Fast Refresh (via `react-refresh/only-export-components` lint
+ * rule) requires that a file exports either ONLY components or ONLY non-
+ * components — not a mix. Mixing breaks HMR for that file: any change forces
+ * a full page reload instead of hot-swapping the component.
+ *
+ * Splitting components into `router.tsx` and hooks/types/contexts into this
+ * `.ts` file keeps Fast Refresh working when we tweak components.
+ *
+ * Public API: re-exported from `./router.tsx` for convenience? No — Fast
+ * Refresh would still complain about a mixed-export barrel. Callers should
+ * import hooks directly from this file:
+ *
+ *   import { useLocation, useNavigate } from './lib/routerHooks'
+ *   import { Link, Router } from './lib/router'
+ */
+
+import { createContext, useContext } from 'react'
+
+// ---------------------------------------------------------------------------
+// Types — exported for both this file's hooks and router.tsx's components.
+// ---------------------------------------------------------------------------
+
+export interface Location {
+  pathname: string
+  search: string
+}
+
+export interface NavigateOptions {
+  replace?: boolean
+}
+
+export interface NavigateFn {
+  (to: string, options?: NavigateOptions): void
+}
+
+export interface RouteContextValue {
+  /** params from the currently-matched <Route>, or empty object if none. */
+  params: Record<string, string>
+}
+
+export interface RouterContextValue {
+  location: Location
+  navigate: NavigateFn
+}
+
+// ---------------------------------------------------------------------------
+// Contexts + the custom event navigate dispatches.
+// router.tsx's components consume these via the public hooks below; only
+// router.tsx's `<Router>` / `<MemoryRouter>` PROVIDE them.
+// ---------------------------------------------------------------------------
+
+export const RouterContext = createContext<RouterContextValue | null>(null)
+export const RouteContext = createContext<RouteContextValue>({ params: {} })
+
+// Custom event the navigate functions dispatch so useSyncExternalStore picks
+// up pushState/replaceState (which don't fire popstate natively).
+export const LOCATION_CHANGE_EVENT = 'pb:locationchange'
+
+export function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof window.history !== 'undefined'
+}
+
+// ---------------------------------------------------------------------------
+// Path matching
+// ---------------------------------------------------------------------------
+
+interface CompiledPattern {
+  regex: RegExp
+  paramNames: string[]
+}
+
+function compilePattern(pattern: string): CompiledPattern {
+  const paramNames: string[] = []
+  const escaped = pattern
+    .replace(/\/+$/, '')
+    .split('/')
+    .map((segment) => {
+      if (segment.startsWith(':')) {
+        paramNames.push(segment.slice(1))
+        return '([^/]+)'
+      }
+      return segment.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    })
+    .join('/')
+  // Tolerate trailing slash; require full match.
+  const regex = new RegExp(`^${escaped || '/'}/?$`)
+  return { regex, paramNames }
+}
+
+export function matchPath(
+  pattern: string,
+  pathname: string,
+): { params: Record<string, string> } | null {
+  const compiled = compilePattern(pattern)
+  const match = compiled.regex.exec(pathname)
+  if (!match) return null
+  const params: Record<string, string> = {}
+  for (let i = 0; i < compiled.paramNames.length; i++) {
+    const name = compiled.paramNames[i]
+    const value = match[i + 1]
+    if (value !== undefined) params[name] = decodeURIComponent(value)
+  }
+  return { params }
+}
+
+// ---------------------------------------------------------------------------
+// Public hooks
+// ---------------------------------------------------------------------------
+
+export function useRouterContextOrThrow(): RouterContextValue {
+  const ctx = useContext(RouterContext)
+  if (!ctx) {
+    throw new Error('Router hooks must be used inside <Router> or <MemoryRouter>')
+  }
+  return ctx
+}
+
+export function useInRouterContext(): boolean {
+  return useContext(RouterContext) !== null
+}
+
+export function useLocation(): Location {
+  return useRouterContextOrThrow().location
+}
+
+export function useNavigate(): NavigateFn {
+  return useRouterContextOrThrow().navigate
+}
+
+export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
+  return useContext(RouteContext).params as T
+}

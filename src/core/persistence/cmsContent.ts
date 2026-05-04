@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
 import type {
   ContentCollection,
   ContentEntry,
@@ -20,26 +20,30 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 // outer envelope (object with the expected key) but pass the inner entity
 // through as `unknown` then cast at the call site — same envelope strategy
 // used by responseSchemas.ts. Catches "server returned wrong shape" without
-// duplicating the entire content type tree as Zod.
+// duplicating the entire content type tree.
 //
 // Surfaced by /audit-types — was `await res.json() as T` with caller-supplied
 // type parameter. The cast was the very thing we want to remove.
 
-const CollectionsListEnvelope = z.object({
-  collections: z.array(z.unknown()).optional(),
-}).passthrough()
+const CollectionsListEnvelope = Type.Object(
+  { collections: Type.Optional(Type.Array(Type.Unknown())) },
+  { additionalProperties: true },
+)
 
-const EntriesListEnvelope = z.object({
-  entries: z.array(z.unknown()).optional(),
-}).passthrough()
+const EntriesListEnvelope = Type.Object(
+  { entries: Type.Optional(Type.Array(Type.Unknown())) },
+  { additionalProperties: true },
+)
 
-const CollectionEnvelope = z.object({
-  collection: z.unknown().optional(),
-}).passthrough()
+const CollectionEnvelope = Type.Object(
+  { collection: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
-const EntryEnvelope = z.object({
-  entry: z.unknown().optional(),
-}).passthrough()
+const EntryEnvelope = Type.Object(
+  { entry: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
 // ---------------------------------------------------------------------------
 

@@ -1,7 +1,5 @@
-import { produce } from 'immer'
 import { nanoid } from 'nanoid'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 import { renderCache } from '@core/engine/renderCache'
 import { registry } from '@core/module-engine/registry'
 import type { VCNode } from '@core/visualComponents/schemas'
@@ -692,7 +690,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends SiteSlice {}
 }
 
-export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (set, get) => {
+export const createSiteSlice: EditorStoreSliceCreator<SiteSlice> = (set, get) => {
   // ---------------------------------------------------------------------------
   // Internal helpers — note: these use `get()` before calling set() so they
   // can snapshot the current site for history.
@@ -702,46 +700,40 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
   function pushHistory(): void {
     const { site } = get()
     if (!site) return
-    set(
-      produce((state: EditorStore) => {
-        const snapshot = structuredClone(site)
-        state._historyPast.push(snapshot)
-        if (state._historyPast.length > MAX_HISTORY) {
-          state._historyPast.shift() // evict oldest
-        }
-        state._historyFuture = []
-        state.canUndo = true
-        state.canRedo = false
-      })
-    )
+    set((state) => {
+      const snapshot = structuredClone(site)
+      state._historyPast.push(snapshot)
+      if (state._historyPast.length > MAX_HISTORY) {
+        state._historyPast.shift() // evict oldest
+      }
+      state._historyFuture = []
+      state.canUndo = true
+      state.canRedo = false
+    })
   }
 
   /** Mutate the active page — auto-snapshots history first. */
   function mutatePage(fn: (page: Page) => void): void {
     pushHistory()
-    set(
-      produce((state: EditorStore) => {
-        if (!state.site) return
-        const page = state.site.pages.find((p) => p.id === state.activePageId)
-        if (!page) return
-        fn(page)
-        state.site.updatedAt = Date.now()
-        state.hasUnsavedChanges = true
-      })
-    )
+    set((state) => {
+      if (!state.site) return
+      const page = state.site.pages.find((p) => p.id === state.activePageId)
+      if (!page) return
+      fn(page)
+      state.site.updatedAt = Date.now()
+      state.hasUnsavedChanges = true
+    })
   }
 
   /** Mutate the site — auto-snapshots history first. */
   function mutateSite(fn: (site: SiteDocument) => void): void {
     pushHistory()
-    set(
-      produce((state: EditorStore) => {
-        if (!state.site) return
-        fn(state.site)
-        state.site.updatedAt = Date.now()
-        state.hasUnsavedChanges = true
-      })
-    )
+    set((state) => {
+      if (!state.site) return
+      fn(state.site)
+      state.site.updatedAt = Date.now()
+      state.hasUnsavedChanges = true
+    })
   }
 
   return {
@@ -759,48 +751,44 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
       const { _historyPast, site } = get()
       if (_historyPast.length === 0 || !site) return
       const previous = _historyPast[_historyPast.length - 1]
-      set(
-        produce((state: EditorStore) => {
-          state._historyPast.pop()
-          state._historyFuture.push(structuredClone(site))
-          const packageJson = clonePackageJson(previous.packageJson)
-          const siteRuntime = cloneSiteRuntimeConfig(previous.runtime)
-          state.site = { ...previous, packageJson, runtime: siteRuntime }
-          state.packageJson = packageJson
-          state.siteRuntime = siteRuntime
-          state.canUndo = state._historyPast.length > 0
-          state.canRedo = true
-          state.hasUnsavedChanges = true
-          // Keep activePageId valid
-          if (!state.site.pages.find((p) => p.id === state.activePageId)) {
-            state.activePageId = state.site.pages[0]?.id ?? null
-          }
-        })
-      )
+      set((state) => {
+        state._historyPast.pop()
+        state._historyFuture.push(structuredClone(site))
+        const packageJson = clonePackageJson(previous.packageJson)
+        const siteRuntime = cloneSiteRuntimeConfig(previous.runtime)
+        state.site = { ...previous, packageJson, runtime: siteRuntime }
+        state.packageJson = packageJson
+        state.siteRuntime = siteRuntime
+        state.canUndo = state._historyPast.length > 0
+        state.canRedo = true
+        state.hasUnsavedChanges = true
+        // Keep activePageId valid
+        if (!state.site.pages.find((p) => p.id === state.activePageId)) {
+          state.activePageId = state.site.pages[0]?.id ?? null
+        }
+      })
     },
 
     redo: () => {
       const { _historyFuture, site } = get()
       if (_historyFuture.length === 0 || !site) return
       const next = _historyFuture[_historyFuture.length - 1]
-      set(
-        produce((state: EditorStore) => {
-          state._historyFuture.pop()
-          state._historyPast.push(structuredClone(site))
-          const packageJson = clonePackageJson(next.packageJson)
-          const siteRuntime = cloneSiteRuntimeConfig(next.runtime)
-          state.site = { ...next, packageJson, runtime: siteRuntime }
-          state.packageJson = packageJson
-          state.siteRuntime = siteRuntime
-          state.canUndo = true
-          state.canRedo = state._historyFuture.length > 0
-          state.hasUnsavedChanges = true
-          // Keep activePageId valid
-          if (!state.site.pages.find((p) => p.id === state.activePageId)) {
-            state.activePageId = state.site.pages[0]?.id ?? null
-          }
-        })
-      )
+      set((state) => {
+        state._historyFuture.pop()
+        state._historyPast.push(structuredClone(site))
+        const packageJson = clonePackageJson(next.packageJson)
+        const siteRuntime = cloneSiteRuntimeConfig(next.runtime)
+        state.site = { ...next, packageJson, runtime: siteRuntime }
+        state.packageJson = packageJson
+        state.siteRuntime = siteRuntime
+        state.canUndo = true
+        state.canRedo = state._historyFuture.length > 0
+        state.hasUnsavedChanges = true
+        // Keep activePageId valid
+        if (!state.site.pages.find((p) => p.id === state.activePageId)) {
+          state.activePageId = state.site.pages[0]?.id ?? null
+        }
+      })
     },
 
     // ─── SiteDocument lifecycle ────────────────────────────────────────────────────

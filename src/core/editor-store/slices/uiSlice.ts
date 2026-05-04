@@ -1,6 +1,4 @@
-import { produce } from 'immer'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStore, EditorStoreSliceCreator } from '../types'
 
 export type FocusedPanel = 'canvas' | 'domTree' | 'properties' | null
 export type LeftSidebarPanelId =
@@ -192,7 +190,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends UiSlice {}
 }
 
-export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, get) => ({
+export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   domTreePanel: DEFAULT_DOM_TREE_PANEL,
   propertiesPanel: DEFAULT_PROPERTIES_PANEL,
   propertiesPanelMode: 'docked',
@@ -346,8 +344,7 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
     set({ activeEditorFileId: null, activeMediaAssetPreview: null, codeEditorPanelOpen: false }),
 
   setActiveDocument: (doc) =>
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         const prevDoc = state.activeDocument
         state.activeDocument = doc
 
@@ -363,11 +360,9 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
           state.previousActivePageId = null
         }
       }),
-    ),
 
   exitVisualComponentMode: () =>
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         const prevPageId = state.previousActivePageId
         state.activeDocument = null
         // Restore the page we came from if it still exists in the site.
@@ -377,7 +372,6 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
         state.selectedNodeId = null
         state.previousActivePageId = null
       }),
-    ),
 
   setSelectedSelectorClassId: (classId) => {
     if (Object.is(get().selectedSelectorClassId, classId)) return

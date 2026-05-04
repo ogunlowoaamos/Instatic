@@ -5,14 +5,14 @@ import {
   runServerPluginLifecycleHook,
   serverPluginRuntime,
 } from '../../../server/cms/serverPluginRuntime'
-import type { DbClient, DbResult } from '../../../server/cms/db'
 import type { PluginManifest } from '@core/plugin-sdk'
+import { createFakeDb } from './dbTestFake'
 
-class RuntimeFakeDb implements DbClient {
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(): Promise<DbResult<Row>> {
-    return { rows: [], rowCount: 0 }
-  }
-}
+// Plugin runtime tests do not exercise DB queries — the db arg is threaded
+// through for lifecycle hooks but none of the tested hooks use it.
+const fakeDb = createFakeDb(async (sql) => {
+  throw new Error(`Unexpected DB call in plugin runtime test: ${sql}`)
+})
 
 const workflowManifest: PluginManifest = {
   id: 'acme.workflow',
@@ -37,11 +37,11 @@ describe('server plugin runtime SDK', () => {
           approvals: [{ pageId: 'page_home', status: 'approved' }],
         }))
       },
-    }, new RuntimeFakeDb())
+    }, fakeDb)
 
     const res = await handleServerPluginRuntimeRequest(
       new Request('http://localhost/api/cms/plugins/acme.workflow/runtime/approvals'),
-      new RuntimeFakeDb(),
+      fakeDb,
     )
 
     expect(res?.status).toBe(200)
@@ -58,7 +58,7 @@ describe('server plugin runtime SDK', () => {
       activate(api) {
         api.cms.routes.get('/approvals', async () => ({ ok: true }))
       },
-    }, new RuntimeFakeDb())).rejects.toThrow('requires permission "cms.routes"')
+    }, fakeDb)).rejects.toThrow('requires permission "cms.routes"')
   })
 
   it('uses the shared permission guard error format', async () => {
@@ -69,7 +69,7 @@ describe('server plugin runtime SDK', () => {
       activate(api) {
         api.cms.routes.get('/blocked', () => ({ ok: true }))
       },
-    }, new RuntimeFakeDb())).rejects.toThrow('Plugin "acme.workflow" requires permission "cms.routes"')
+    }, fakeDb)).rejects.toThrow('Plugin "acme.workflow" requires permission "cms.routes"')
   })
 
   it('runs optional lifecycle hooks with plugin metadata and logging helpers', async () => {
@@ -81,7 +81,7 @@ describe('server plugin runtime SDK', () => {
       },
     }
 
-    await runServerPluginLifecycleHook(workflowManifest, mod, new RuntimeFakeDb(), 'install')
+    await runServerPluginLifecycleHook(workflowManifest, mod, fakeDb, 'install')
 
     expect(calls).toEqual(['acme.workflow:1.0.0:cms.routes,cms.storage'])
   })

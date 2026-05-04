@@ -1,79 +1,92 @@
 /**
- * Framework — Zod schemas and derived types.
+ * Framework — TypeBox schemas and derived types.
  *
- * Schemas are the source of truth. Types are derived via `z.infer<typeof Schema>`.
+ * Schemas are the source of truth. Types are derived via `Static<typeof Schema>`.
  * No parallel TypeScript interfaces — schema definitions ARE the contract.
  *
  * Resilient parsing semantics replicate `src/core/persistence/validate.ts`
  * (lines ~282–570) so these schemas are ready to replace the hand-rolled
  * validators in Step 5 without behavioural change.
+ *
+ * Fallback semantics
+ * ------------------
+ * `withFallback(schema, value)` annotates a schema with a default used by
+ * `parseWithFallbackAnnotation`. For dynamic defaults (createdAt / updatedAt
+ * with `Date.now()`), the annotation carries the static sentinel `0`; callers
+ * that need a live timestamp supply it themselves in a parser helper.
  */
 
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
+import { withFallback } from '@core/utils/typeboxHelpers'
 
 // ---------------------------------------------------------------------------
 // FrameworkColorUtilityType
 // ---------------------------------------------------------------------------
 
-export const FrameworkColorUtilityTypeSchema = z.enum(['text', 'background', 'border', 'fill'])
+export const FrameworkColorUtilityTypeSchema = Type.Union([
+  Type.Literal('text'),
+  Type.Literal('background'),
+  Type.Literal('border'),
+  Type.Literal('fill'),
+])
 
-export type FrameworkColorUtilityType = z.infer<typeof FrameworkColorUtilityTypeSchema>
+export type FrameworkColorUtilityType = Static<typeof FrameworkColorUtilityTypeSchema>
 
 // ---------------------------------------------------------------------------
 // GeneratedClassMetadata — discriminated union on `family`
 // ---------------------------------------------------------------------------
 
-export const GeneratedColorClassMetadataSchema = z.object({
-  origin: z.literal('framework'),
-  family: z.literal('color'),
-  sourceId: z.string(),
+export const GeneratedColorClassMetadataSchema = Type.Object({
+  origin: Type.Literal('framework'),
+  family: Type.Literal('color'),
+  sourceId: Type.String(),
   utility: FrameworkColorUtilityTypeSchema,
-  tokenName: z.string(),
-  variantName: z.string().optional(),
-  locked: z.literal(true),
+  tokenName: Type.String(),
+  variantName: Type.Optional(Type.String()),
+  locked: Type.Literal(true),
 })
 
-export type GeneratedColorClassMetadata = z.infer<typeof GeneratedColorClassMetadataSchema>
+export type GeneratedColorClassMetadata = Static<typeof GeneratedColorClassMetadataSchema>
 
-export const GeneratedTypographyClassMetadataSchema = z.object({
-  origin: z.literal('framework'),
-  family: z.literal('typography'),
+export const GeneratedTypographyClassMetadataSchema = Type.Object({
+  origin: Type.Literal('framework'),
+  family: Type.Literal('typography'),
   /** ID of the FrameworkTypographyGroup this class was generated from. */
-  sourceId: z.string(),
+  sourceId: Type.String(),
   /** ID of the FrameworkTypographyClassGenerator (the row in the Class Generator). */
-  generatorId: z.string(),
+  generatorId: Type.String(),
   /** namingConvention of the source group (e.g. "text"). */
-  tokenName: z.string(),
+  tokenName: Type.String(),
   /** Step suffix from the group's `steps` string (e.g. "xs", "m"). */
-  step: z.string(),
-  locked: z.literal(true),
+  step: Type.String(),
+  locked: Type.Literal(true),
 })
 
-export type GeneratedTypographyClassMetadata = z.infer<typeof GeneratedTypographyClassMetadataSchema>
+export type GeneratedTypographyClassMetadata = Static<typeof GeneratedTypographyClassMetadataSchema>
 
-export const GeneratedSpacingClassMetadataSchema = z.object({
-  origin: z.literal('framework'),
-  family: z.literal('spacing'),
-  sourceId: z.string(),
-  generatorId: z.string(),
-  tokenName: z.string(),
-  step: z.string(),
-  locked: z.literal(true),
+export const GeneratedSpacingClassMetadataSchema = Type.Object({
+  origin: Type.Literal('framework'),
+  family: Type.Literal('spacing'),
+  sourceId: Type.String(),
+  generatorId: Type.String(),
+  tokenName: Type.String(),
+  step: Type.String(),
+  locked: Type.Literal(true),
 })
 
-export type GeneratedSpacingClassMetadata = z.infer<typeof GeneratedSpacingClassMetadataSchema>
+export type GeneratedSpacingClassMetadata = Static<typeof GeneratedSpacingClassMetadataSchema>
 
 /**
  * Discriminated union of all framework-generated class metadata.
- * Discriminator key: `family`.
+ * Discriminator key: `family` (TypeBox infers from `Type.Literal` keys).
  */
-export const GeneratedClassMetadataSchema = z.discriminatedUnion('family', [
+export const GeneratedClassMetadataSchema = Type.Union([
   GeneratedColorClassMetadataSchema,
   GeneratedTypographyClassMetadataSchema,
   GeneratedSpacingClassMetadataSchema,
 ])
 
-export type GeneratedClassMetadata = z.infer<typeof GeneratedClassMetadataSchema>
+export type GeneratedClassMetadata = Static<typeof GeneratedClassMetadataSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkColorToken and FrameworkColorSettings
@@ -84,61 +97,72 @@ export type GeneratedClassMetadata = z.infer<typeof GeneratedClassMetadataSchema
  * Defaults: text + background + border = true, fill = false.
  * validate.ts: validateFrameworkColorUtilities()
  */
-const FrameworkColorUtilitiesSchema = z.object({
-  text: z.boolean().catch(true),
-  background: z.boolean().catch(true),
-  border: z.boolean().catch(true),
-  fill: z.boolean().catch(false),
-}).catch({ text: true, background: true, border: true, fill: false })
+const FrameworkColorUtilitiesSchema = withFallback(
+  Type.Object({
+    text: withFallback(Type.Boolean(), true),
+    background: withFallback(Type.Boolean(), true),
+    border: withFallback(Type.Boolean(), true),
+    fill: withFallback(Type.Boolean(), false),
+  }),
+  { text: true, background: true, border: true, fill: false },
+)
 
 /**
  * Shade / tint variant generation options.
  * Default count is 4 (DEFAULT_COLOR_VARIANT_COUNT in validate.ts).
  * validate.ts: validateFrameworkColorVariantOptions()
  */
-const FrameworkColorVariantOptionsSchema = z.object({
-  enabled: z.boolean().catch(true),
-  count: z.number().catch(4),
-})
+const FrameworkColorVariantOptionsSchema = withFallback(
+  Type.Object({
+    enabled: withFallback(Type.Boolean(), true),
+    count: withFallback(Type.Number(), 4),
+  }),
+  { enabled: true, count: 4 },
+)
 
-export const FrameworkColorTokenSchema = z.object({
-  id: z.string(),
+export const FrameworkColorTokenSchema = Type.Object({
+  id: Type.String(),
   /**
    * Free-form category label. Empty string means "uncategorized".
    * Falls back to '' when missing.
    */
-  category: z.string().catch(''),
+  category: withFallback(Type.String(), ''),
   /** Normalized slug — used as the CSS variable name root (e.g. "primary"). */
-  slug: z.string(),
-  lightValue: z.string(),
+  slug: Type.String(),
+  lightValue: Type.String(),
   /** Falls back to '' when missing; validate.ts generates via generateDefaultDarkColor(). */
-  darkValue: z.string().catch(''),
-  darkModeEnabled: z.boolean().catch(false),
+  darkValue: withFallback(Type.String(), ''),
+  darkModeEnabled: withFallback(Type.Boolean(), false),
   generateUtilities: FrameworkColorUtilitiesSchema,
-  generateTransparent: z.boolean().catch(true),
-  generateShades: FrameworkColorVariantOptionsSchema.catch({ enabled: true, count: 4 }),
-  generateTints: FrameworkColorVariantOptionsSchema.catch({ enabled: true, count: 4 }),
+  generateTransparent: withFallback(Type.Boolean(), true),
+  generateShades: FrameworkColorVariantOptionsSchema,
+  generateTints: FrameworkColorVariantOptionsSchema,
   /** Falls back to 0; validate.ts uses array index as default. */
-  order: z.number().catch(0),
-  createdAt: z.number().catch(() => Date.now()),
-  updatedAt: z.number().catch(() => Date.now()),
+  order: withFallback(Type.Number(), 0),
+  // Dynamic `Date.now()` default replaced with static 0; callers that need a
+  // live timestamp supply it in a parser helper.
+  createdAt: withFallback(Type.Number(), 0),
+  updatedAt: withFallback(Type.Number(), 0),
 })
 
-export type FrameworkColorToken = z.infer<typeof FrameworkColorTokenSchema>
+export type FrameworkColorToken = Static<typeof FrameworkColorTokenSchema>
 
-export const FrameworkColorSettingsSchema = z.object({
-  tokens: z.array(FrameworkColorTokenSchema).catch([]),
+export const FrameworkColorSettingsSchema = Type.Object({
+  tokens: withFallback(Type.Array(FrameworkColorTokenSchema), []),
 })
 
-export type FrameworkColorSettings = z.infer<typeof FrameworkColorSettingsSchema>
+export type FrameworkColorSettings = Static<typeof FrameworkColorSettingsSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkScaleMode
 // ---------------------------------------------------------------------------
 
-export const FrameworkScaleModeSchema = z.enum(['fluid', 'fluid_manual'])
+export const FrameworkScaleModeSchema = Type.Union([
+  Type.Literal('fluid'),
+  Type.Literal('fluid_manual'),
+])
 
-export type FrameworkScaleMode = z.infer<typeof FrameworkScaleModeSchema>
+export type FrameworkScaleMode = Static<typeof FrameworkScaleModeSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkScaleBreakpointConfig and family-specific extensions
@@ -148,42 +172,44 @@ export type FrameworkScaleMode = z.infer<typeof FrameworkScaleModeSchema>
  * Shared breakpoint config carried by both typography and spacing groups.
  * validate.ts: inline in validateFrameworkTypographyGroup / validateFrameworkSpacingGroup.
  */
-export const FrameworkScaleBreakpointConfigSchema = z.object({
+export const FrameworkScaleBreakpointConfigSchema = Type.Object({
   /** Per-breakpoint scale ratio — a preset string or a raw number. */
-  scaleRatio: z.union([z.number(), z.string()]),
+  scaleRatio: Type.Union([Type.Number(), Type.String()]),
   /** When true, scaleRatioInputValue overrides scaleRatio. */
-  isCustomScaleRatio: z.boolean().optional(),
-  scaleRatioInputValue: z.number().optional(),
+  isCustomScaleRatio: Type.Optional(Type.Boolean()),
+  scaleRatioInputValue: Type.Optional(Type.Number()),
 })
 
-export type FrameworkScaleBreakpointConfig = z.infer<typeof FrameworkScaleBreakpointConfigSchema>
+export type FrameworkScaleBreakpointConfig = Static<typeof FrameworkScaleBreakpointConfigSchema>
 
-export const FrameworkTypographyBreakpointConfigSchema = FrameworkScaleBreakpointConfigSchema.extend({
+export const FrameworkTypographyBreakpointConfigSchema = Type.Object({
+  ...FrameworkScaleBreakpointConfigSchema.properties,
   /** Base font size at this breakpoint in px. */
-  fontSize: z.number(),
+  fontSize: Type.Number(),
 })
 
-export type FrameworkTypographyBreakpointConfig = z.infer<typeof FrameworkTypographyBreakpointConfigSchema>
+export type FrameworkTypographyBreakpointConfig = Static<typeof FrameworkTypographyBreakpointConfigSchema>
 
-export const FrameworkSpacingBreakpointConfigSchema = FrameworkScaleBreakpointConfigSchema.extend({
+export const FrameworkSpacingBreakpointConfigSchema = Type.Object({
+  ...FrameworkScaleBreakpointConfigSchema.properties,
   /** Base spacing size at this breakpoint in px. */
-  size: z.number(),
+  size: Type.Number(),
 })
 
-export type FrameworkSpacingBreakpointConfig = z.infer<typeof FrameworkSpacingBreakpointConfigSchema>
+export type FrameworkSpacingBreakpointConfig = Static<typeof FrameworkSpacingBreakpointConfigSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkScaleManualSize
 // ---------------------------------------------------------------------------
 
-export const FrameworkScaleManualSizeSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  min: z.number(),
-  max: z.number(),
+export const FrameworkScaleManualSizeSchema = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  min: Type.Number(),
+  max: Type.Number(),
 })
 
-export type FrameworkScaleManualSize = z.infer<typeof FrameworkScaleManualSizeSchema>
+export type FrameworkScaleManualSize = Static<typeof FrameworkScaleManualSizeSchema>
 
 // ---------------------------------------------------------------------------
 // Scale group base — fields shared between typography and spacing groups
@@ -195,18 +221,20 @@ export type FrameworkScaleManualSize = z.infer<typeof FrameworkScaleManualSizeSc
 // per-family naming and step defaults, and per-position scaleRatio defaults.
 // ---------------------------------------------------------------------------
 
-const FrameworkScaleGroupBaseSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+const FrameworkScaleGroupBaseSchema = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
   /** 'fluid' (automatic) or 'fluid_manual' (manual sizes). Falls back to 'fluid'. */
-  mode: FrameworkScaleModeSchema.catch('fluid'),
+  mode: withFallback(FrameworkScaleModeSchema, 'fluid' as const),
   /** Manual mode entries — consulted only when mode === 'fluid_manual'. */
-  manualSizes: z.array(FrameworkScaleManualSizeSchema).optional(),
-  isDisabled: z.boolean().optional(),
+  manualSizes: Type.Optional(Type.Array(FrameworkScaleManualSizeSchema)),
+  isDisabled: Type.Optional(Type.Boolean()),
   /** Falls back to 0; validate.ts uses array index as default. */
-  order: z.number().catch(0),
-  createdAt: z.number().catch(() => Date.now()),
-  updatedAt: z.number().catch(() => Date.now()),
+  order: withFallback(Type.Number(), 0),
+  // Dynamic `Date.now()` default replaced with static 0; callers that need a
+  // live timestamp supply it in a parser helper.
+  createdAt: withFallback(Type.Number(), 0),
+  updatedAt: withFallback(Type.Number(), 0),
 })
 
 // ─── Typography group ─────────────────────────────────────────────────────────
@@ -217,26 +245,29 @@ const FrameworkScaleGroupBaseSchema = z.object({
  * max.scaleRatio defaults to 1.333 (Perfect Fourth).
  * validate.ts: validateFrameworkTypographyGroup(), lines ~408–428.
  */
-const TypographyMinBreakpointSchema = FrameworkTypographyBreakpointConfigSchema.extend({
-  scaleRatio: z.union([z.number(), z.string()]).catch(1.125),
+const TypographyMinBreakpointSchema = Type.Object({
+  ...FrameworkTypographyBreakpointConfigSchema.properties,
+  scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.125),
 })
 
-const TypographyMaxBreakpointSchema = FrameworkTypographyBreakpointConfigSchema.extend({
-  scaleRatio: z.union([z.number(), z.string()]).catch(1.333),
+const TypographyMaxBreakpointSchema = Type.Object({
+  ...FrameworkTypographyBreakpointConfigSchema.properties,
+  scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.333),
 })
 
-export const FrameworkTypographyGroupSchema = FrameworkScaleGroupBaseSchema.extend({
+export const FrameworkTypographyGroupSchema = Type.Object({
+  ...FrameworkScaleGroupBaseSchema.properties,
   /** Variable prefix — e.g. "text" produces --text-xs, --text-m, … */
-  namingConvention: z.string().catch('text'),
+  namingConvention: withFallback(Type.String(), 'text'),
   min: TypographyMinBreakpointSchema,
   max: TypographyMaxBreakpointSchema,
   /** Comma-separated step labels — e.g. "xs,s,m,l,xl,2xl,3xl,4xl". */
-  steps: z.string().catch('xs,s,m,l,xl,2xl,3xl,4xl'),
+  steps: withFallback(Type.String(), 'xs,s,m,l,xl,2xl,3xl,4xl'),
   /** Index in the steps list whose value equals the base font size. Defaults to 2 ("m"). */
-  baseScaleIndex: z.number().catch(2),
+  baseScaleIndex: withFallback(Type.Number(), 2),
 })
 
-export type FrameworkTypographyGroup = z.infer<typeof FrameworkTypographyGroupSchema>
+export type FrameworkTypographyGroup = Static<typeof FrameworkTypographyGroupSchema>
 
 // ─── Spacing group ────────────────────────────────────────────────────────────
 
@@ -246,26 +277,29 @@ export type FrameworkTypographyGroup = z.infer<typeof FrameworkTypographyGroupSc
  * max.scaleRatio defaults to 1.414 (Augmented Fourth).
  * validate.ts: validateFrameworkSpacingGroup(), lines ~494–512.
  */
-const SpacingMinBreakpointSchema = FrameworkSpacingBreakpointConfigSchema.extend({
-  scaleRatio: z.union([z.number(), z.string()]).catch(1.25),
+const SpacingMinBreakpointSchema = Type.Object({
+  ...FrameworkSpacingBreakpointConfigSchema.properties,
+  scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.25),
 })
 
-const SpacingMaxBreakpointSchema = FrameworkSpacingBreakpointConfigSchema.extend({
-  scaleRatio: z.union([z.number(), z.string()]).catch(1.414),
+const SpacingMaxBreakpointSchema = Type.Object({
+  ...FrameworkSpacingBreakpointConfigSchema.properties,
+  scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.414),
 })
 
-export const FrameworkSpacingGroupSchema = FrameworkScaleGroupBaseSchema.extend({
+export const FrameworkSpacingGroupSchema = Type.Object({
+  ...FrameworkScaleGroupBaseSchema.properties,
   /** Variable prefix — e.g. "space" produces --space-xs, --space-m, … */
-  namingConvention: z.string().catch('space'),
+  namingConvention: withFallback(Type.String(), 'space'),
   min: SpacingMinBreakpointSchema,
   max: SpacingMaxBreakpointSchema,
   /** Comma-separated step labels — defaults to 11-step scale. */
-  steps: z.string().catch('4xs,3xs,2xs,xs,s,m,l,xl,2xl,3xl,4xl'),
+  steps: withFallback(Type.String(), '4xs,3xs,2xs,xs,s,m,l,xl,2xl,3xl,4xl'),
   /** Index in the steps list whose value equals the base size. Defaults to 5 ("m"). */
-  baseScaleIndex: z.number().catch(5),
+  baseScaleIndex: withFallback(Type.Number(), 5),
 })
 
-export type FrameworkSpacingGroup = z.infer<typeof FrameworkSpacingGroupSchema>
+export type FrameworkSpacingGroup = Static<typeof FrameworkSpacingGroupSchema>
 
 // ---------------------------------------------------------------------------
 // Class generators — identical shape for both typography and spacing
@@ -277,18 +311,18 @@ export type FrameworkSpacingGroup = z.infer<typeof FrameworkSpacingGroupSchema>
  * Typography and spacing share the exact same shape — the spacing schema
  * is an alias so consumers can import either name.
  */
-export const FrameworkTypographyClassGeneratorSchema = z.object({
-  id: z.string(),
+export const FrameworkTypographyClassGeneratorSchema = Type.Object({
+  id: Type.String(),
   /** Class name pattern — `*` or `{step}` is replaced with the step suffix. */
-  name: z.string(),
+  name: Type.String(),
   /** kebab-case CSS properties this generator targets (e.g. ['font-size']). */
-  property: z.array(z.string()),
+  property: Type.Array(Type.String()),
   /** ID of the typography / spacing group (FrameworkTypographyGroup.id). */
-  tabId: z.string(),
-  isDisabled: z.boolean().optional(),
+  tabId: Type.String(),
+  isDisabled: Type.Optional(Type.Boolean()),
 })
 
-export type FrameworkTypographyClassGenerator = z.infer<typeof FrameworkTypographyClassGeneratorSchema>
+export type FrameworkTypographyClassGenerator = Static<typeof FrameworkTypographyClassGeneratorSchema>
 
 // Spacing class generators are identical in shape to typography class generators.
 export const FrameworkSpacingClassGeneratorSchema = FrameworkTypographyClassGeneratorSchema
@@ -299,21 +333,21 @@ export type FrameworkSpacingClassGenerator = FrameworkTypographyClassGenerator
 // FrameworkTypographySettings and FrameworkSpacingSettings
 // ---------------------------------------------------------------------------
 
-export const FrameworkTypographySettingsSchema = z.object({
-  groups: z.array(FrameworkTypographyGroupSchema).catch([]),
-  classes: z.array(FrameworkTypographyClassGeneratorSchema).optional(),
-  isDisabled: z.boolean().optional(),
+export const FrameworkTypographySettingsSchema = Type.Object({
+  groups: withFallback(Type.Array(FrameworkTypographyGroupSchema), []),
+  classes: Type.Optional(Type.Array(FrameworkTypographyClassGeneratorSchema)),
+  isDisabled: Type.Optional(Type.Boolean()),
 })
 
-export type FrameworkTypographySettings = z.infer<typeof FrameworkTypographySettingsSchema>
+export type FrameworkTypographySettings = Static<typeof FrameworkTypographySettingsSchema>
 
-export const FrameworkSpacingSettingsSchema = z.object({
-  groups: z.array(FrameworkSpacingGroupSchema).catch([]),
-  classes: z.array(FrameworkSpacingClassGeneratorSchema).optional(),
-  isDisabled: z.boolean().optional(),
+export const FrameworkSpacingSettingsSchema = Type.Object({
+  groups: withFallback(Type.Array(FrameworkSpacingGroupSchema), []),
+  classes: Type.Optional(Type.Array(FrameworkSpacingClassGeneratorSchema)),
+  isDisabled: Type.Optional(Type.Boolean()),
 })
 
-export type FrameworkSpacingSettings = z.infer<typeof FrameworkSpacingSettingsSchema>
+export type FrameworkSpacingSettings = Static<typeof FrameworkSpacingSettingsSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkPreferencesSettings
@@ -324,18 +358,18 @@ export type FrameworkSpacingSettings = z.infer<typeof FrameworkSpacingSettingsSc
  * Defaults match Core Framework: rootFontSize=10, minScreen=320, maxScreen=1400, isRem=true.
  * validate.ts: validateFrameworkPreferencesSettings(), lines ~358–376.
  */
-export const FrameworkPreferencesSettingsSchema = z.object({
+export const FrameworkPreferencesSettingsSchema = Type.Object({
   /** Root font size used to convert px → rem in published CSS. Default 10 (Core Framework). */
-  rootFontSize: z.number().catch(10),
+  rootFontSize: withFallback(Type.Number(), 10),
   /** Lower clamp anchor in px for fluid scales. Default 320. */
-  minScreenWidth: z.number().catch(320),
+  minScreenWidth: withFallback(Type.Number(), 320),
   /** Upper clamp anchor in px for fluid scales. Default 1400. */
-  maxScreenWidth: z.number().catch(1400),
+  maxScreenWidth: withFallback(Type.Number(), 1400),
   /** Whether to emit clamp() values in `rem` (true) or `px` (false). */
-  isRem: z.boolean().catch(true),
+  isRem: withFallback(Type.Boolean(), true),
 })
 
-export type FrameworkPreferencesSettings = z.infer<typeof FrameworkPreferencesSettingsSchema>
+export type FrameworkPreferencesSettings = Static<typeof FrameworkPreferencesSettingsSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkSettings — top-level per-site framework configuration
@@ -347,13 +381,13 @@ export type FrameworkPreferencesSettings = z.infer<typeof FrameworkPreferencesSe
  *
  * validate.ts: validateFrameworkSettings(), lines ~536–544.
  * Resilient: if the outer object is invalid, the field is undefined (caller
- * uses `.optional().catch(undefined)` when embedded in SiteSettingsSchema).
+ * uses `Type.Optional(FrameworkSettingsSchema)` when embedded in SiteSettingsSchema).
  */
-export const FrameworkSettingsSchema = z.object({
+export const FrameworkSettingsSchema = Type.Object({
   colors: FrameworkColorSettingsSchema,
-  typography: FrameworkTypographySettingsSchema.optional(),
-  spacing: FrameworkSpacingSettingsSchema.optional(),
-  preferences: FrameworkPreferencesSettingsSchema.optional(),
+  typography: Type.Optional(FrameworkTypographySettingsSchema),
+  spacing: Type.Optional(FrameworkSpacingSettingsSchema),
+  preferences: Type.Optional(FrameworkPreferencesSettingsSchema),
 })
 
-export type FrameworkSettings = z.infer<typeof FrameworkSettingsSchema>
+export type FrameworkSettings = Static<typeof FrameworkSettingsSchema>

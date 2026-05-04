@@ -95,24 +95,23 @@ function mapPluginRecord(row: PluginRecordRow): PluginRecord {
 }
 
 export async function listInstalledPlugins(db: DbClient): Promise<InstalledPlugin[]> {
-  const result = await db.query<InstalledPluginRow>(
-    `select id, name, version, enabled, lifecycle_status, last_error,
-            granted_permissions_json, manifest_json, installed_at, updated_at
-     from installed_plugins
-     order by installed_at desc`,
-  )
-  return result.rows.map(mapInstalledPlugin)
+  const { rows } = await db<InstalledPluginRow>`
+    select id, name, version, enabled, lifecycle_status, last_error,
+           granted_permissions_json, manifest_json, installed_at, updated_at
+    from installed_plugins
+    order by installed_at desc
+  `
+  return rows.map(mapInstalledPlugin)
 }
 
 export async function getInstalledPlugin(db: DbClient, id: string): Promise<InstalledPlugin | null> {
-  const result = await db.query<InstalledPluginRow>(
-    `select id, name, version, enabled, lifecycle_status, last_error,
-            granted_permissions_json, manifest_json, installed_at, updated_at
-     from installed_plugins
-     where id = $1`,
-    [id],
-  )
-  return result.rows[0] ? mapInstalledPlugin(result.rows[0]) : null
+  const { rows } = await db<InstalledPluginRow>`
+    select id, name, version, enabled, lifecycle_status, last_error,
+           granted_permissions_json, manifest_json, installed_at, updated_at
+    from installed_plugins
+    where id = ${id}
+  `
+  return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
 
 export async function installPlugin(
@@ -121,29 +120,22 @@ export async function installPlugin(
   grantedPermissions: PluginPermission[] = manifest.grantedPermissions ?? [],
 ): Promise<InstalledPlugin> {
   const manifestToStore = { ...manifest, grantedPermissions }
-  const result = await db.query<InstalledPluginRow>(
-    `insert into installed_plugins (id, name, version, manifest_json, granted_permissions_json, enabled, lifecycle_status, last_error)
-     values ($1, $2, $3, $4, $5, true, 'installed', null)
-     on conflict (id) do update
-       set name = excluded.name,
-           version = excluded.version,
-           manifest_json = excluded.manifest_json,
-           granted_permissions_json = excluded.granted_permissions_json,
-           enabled = true,
-           lifecycle_status = 'installed',
-           last_error = null,
-           updated_at = now()
-     returning id, name, version, enabled, lifecycle_status, last_error,
-               granted_permissions_json, manifest_json, installed_at, updated_at`,
-    [
-      manifest.id,
-      manifest.name,
-      manifest.version,
-      writeJson(manifestToStore),
-      writeJson(grantedPermissions),
-    ],
-  )
-  return mapInstalledPlugin(result.rows[0])
+  const { rows } = await db<InstalledPluginRow>`
+    insert into installed_plugins (id, name, version, manifest_json, granted_permissions_json, enabled, lifecycle_status, last_error)
+    values (${manifest.id}, ${manifest.name}, ${manifest.version}, ${writeJson(manifestToStore)}, ${writeJson(grantedPermissions)}, true, 'installed', null)
+    on conflict (id) do update
+      set name = excluded.name,
+          version = excluded.version,
+          manifest_json = excluded.manifest_json,
+          granted_permissions_json = excluded.granted_permissions_json,
+          enabled = true,
+          lifecycle_status = 'installed',
+          last_error = null,
+          updated_at = now()
+    returning id, name, version, enabled, lifecycle_status, last_error,
+              granted_permissions_json, manifest_json, installed_at, updated_at
+  `
+  return mapInstalledPlugin(rows[0])
 }
 
 export async function setPluginEnabled(
@@ -151,14 +143,13 @@ export async function setPluginEnabled(
   id: string,
   enabled: boolean,
 ): Promise<InstalledPlugin | null> {
-  const result = await db.query<InstalledPluginRow>(
-    `update installed_plugins set enabled = $2, updated_at = now()
-     where id = $1
-     returning id, name, version, enabled, lifecycle_status, last_error,
-               granted_permissions_json, manifest_json, installed_at, updated_at`,
-    [id, enabled],
-  )
-  return result.rows[0] ? mapInstalledPlugin(result.rows[0]) : null
+  const { rows } = await db<InstalledPluginRow>`
+    update installed_plugins set enabled = ${enabled}, updated_at = now()
+    where id = ${id}
+    returning id, name, version, enabled, lifecycle_status, last_error,
+              granted_permissions_json, manifest_json, installed_at, updated_at
+  `
+  return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
 
 export async function setPluginLifecycleStatus(
@@ -167,22 +158,18 @@ export async function setPluginLifecycleStatus(
   lifecycleStatus: PluginLifecycleStatus,
   lastError: string | null = null,
 ): Promise<InstalledPlugin | null> {
-  const result = await db.query<InstalledPluginRow>(
-    `update installed_plugins set lifecycle_status = $2, last_error = $3, updated_at = now()
-     where id = $1
-     returning id, name, version, enabled, lifecycle_status, last_error,
-               granted_permissions_json, manifest_json, installed_at, updated_at`,
-    [id, lifecycleStatus, lastError],
-  )
-  return result.rows[0] ? mapInstalledPlugin(result.rows[0]) : null
+  const { rows } = await db<InstalledPluginRow>`
+    update installed_plugins set lifecycle_status = ${lifecycleStatus}, last_error = ${lastError}, updated_at = now()
+    where id = ${id}
+    returning id, name, version, enabled, lifecycle_status, last_error,
+              granted_permissions_json, manifest_json, installed_at, updated_at
+  `
+  return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
 
 export async function deletePlugin(db: DbClient, id: string): Promise<boolean> {
-  const result = await db.query(
-    `delete from installed_plugins where id = $1`,
-    [id],
-  )
-  return result.rowCount > 0
+  const { rowCount } = await db`delete from installed_plugins where id = ${id}`
+  return rowCount > 0
 }
 
 export async function listPluginRecords(
@@ -190,14 +177,13 @@ export async function listPluginRecords(
   pluginId: string,
   resourceId: string,
 ): Promise<PluginRecord[]> {
-  const result = await db.query<PluginRecordRow>(
-    `select id, plugin_id, resource_id, data_json, created_at, updated_at
-     from plugin_records
-     where plugin_id = $1 and resource_id = $2
-     order by created_at desc`,
-    [pluginId, resourceId],
-  )
-  return result.rows.map(mapPluginRecord)
+  const { rows } = await db<PluginRecordRow>`
+    select id, plugin_id, resource_id, data_json, created_at, updated_at
+    from plugin_records
+    where plugin_id = ${pluginId} and resource_id = ${resourceId}
+    order by created_at desc
+  `
+  return rows.map(mapPluginRecord)
 }
 
 export async function createPluginRecord(
@@ -209,13 +195,12 @@ export async function createPluginRecord(
     data: Record<string, unknown>
   },
 ): Promise<PluginRecord> {
-  const result = await db.query<PluginRecordRow>(
-    `insert into plugin_records (id, plugin_id, resource_id, data_json)
-     values ($1, $2, $3, $4)
-     returning id, plugin_id, resource_id, data_json, created_at, updated_at`,
-    [input.id, input.pluginId, input.resourceId, writeJson(input.data)],
-  )
-  return mapPluginRecord(result.rows[0])
+  const { rows } = await db<PluginRecordRow>`
+    insert into plugin_records (id, plugin_id, resource_id, data_json)
+    values (${input.id}, ${input.pluginId}, ${input.resourceId}, ${writeJson(input.data)})
+    returning id, plugin_id, resource_id, data_json, created_at, updated_at
+  `
+  return mapPluginRecord(rows[0])
 }
 
 export async function updatePluginRecord(
@@ -227,23 +212,21 @@ export async function updatePluginRecord(
     data: Record<string, unknown>
   },
 ): Promise<PluginRecord | null> {
-  const result = await db.query<PluginRecordRow>(
-    `update plugin_records set data_json = $4, updated_at = now()
-     where id = $1 and plugin_id = $2 and resource_id = $3
-     returning id, plugin_id, resource_id, data_json, created_at, updated_at`,
-    [input.id, input.pluginId, input.resourceId, writeJson(input.data)],
-  )
-  return result.rows[0] ? mapPluginRecord(result.rows[0]) : null
+  const { rows } = await db<PluginRecordRow>`
+    update plugin_records set data_json = ${writeJson(input.data)}, updated_at = now()
+    where id = ${input.id} and plugin_id = ${input.pluginId} and resource_id = ${input.resourceId}
+    returning id, plugin_id, resource_id, data_json, created_at, updated_at
+  `
+  return rows[0] ? mapPluginRecord(rows[0]) : null
 }
 
 export async function deletePluginRecord(
   db: DbClient,
   input: { id: string; pluginId: string; resourceId: string },
 ): Promise<boolean> {
-  const result = await db.query(
-    `delete from plugin_records
-     where id = $1 and plugin_id = $2 and resource_id = $3`,
-    [input.id, input.pluginId, input.resourceId],
-  )
-  return result.rowCount > 0
+  const { rowCount } = await db`
+    delete from plugin_records
+    where id = ${input.id} and plugin_id = ${input.pluginId} and resource_id = ${input.resourceId}
+  `
+  return rowCount > 0
 }

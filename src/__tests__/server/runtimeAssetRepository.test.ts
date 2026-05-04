@@ -5,36 +5,46 @@ import {
   savePublishedRuntimeAssets,
 } from '../../../server/cms/runtimeAssetRepository'
 
-class RuntimeAssetFakeDb implements DbClient {
-  rows: Record<string, unknown>[] = []
+function makeFakeDb() {
+  const rows: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('insert into published_runtime_assets')) {
-      this.rows.push({
-        id: params[0],
-        page_version_id: params[1],
-        asset_path: params[2],
-        public_path: params[3],
-        content_type: params[4],
-        content_bytes: params[5],
+
+    // savePublishedRuntimeAssets — values: [id, pageVersionId, path, publicPath, contentType, bytes]
+    if (normalized.includes('insert into published_runtime_assets')) {
+      rows.push({
+        id: values[0],
+        page_version_id: values[1],
+        asset_path: values[2],
+        public_path: values[3],
+        content_type: values[4],
+        content_bytes: values[5],
       })
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('select public_path, content_type, content_bytes')) {
-      const row = this.rows.find((candidate) => candidate.public_path === params[0])
+    // getPublishedRuntimeAsset — values[0] = publicPath
+    if (normalized.includes('select public_path, content_type, content_bytes')) {
+      const row = rows.find((candidate) => candidate.public_path === values[0])
       return { rows: row ? [row as Row] : [], rowCount: row ? 1 : 0 }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, { rows })
 }
 
 describe('published runtime asset repository', () => {
   it('stores and reads immutable runtime assets by public path', async () => {
-    const db = new RuntimeAssetFakeDb()
+    const db = makeFakeDb()
     await savePublishedRuntimeAssets(db, 'version_1', [
       {
         path: 'entries/entry.js',

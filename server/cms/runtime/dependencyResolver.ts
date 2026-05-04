@@ -1,5 +1,5 @@
 import { maxSatisfying } from 'semver'
-import { z } from 'zod'
+import { Type, type Static } from '@core/utils/typeboxHelpers'
 import type { SitePackageJson } from '@core/site-dependencies/manifest'
 import { isSafePackageName } from '@core/site-dependencies/packageNames'
 import { parseJsonResponse } from '@core/utils/jsonValidate'
@@ -11,28 +11,21 @@ import type {
 // Validates the npm registry response. Permissive on extra fields (npm's
 // metadata schema is large and we only consume the fields below). Surfaced
 // by /audit-types — was `await response.json() as NpmPackageMetadata`.
-const NpmPackageMetadataSchema = z.object({
-  name: z.string().optional(),
-  'dist-tags': z.record(z.string(), z.string()).optional(),
-  versions: z
-    .record(
-      z.string(),
-      z
-        .object({
-          dist: z
-            .object({
-              integrity: z.string().optional(),
-              tarball: z.string().optional(),
-            })
-            .passthrough()
-            .optional(),
-        })
-        .passthrough(),
-    )
-    .optional(),
-}).passthrough()
+const NpmPackageMetadataSchema = Type.Object({
+  name: Type.Optional(Type.String()),
+  'dist-tags': Type.Optional(Type.Record(Type.String(), Type.String())),
+  versions: Type.Optional(Type.Record(
+    Type.String(),
+    Type.Object({
+      dist: Type.Optional(Type.Object({
+        integrity: Type.Optional(Type.String()),
+        tarball: Type.Optional(Type.String()),
+      }, { additionalProperties: true })),
+    }, { additionalProperties: true }),
+  )),
+}, { additionalProperties: true })
 
-type NpmPackageMetadata = z.infer<typeof NpmPackageMetadataSchema>
+type NpmPackageMetadata = Static<typeof NpmPackageMetadataSchema>
 
 export interface ResolveSiteDependencyLockOptions {
   fetch?: typeof fetch

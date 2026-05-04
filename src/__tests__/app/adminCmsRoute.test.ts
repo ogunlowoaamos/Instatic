@@ -6,12 +6,12 @@ const root = process.cwd()
 
 describe('admin CMS route wiring', () => {
   it('routes admin sections to the CMS entry and does not expose local site routes', () => {
-    const router = readFileSync(join(root, 'src/admin/router.ts'), 'utf8')
+    const router = readFileSync(join(root, 'src/admin/router.tsx'), 'utf8')
 
-    expect(router).toContain("path: '/admin'")
-    expect(router).toContain("to: '/admin/site'")
-    expect(router).toContain("path: '/admin/site'")
-    expect(router).toContain("path: '/admin/content'")
+    expect(router).toContain('path="/admin"')
+    expect(router).toContain('to="/admin/site"')
+    expect(router).toContain('path="/admin/site"')
+    expect(router).toContain('path="/admin/content"')
     expect(router).toContain('AdminEntry')
     expect(router).not.toContain('Dashboard')
     expect(router).not.toContain('/editor/:projectId')

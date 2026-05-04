@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   const res = new Response(JSON.stringify(body), init)
@@ -8,10 +9,10 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 // Validates a request body is a JSON object (not an array, not a primitive,
 // not null). Each individual handler is expected to narrow further with its
-// own Zod schema for the specific fields it consumes; this helper just
+// own TypeBox schema for the specific fields it consumes; this helper just
 // guarantees you can safely destructure with no runtime crash on garbage
 // input. Surfaced by /audit-types — was `await req.json() as Record<...>`.
-const JsonObjectSchema = z.record(z.string(), z.unknown())
+const JsonObjectSchema = Type.Record(Type.String(), Type.Unknown())
 
 export async function readJsonObject(req: Request): Promise<Record<string, unknown>> {
   let raw: unknown
@@ -20,8 +21,7 @@ export async function readJsonObject(req: Request): Promise<Record<string, unkno
   } catch {
     return {}
   }
-  const result = JsonObjectSchema.safeParse(raw)
-  return result.success ? result.data : {}
+  return Value.Check(JsonObjectSchema, raw) ? (raw as Record<string, unknown>) : {}
 }
 
 export function methodNotAllowed(): Response {

@@ -351,10 +351,9 @@ export async function handleCmsRequest(
     if (!email.includes('@')) return badRequest('Invalid email')
     if (password.length < 12) return badRequest('Password must be at least 12 characters')
 
-    await db.query('begin')
-    try {
-      await createSite(db, siteName, {})
-      await createAdminUser(db, {
+    return await db.transaction(async (tx) => {
+      await createSite(tx, siteName, {})
+      await createAdminUser(tx, {
         id: nanoid(),
         email,
         passwordHash: await hashPassword(password),
@@ -370,17 +369,12 @@ export async function handleCmsRequest(
         rootNodeId: rootNode.id,
         nodes: { [rootNode.id]: rootNode },
       }
-      await db.query(
-        `insert into pages (id, title, slug, draft_document_json, sort_order)
-         values ($1, $2, $3, $4, $5)`,
-        [homePage.id, homePage.title, homePage.slug, homePage, 0],
-      )
-      await db.query('commit')
+      await tx`
+        insert into pages (id, title, slug, draft_document_json, sort_order)
+        values (${homePage.id}, ${homePage.title}, ${homePage.slug}, ${homePage}, ${0})
+      `
       return jsonResponse({ ok: true }, { status: 201 })
-    } catch (err) {
-      await db.query('rollback')
-      throw err
-    }
+    })
   }
 
   if (url.pathname === '/api/cms/login') {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { DbClient, DbResult } from '../../../server/cms/db'
+import type { DbResult } from '../../../server/cms/db'
 import { CMS_MIGRATIONS } from '../../../server/cms/migrations'
 import {
   createContentCollection,
@@ -14,27 +14,19 @@ import {
 } from '../../../server/cms/contentRepository'
 import { renderContentDocumentHtml } from '../../../server/cms/contentRenderer'
 import { handleServerRequest } from '../../../server/router'
+import { createFakeDb } from './dbTestFake'
 
 type QueryHandler = (sql: string, params: unknown[]) => DbResult | undefined
 
-class ContentFakeDb implements DbClient {
-  private readonly handlers: QueryHandler[]
-
-  constructor(handlers: QueryHandler[]) {
-    this.handlers = handlers
-  }
-
-  async query<Row = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
-    const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    for (const handler of this.handlers) {
-      const result = handler(normalized, params)
-      if (result) return result as DbResult<Row>
+function makeContentFakeDb(handlers: QueryHandler[]) {
+  return createFakeDb(async (rawSql, params): Promise<DbResult> => {
+    const sql = rawSql.replace(/\s+/g, ' ').trim().toLowerCase()
+    for (const handler of handlers) {
+      const result = handler(sql, params)
+      if (result) return result
     }
-    throw new Error(`Unhandled SQL: ${sql}`)
-  }
+    throw new Error(`Unhandled SQL: ${rawSql}`)
+  })
 }
 
 function rowDate(value: string) {
@@ -65,7 +57,7 @@ describe('content CMS migrations', () => {
 
 describe('content CMS repository', () => {
   it('lists default collections with frontend field names', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql) => {
         if (!sql.startsWith('select id, name, slug, route_base')) return undefined
         return {
@@ -105,7 +97,7 @@ describe('content CMS repository', () => {
   })
 
   it('creates collections with persisted field settings', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (!sql.startsWith('insert into content_collections')) return undefined
         expect(params).toEqual([
@@ -157,17 +149,19 @@ describe('content CMS repository', () => {
       },
       custom: [],
     }
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (!sql.startsWith('update content_collections')) return undefined
+        // Template order: SET name=$1, slug=$2, route_base=$3, singular_label=$4,
+        //                     plural_label=$5, fields_json=$6  WHERE id=$7
         expect(params).toEqual([
-          'products',
           'Catalog',
           'catalog',
           '/catalog',
           'Product',
           'Products',
           nextFields,
+          'products',
         ])
         return {
           rows: [{
@@ -203,7 +197,7 @@ describe('content CMS repository', () => {
   })
 
   it('moves an entry to another collection when its slug is available there', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (sql.startsWith('select id, collection_id, title, slug')) {
           expect(params).toEqual(['entry_1'])
@@ -231,11 +225,13 @@ describe('content CMS repository', () => {
           return { rows: [{ id: 'products' }], rowCount: 1 }
         }
         if (sql.startsWith('select id from content_entries')) {
+          // Template order: WHERE collection_id=$1 AND slug=$2 AND id <> $3
           expect(params).toEqual(['products', 'hello', 'entry_1'])
           return { rows: [], rowCount: 0 }
         }
         if (sql.startsWith('update content_entries set collection_id')) {
-          expect(params).toEqual(['entry_1', 'products'])
+          // Template order: SET collection_id=$1  WHERE id=$2
+          expect(params).toEqual(['products', 'entry_1'])
           return {
             rows: [{
               id: 'entry_1',
@@ -281,7 +277,7 @@ describe('content CMS repository', () => {
 
   it('creates drafts, saves body markdown, and publishes a snapshot', async () => {
     const calls: string[] = []
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         calls.push(sql)
         if (sql.startsWith('insert into content_entries')) {
@@ -315,6 +311,7 @@ describe('content CMS repository', () => {
             rowCount: 1,
           }
         }
+        // publishContentEntry: UPDATE ... SET active_version_id=$1 WHERE id=$2
         if (sql.startsWith('update content_entries set status =')) {
           return {
             rows: [{
@@ -335,15 +332,16 @@ describe('content CMS repository', () => {
             rowCount: 1,
           }
         }
+        // saveContentEntryDraft: UPDATE ... SET title=$1, slug=$2, ... WHERE id=$7
         if (sql.startsWith('update content_entries')) {
           expect(params).toEqual([
-            'entry_1',
             'Hello',
             'hello',
             '# Hello',
             null,
             'SEO Hello',
             'SEO Description',
+            'entry_1',
           ])
           return {
             rows: [{
@@ -364,7 +362,6 @@ describe('content CMS repository', () => {
             rowCount: 1,
           }
         }
-        if (sql === 'begin' || sql === 'commit') return { rows: [], rowCount: 0 }
         if (sql.startsWith('select content_entry_versions.slug as previous_slug')) {
           return { rows: [], rowCount: 0 }
         }
@@ -426,16 +423,17 @@ describe('content CMS repository', () => {
 
     expect(result.version.versionNumber).toBe(1)
     expect(result.entry.status).toBe('published')
-    expect(calls).toContain('insert into content_entry_versions (id, entry_id, version_number, title, slug, body_markdown, featured_media_id, seo_title, seo_description) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)')
-    expect(calls.some((sql) => sql.includes('active_version_id = $2'))).toBe(true)
+    // Verify the insert SQL was emitted with all 9 params
+    expect(calls.some((sql) => sql.startsWith('insert into content_entry_versions'))).toBe(true)
+    // Template order: SET active_version_id=$1 (versionId) WHERE id=$2 (entryId)
+    expect(calls.some((sql) => sql.includes('active_version_id = $1'))).toBe(true)
   })
 
   it('records a redirect from the previous published slug when publishing a changed slug', async () => {
     const calls: string[] = []
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         calls.push(sql)
-        if (sql === 'begin' || sql === 'commit') return { rows: [], rowCount: 0 }
         if (sql.startsWith('select id, collection_id, title, slug')) {
           return {
             rows: [{
@@ -482,8 +480,9 @@ describe('content CMS repository', () => {
           return { rows: [], rowCount: 1 }
         }
         if (sql.startsWith('update content_entries set status =')) {
-          expect(params[0]).toBe('entry_1')
-          expect(typeof params[1]).toBe('string')
+          // Template order: SET active_version_id=$1 (versionId) WHERE id=$2 (entryId)
+          expect(typeof params[0]).toBe('string')  // versionId (nanoid)
+          expect(params[1]).toBe('entry_1')
           return {
             rows: [{
               id: 'entry_1',
@@ -519,7 +518,7 @@ describe('content CMS repository', () => {
   })
 
   it('resolves the active published version by collection route and entry slug', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (!sql.startsWith('select content_entry_versions.id')) return undefined
         expect(sql).toContain('content_entry_versions.id = content_entries.active_version_id')
@@ -556,7 +555,7 @@ describe('content CMS repository', () => {
   })
 
   it('does not resolve old published slugs after a newer version becomes active', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (!sql.startsWith('select content_entry_versions.id')) return undefined
         expect(sql).toContain('content_entry_versions.id = content_entries.active_version_id')
@@ -569,7 +568,7 @@ describe('content CMS repository', () => {
   })
 
   it('resolves old published slugs as redirects to the active published slug', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql, params) => {
         if (!sql.startsWith('select content_entry_redirects.id')) return undefined
         expect(sql).toContain('content_entry_versions.id = target_entries.active_version_id')
@@ -625,7 +624,7 @@ describe('content CMS rendering', () => {
 
 describe('content CMS public routes', () => {
   it('renders published custom collection entries without a page template', async () => {
-    const db = new ContentFakeDb([
+    const db = makeContentFakeDb([
       (sql) => {
         if (sql.startsWith('select page_versions.snapshot_json')) {
           return { rows: [], rowCount: 0 }

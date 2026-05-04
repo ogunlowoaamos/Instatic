@@ -10,14 +10,14 @@
  * Constraint #269: no imports from editor / editor-store here.
  */
 
-import { z } from 'zod'
+import { Type, Value, type Static, withFallback } from '@core/utils/typeboxHelpers'
 
 // ---------------------------------------------------------------------------
 // PropBinding — used by both BaseNode (propBindings field) and VCNodeSchema
 // ---------------------------------------------------------------------------
 
 /** Maps prop key → { paramId } for render-time VC parameter substitution. */
-export const PropBindingSchema = z.object({ paramId: z.string() })
+export const PropBindingSchema = Type.Object({ paramId: Type.String() })
 
 // ---------------------------------------------------------------------------
 // BaseNodeSchema — shared structural schema for PageNode and VCNode
@@ -32,47 +32,47 @@ export const PropBindingSchema = z.object({ paramId: z.string() })
 // casts when tree-walking functions need to operate on nodes from either context.
 // ---------------------------------------------------------------------------
 
-export const BaseNodeSchema = z.object({
+export const BaseNodeSchema = Type.Object({
   // Unique ID — generated with nanoid()
-  id: z.string(),
+  id: Type.String(),
 
   // References a ModuleDefinition in the registry.
   // Format: "namespace.module-name" — e.g. "base.text"
-  moduleId: z.string(),
+  moduleId: Type.String(),
 
   // Resolved property values for this node's module.
   // Shape validated against ModuleDefinition.schema at runtime.
   // Keys are FLAT — no dot-path nesting.
-  props: z.record(z.string(), z.unknown()).catch({}).default({}),
+  props: withFallback(Type.Record(Type.String(), Type.Unknown()), {}),
 
   // Per-breakpoint prop overrides — shallow-merged on top of props when
   // rendering at a given breakpoint. Key is Breakpoint.id.
-  breakpointOverrides: z
-    .record(z.string(), z.record(z.string(), z.unknown()))
-    .catch({})
-    .default({}),
+  breakpointOverrides: withFallback(
+    Type.Record(Type.String(), Type.Record(Type.String(), Type.Unknown())),
+    {},
+  ),
 
   // Ordered array of child node IDs.
   // Only meaningful when ModuleDefinition.canHaveChildren === true.
   // All children are in a single default slot (multi-slot deferred post-MVP).
-  // Strict (no .catch): non-array children throw SiteValidationError at load time
-  // (mirrors validatePageNode assertArray behaviour — Constraint #230).
-  children: z.array(z.string()),
+  // Strict (no fallback): non-array children throw SiteValidationError at load
+  // time (mirrors validatePageNode assertArray behaviour — Constraint #230).
+  children: Type.Array(Type.String()),
 
   // Optional user-facing label — overrides the module name in the DOM tree panel
-  label: z.string().optional().catch(undefined),
+  label: Type.Optional(Type.String()),
 
   // When true, cannot be selected or moved in the editor
-  locked: z.boolean().optional().catch(undefined),
+  locked: Type.Optional(Type.Boolean()),
 
   // When true, hidden on the canvas (still present in the tree)
-  hidden: z.boolean().optional().catch(undefined),
+  hidden: Type.Optional(Type.Boolean()),
 
   // Ordered class IDs from the site's class registry.
   // Applied as the referenced user-facing class names on the element.
   // Later classes in the array win in cascade order.
   // Empty array when no classes are applied.
-  classIds: z.array(z.string()).catch([]).default([]),
+  classIds: withFallback(Type.Array(Type.String()), []),
 
   // Prop bindings for render-time parameter substitution.
   // Maps prop key → { paramId } (stable VCParam.id reference).
@@ -80,26 +80,39 @@ export const BaseNodeSchema = z.object({
   // the bound prop key at render time (Contribution #619 §4 Option β).
   // Optional — absent on all standard Page nodes and unbound VC nodes.
   //
-  // Per-entry lenience (5.3): entries failing PropBindingSchema are silently
-  // dropped rather than nuking the entire map.  The original validatePageNode()
-  // did the same — filter individual bad entries, keep the good ones.
-  //
-  // .catch({}) handles invalid values; .transform() filters per-entry;
-  // .optional() is outermost so ZodOptional is the top-level wrapper — this
-  // makes propBindings infer as `?:` (key can be absent) rather than a
-  // required key typed `T | undefined` (Zod v4 optional semantics).
-  propBindings: z
-    .record(z.string(), z.unknown())
-    .catch({})
-    .transform((map) => {
-      const out: Record<string, { paramId: string }> = {}
-      for (const [k, v] of Object.entries(map)) {
-        const parsed = PropBindingSchema.safeParse(v)
-        if (parsed.success) out[k] = parsed.data
-      }
-      return Object.keys(out).length > 0 ? out : undefined
-    })
-    .optional(),
+  // Per-entry lenience: use parsePropBindings() when parsing raw node data —
+  // it filters invalid entries rather than failing the whole field. The
+  // schema here reflects the validated type; the helper does the filtering.
+  propBindings: Type.Optional(Type.Record(Type.String(), PropBindingSchema)),
 })
 
-export type BaseNode = z.infer<typeof BaseNodeSchema>
+export type BaseNode = Static<typeof BaseNodeSchema>
+
+// ---------------------------------------------------------------------------
+// parsePropBindings — sibling helper for per-entry-lenient propBindings parsing
+//
+// Replaces the Zod `.catch({}).transform((map) => {...}).optional()` chain.
+// Call this when parsing raw node data (page-tree and VC node deserialization)
+// to silently drop entries that don't match PropBindingSchema, rather than
+// failing the whole field.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse and filter a raw propBindings map. Invalid entries are silently
+ * dropped; returns `undefined` when no valid entries remain.
+ *
+ * Use this at the raw-data parsing layer (page-tree/schemas and
+ * visualComponents/schemas) instead of relying on schema-level transforms.
+ */
+export function parsePropBindings(
+  raw: unknown,
+): Record<string, { paramId: string }> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, { paramId: string }> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (Value.Check(PropBindingSchema, v)) {
+      out[k] = v
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}

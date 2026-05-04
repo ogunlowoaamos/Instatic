@@ -70,18 +70,17 @@ export async function getDraftPublishStatus(db: DbClient): Promise<DraftPublishS
     }
   }
 
-  const result = await db.query<ActivePublishedRow>(
-    `select pages.id as page_id,
-            page_versions.snapshot_json,
-            page_versions.published_at
-     from pages
-     join page_versions on page_versions.id = pages.active_version_id
-     where pages.status = 'published'
-       and pages.active_version_id is not null
-     order by pages.sort_order asc, pages.created_at asc`,
-  )
+  const { rows: publishedRows } = await db<ActivePublishedRow>`
+    select pages.id as page_id,
+           page_versions.snapshot_json,
+           page_versions.published_at
+    from pages
+    join page_versions on page_versions.id = pages.active_version_id
+    where pages.status = 'published'
+      and pages.active_version_id is not null
+    order by pages.sort_order asc, pages.created_at asc
+  `
 
-  const publishedRows = result.rows
   const draftSiteJson = canonicalJson(site)
   const draftPageIds = new Set(site.pages.map((page) => page.id))
   const draftMatchesPublished =
@@ -108,9 +107,8 @@ export async function publishDraftSite(
   db: DbClient,
   adminUserId: string,
 ): Promise<PublishResult> {
-  await db.query('begin')
-  try {
-    const site = await loadDraftSite(db)
+  return db.transaction(async (tx) => {
+    const site = await loadDraftSite(tx)
     if (!site) throw new Error('draft site not found')
 
     const runtime = normalizeSiteRuntimeConfig(site.runtime)
@@ -119,13 +117,12 @@ export async function publishDraftSite(
       : undefined
 
     for (const page of site.pages) {
-      const versionResult = await db.query<{ next_version: number }>(
-        `select coalesce(max(version), 0)::int + 1 as next_version
-         from page_versions
-         where page_id = $1`,
-        [page.id],
-      )
-      const version = Number(versionResult.rows[0]?.next_version ?? 1)
+      const { rows: versionRows } = await tx<{ next_version: number }>`
+        select coalesce(max(version), 0)::int + 1 as next_version
+        from page_versions
+        where page_id = ${page.id}
+      `
+      const version = Number(versionRows[0]?.next_version ?? 1)
       const versionId = nanoid()
       const runtimeBuild = await buildSiteRuntimeScripts({
         site,
@@ -139,57 +136,56 @@ export async function publishDraftSite(
         throw new Error(`runtime build failed: ${runtimeErrors.map((diagnostic) => diagnostic.message).join('; ')}`)
       }
 
-      await db.query(
-        `insert into page_versions (id, page_id, version, snapshot_json, published_by)
-         values ($1, $2, $3, $4, $5)`,
-        [versionId, page.id, version, createSnapshot(site, page.id, runtimeBuild.runtimeAssets), adminUserId],
-      )
-      await savePublishedRuntimeAssets(db, versionId, runtimeBuild.files)
-      await db.query(
-        `update pages
-         set active_version_id = $1,
-             status = 'published',
-             updated_at = now()
-         where id = $2`,
-        [versionId, page.id],
-      )
+      await tx`
+        insert into page_versions (id, page_id, version, snapshot_json, published_by)
+        values (
+          ${versionId},
+          ${page.id},
+          ${version},
+          ${createSnapshot(site, page.id, runtimeBuild.runtimeAssets)},
+          ${adminUserId}
+        )
+      `
+      await savePublishedRuntimeAssets(tx, versionId, runtimeBuild.files)
+      await tx`
+        update pages
+        set active_version_id = ${versionId},
+            status = 'published',
+            updated_at = now()
+        where id = ${page.id}
+      `
     }
 
-    await db.query('commit')
     return { publishedPages: site.pages.length }
-  } catch (err) {
-    await db.query('rollback')
-    throw err
-  }
+  })
 }
 
 export async function getPublishedPageBySlug(
   db: DbClient,
   slug: string,
 ): Promise<PublishedPageSnapshot | null> {
-  const result = await db.query<{ snapshot_json: PublishedPageSnapshot }>(
-    `select page_versions.snapshot_json
-     from pages
-     join page_versions on page_versions.id = pages.active_version_id
-     where pages.slug = $1
-       and pages.status = 'published'
-     limit 1`,
-    [slug],
-  )
-  return result.rows[0]?.snapshot_json ?? null
+  const { rows } = await db<{ snapshot_json: PublishedPageSnapshot }>`
+    select page_versions.snapshot_json
+    from pages
+    join page_versions on page_versions.id = pages.active_version_id
+    where pages.slug = ${slug}
+      and pages.status = 'published'
+    limit 1
+  `
+  return rows[0]?.snapshot_json ?? null
 }
 
 export async function getLatestPublishedSiteSnapshot(
   db: DbClient,
 ): Promise<PublishedPageSnapshot | null> {
-  const result = await db.query<{ snapshot_json: PublishedPageSnapshot }>(
-    `select page_versions.snapshot_json
-     from pages
-     join page_versions on page_versions.id = pages.active_version_id
-     where pages.status = 'published'
-       and pages.active_version_id is not null
-     order by pages.sort_order asc, pages.created_at asc
-     limit 1`,
-  )
-  return result.rows[0]?.snapshot_json ?? null
+  const { rows } = await db<{ snapshot_json: PublishedPageSnapshot }>`
+    select page_versions.snapshot_json
+    from pages
+    join page_versions on page_versions.id = pages.active_version_id
+    where pages.status = 'published'
+      and pages.active_version_id is not null
+    order by pages.sort_order asc, pages.created_at asc
+    limit 1
+  `
+  return rows[0]?.snapshot_json ?? null
 }

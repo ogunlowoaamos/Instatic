@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { Type } from '@sinclair/typebox'
 import type { PluginRecord, PluginResource } from '../plugin-sdk'
 import { readEnvelope } from './httpJson'
 import { responseErrorMessage } from './httpErrors'
@@ -15,14 +15,18 @@ interface PluginRecordsPayload {
 // modules; here we just check that the wrapper object has the expected key.
 // Surfaced by /audit-types.
 
-const PluginRecordsEnvelope = z.object({
-  resource: z.unknown().optional(),
-  records: z.array(z.unknown()).optional(),
-}).passthrough()
+const PluginRecordsEnvelope = Type.Object(
+  {
+    resource: Type.Optional(Type.Unknown()),
+    records: Type.Optional(Type.Array(Type.Unknown())),
+  },
+  { additionalProperties: true },
+)
 
-const RecordEnvelope = z.object({
-  record: z.unknown().optional(),
-}).passthrough()
+const RecordEnvelope = Type.Object(
+  { record: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
 function recordsPath(basePath: string, pluginId: string, resourceId: string): string {
   return `${basePath}/plugins/${encodeURIComponent(pluginId)}/resources/${encodeURIComponent(resourceId)}/records`

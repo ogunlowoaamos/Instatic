@@ -1,4 +1,4 @@
-import { createPgPool } from './cms/db'
+import { createDbClient } from './cms/db'
 import { runMigrations } from './cms/migrations'
 import { readServerConfig } from './config'
 
@@ -7,7 +7,7 @@ const { handleServerRequest } = await import('./router')
 const { activateInstalledServerPlugins } = await import('./cms/serverPluginRuntime')
 
 const config = readServerConfig()
-const db = createPgPool(config.databaseUrl)
+const db = createDbClient(config.databaseUrl)
 await runMigrations(db)
 await activateInstalledServerPlugins(db, config.uploadsDir)
 

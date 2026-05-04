@@ -1,46 +1,56 @@
 /**
- * Fonts — Zod schemas and derived types.
+ * Fonts — TypeBox schemas and derived types.
  *
- * Schemas are the source of truth. Types are derived via `z.infer<typeof Schema>`.
+ * Schemas are the source of truth. Types are derived via `Static<typeof T>`.
  * No parallel TypeScript interfaces — schema definitions ARE the contract.
  *
  * Constraint #269: no imports from editor / editor-store here.
  */
 
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
+import { withFallback, filterArray } from '@core/utils/typeboxHelpers'
 
 // ---------------------------------------------------------------------------
 // FontSource
 // ---------------------------------------------------------------------------
 
-export const FontSourceSchema = z.enum(['google', 'custom'])
+export const FontSourceSchema = Type.Union([
+  Type.Literal('google'),
+  Type.Literal('custom'),
+])
 
-export type FontSource = z.infer<typeof FontSourceSchema>
+export type FontSource = Static<typeof FontSourceSchema>
 
 // ---------------------------------------------------------------------------
 // FontFile
 // ---------------------------------------------------------------------------
+
+const FONT_PATH_PATTERN = /^\/uploads\/fonts\/[^"<>\\\s]+\.woff2$/
+
+function isSafeFontPath(path: string): boolean {
+  return FONT_PATH_PATTERN.test(path) && !path.includes('..')
+}
 
 /**
  * One downloaded font file.  The `path` must be under `/uploads/fonts/`, end
  * with `.woff2`, and contain no traversal sequences — mirrors `isSafeFontPath`
  * in `validate.ts` (lines ~557–563).
  */
-export const FontFileSchema = z.object({
-  variant: z.string().min(1),
-  subset: z.string().min(1),
-  path: z.string().refine(
-    (p) =>
-      p.startsWith('/uploads/fonts/') &&
-      !p.includes('..') &&
-      !/[\s"<>\\]/.test(p) &&
-      p.endsWith('.woff2'),
-    'Font path must start with /uploads/fonts/ and end with .woff2',
-  ),
-  format: z.literal('woff2'),
+export const FontFileSchema = Type.Object({
+  variant: Type.String({ minLength: 1 }),
+  subset: Type.String({ minLength: 1 }),
+  path: Type.String({ pattern: FONT_PATH_PATTERN.source }),
+  format: Type.Literal('woff2'),
 })
 
-export type FontFile = z.infer<typeof FontFileSchema>
+export type FontFile = Static<typeof FontFileSchema>
+
+// Composite check used by callers that want pattern + path-traversal in one go.
+export function checkFontFile(value: unknown): value is FontFile {
+  if (!Value.Check(FontFileSchema, value)) return false
+  return isSafeFontPath((value as FontFile).path)
+}
 
 // ---------------------------------------------------------------------------
 // FontEntry
@@ -51,25 +61,56 @@ export type FontFile = z.infer<typeof FontFileSchema>
  * Invalid entries are silently dropped at the SiteFontsSettings level.
  * Mirrors `validateFontEntry` in validate.ts (lines ~575–603).
  */
-export const FontEntrySchema = z.object({
-  id: z.string().min(1),
-  source: FontSourceSchema.catch('google' as const),
-  family: z.string().min(1),
-  variants: z.array(z.string().min(1)).catch([]),
-  subsets: z.array(z.string().min(1)).catch([]),
+export const FontEntrySchema = Type.Object({
+  id: Type.String({ minLength: 1 }),
+  source: withFallback(FontSourceSchema, 'google' as const),
+  family: Type.String({ minLength: 1 }),
+  variants: withFallback(Type.Array(Type.String({ minLength: 1 })), []),
+  subsets: withFallback(Type.Array(Type.String({ minLength: 1 })), []),
   /** Invalid font-file entries are silently dropped. */
-  files: z.array(z.unknown()).default([]).transform((items) =>
-    items.flatMap((item) => {
-      const r = FontFileSchema.safeParse(item)
-      return r.success ? [r.data] : []
-    }),
-  ),
-  category: z.string().optional(),
-  createdAt: z.number().catch(() => Date.now()),
-  updatedAt: z.number().catch(() => Date.now()),
+  files: Type.Array(FontFileSchema),
+  category: Type.Optional(Type.String()),
+  createdAt: Type.Number(),
+  updatedAt: Type.Number(),
 })
 
-export type FontEntry = z.infer<typeof FontEntrySchema>
+export type FontEntry = Static<typeof FontEntrySchema>
+
+/**
+ * Tolerant parser: silently filters out invalid `files` entries and provides
+ * timestamp fallbacks. Use this when reading persisted site documents where
+ * one corrupt sub-entry should not invalidate the whole library.
+ */
+export function parseFontEntry(raw: unknown): FontEntry | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  if (typeof r.id !== 'string' || r.id.length === 0) return null
+  if (typeof r.family !== 'string' || r.family.length === 0) return null
+
+  const source: FontSource = r.source === 'custom' ? 'custom' : 'google'
+  const variants = Array.isArray(r.variants)
+    ? r.variants.filter((v): v is string => typeof v === 'string' && v.length > 0)
+    : []
+  const subsets = Array.isArray(r.subsets)
+    ? r.subsets.filter((v): v is string => typeof v === 'string' && v.length > 0)
+    : []
+  const files = Array.isArray(r.files) ? filterArray(FontFileSchema, r.files) : []
+  const createdAt = typeof r.createdAt === 'number' ? r.createdAt : Date.now()
+  const updatedAt = typeof r.updatedAt === 'number' ? r.updatedAt : Date.now()
+  const category = typeof r.category === 'string' ? r.category : undefined
+
+  return {
+    id: r.id,
+    source,
+    family: r.family,
+    variants,
+    subsets,
+    files: files.filter(checkFontFile),
+    ...(category !== undefined ? { category } : {}),
+    createdAt,
+    updatedAt,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // SiteFontsSettings
@@ -79,13 +120,24 @@ export type FontEntry = z.infer<typeof FontEntrySchema>
  * Library of installed fonts for a site.
  * Mirrors `validateSiteFontsSettings` in validate.ts (lines ~605–612).
  */
-export const SiteFontsSettingsSchema = z.object({
-  items: z.array(z.unknown()).default([]).transform((items) =>
-    items.flatMap((item) => {
-      const r = FontEntrySchema.safeParse(item)
-      return r.success ? [r.data] : []
-    }),
-  ),
+export const SiteFontsSettingsSchema = Type.Object({
+  items: Type.Array(FontEntrySchema),
 })
 
-export type SiteFontsSettings = z.infer<typeof SiteFontsSettingsSchema>
+export type SiteFontsSettings = Static<typeof SiteFontsSettingsSchema>
+
+/**
+ * Tolerant parser used by site-document loaders. Drops any malformed entries
+ * rather than failing the whole site validation.
+ */
+export function parseSiteFontsSettings(raw: unknown): SiteFontsSettings {
+  if (!raw || typeof raw !== 'object') return { items: [] }
+  const items = (raw as { items?: unknown }).items
+  if (!Array.isArray(items)) return { items: [] }
+  return {
+    items: items.flatMap((item) => {
+      const parsed = parseFontEntry(item)
+      return parsed ? [parsed] : []
+    }),
+  }
+}

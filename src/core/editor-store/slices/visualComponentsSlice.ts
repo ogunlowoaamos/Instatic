@@ -15,10 +15,8 @@
  * This is a pure data-layer slice.
  */
 
-import { produce } from 'immer'
 import { nanoid } from 'nanoid'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 import type { VisualComponent, VCParam, VCNode } from '@core/visualComponents/schemas'
 import type { PageNode, CSSClass } from '@core/page-tree/schemas'
 import { validateComponentName, validateParamName } from '@core/visualComponents/nameValidation'
@@ -354,7 +352,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends VisualComponentsSlice {}
 }
 
-export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], VisualComponentsSlice> = (set, get) => ({
+export const createVisualComponentsSlice: EditorStoreSliceCreator<VisualComponentsSlice> = (set, get) => ({
 
   createVisualComponent(name) {
     const { site } = get()
@@ -388,14 +386,12 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
       createdAt: now,
     }
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         if (!state.site.visualComponents) state.site.visualComponents = []
         state.site.visualComponents.push(newVC)
         state.site.updatedAt = now
-      }),
-    )
+      })
 
     return id
   },
@@ -409,28 +405,24 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
       throw new VisualComponentNameError(validation.reason, validation.error)
     }
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === id)
         if (!vc) return
         vc.name = newName
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   deleteVisualComponent(id) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         if (!state.site.visualComponents) return
         const idx = state.site.visualComponents.findIndex((v) => v.id === id)
         if (idx === -1) return
         state.site.visualComponents.splice(idx, 1)
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   addParam(vcId, name, type, defaultValue = '') {
@@ -448,8 +440,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
 
     const paramId = nanoid()
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
         if (!vc) return
@@ -463,15 +454,13 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         }
         vc.params.push(newParam)
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
 
     return paramId
   },
 
   removeParamWithCleanup(vcId, paramId) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
 
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
@@ -514,8 +503,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         vc.params.splice(paramIdx, 1)
 
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   addNodeToVc(vcId, parentNodeId, newNode) {
@@ -536,8 +524,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
       }
     }
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
         if (!vc) return
@@ -557,15 +544,13 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         parent.childNodes.push(newNode)
 
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   setNodePropBinding(nodeId, propKey, paramId) {
     const { activeDocument, activePageId } = get()
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
 
         if (activeDocument?.kind === 'visualComponent') {
@@ -589,15 +574,13 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         }
 
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   clearNodePropBinding(nodeId, propKey) {
     const { activeDocument, activePageId } = get()
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
 
         if (activeDocument?.kind === 'visualComponent') {
@@ -630,13 +613,11 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         }
 
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   updateParamDefaultValue(vcId, paramId, value) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
         if (!vc) return
@@ -644,8 +625,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         if (!param) return
         param.defaultValue = value
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   renameParam(vcId, paramId, newName) {
@@ -661,8 +641,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
       }
     }
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
         if (!vc) return
@@ -670,13 +649,11 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         if (!param) return
         param.name = newName
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   updateParamMeta(vcId, paramId, patch) {
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
         const vc = (state.site.visualComponents ?? []).find((v) => v.id === vcId)
         if (!vc) return
@@ -695,8 +672,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
         }
 
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
   },
 
   convertNodeToComponent(nodeId, name) {
@@ -751,8 +727,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
     // newVcId is captured here so the producer can return it via closure
     let newVcId = ''
 
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         if (!state.site) return
 
         const draftPage = (state.site.pages ?? []).find((p) => p.id === pageId)
@@ -827,8 +802,7 @@ export const createVisualComponentsSlice: StateCreator<EditorStore, [], [], Visu
 
         // 5g. Stamp updatedAt
         state.site.updatedAt = Date.now()
-      }),
-    )
+      })
 
     return newVcId
   },

@@ -17,17 +17,15 @@
  *   to prevent excessive React re-renders during streaming.
  */
 
-import { produce } from 'immer'
 import { nanoid } from 'nanoid'
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../editor-store/types'
+import type { EditorStore, EditorStoreSliceCreator } from '../editor-store/types'
 import { registry } from '../module-engine/registry'
 import type {
   AnyModuleDefinition,
   PropertyControl,
   PropertySchema,
 } from '../module-engine/types'
-import { z } from 'zod'
+import { Type } from '@core/utils/typeboxHelpers'
 import type { Page } from '../page-tree/schemas'
 import { executeAgentActions } from './executor'
 import { AGENT_API_PATH } from './agentConfig'
@@ -55,25 +53,25 @@ import type {
 // failure mode we actually need to defend against in the streaming reader.
 // Surfaced by /audit-types.
 
-const ServerStreamEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text'), text: z.string() }),
-  z.object({ type: z.literal('actions'), actions: z.array(z.unknown()) }),
-  z.object({
-    type: z.literal('actionResult'),
-    actionType: z.string(),
-    result: z.unknown(),
+const ServerStreamEventSchema = Type.Union([
+  Type.Object({ type: Type.Literal('text'), text: Type.String() }),
+  Type.Object({ type: Type.Literal('actions'), actions: Type.Array(Type.Unknown()) }),
+  Type.Object({
+    type: Type.Literal('actionResult'),
+    actionType: Type.String(),
+    result: Type.Unknown(),
   }),
-  z.object({
-    type: z.literal('toolStatus'),
-    toolCallId: z.string(),
-    name: z.string(),
-    status: z.enum(['pending', 'success', 'error']),
-    input: z.unknown().optional(),
-    error: z.string().optional(),
+  Type.Object({
+    type: Type.Literal('toolStatus'),
+    toolCallId: Type.String(),
+    name: Type.String(),
+    status: Type.Union([Type.Literal('pending'), Type.Literal('success'), Type.Literal('error')]),
+    input: Type.Optional(Type.Unknown()),
+    error: Type.Optional(Type.String()),
   }),
-  z.object({ type: z.literal('session'), sessionId: z.string() }),
-  z.object({ type: z.literal('done') }),
-  z.object({ type: z.literal('error'), message: z.string() }),
+  Type.Object({ type: Type.Literal('session'), sessionId: Type.String() }),
+  Type.Object({ type: Type.Literal('done') }),
+  Type.Object({ type: Type.Literal('error'), message: Type.String() }),
 ])
 
 // ---------------------------------------------------------------------------
@@ -109,7 +107,7 @@ export interface AgentSlice {
   clearAgentMessages(): void
 }
 
-type EditorStoreSet = Parameters<StateCreator<EditorStore, [], [], AgentSlice>>[0]
+type EditorStoreSet = Parameters<EditorStoreSliceCreator<AgentSlice>>[0]
 
 const AGENT_SESSION_STORAGE_PREFIX = 'pb-agent-session:'
 
@@ -140,7 +138,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends AgentSlice {}
 }
 
-export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (set, get) => {
+export const createAgentSlice: EditorStoreSliceCreator<AgentSlice> = (set, get) => {
   // AbortController held in closure (not reactive — intentional, not needed in UI)
   let _abortController: AbortController | null = null
 
@@ -155,12 +153,10 @@ export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (
     const text = _pendingText
     const id = _pendingAssistantId
     _pendingText = ''
-    set(
-      produce((state: EditorStore) => {
+    set((state) => {
         const msg = state.agentMessages.find((m) => m.id === id)
         if (msg) msg.content += text
-      }),
-    )
+      })
   }
 
   function scheduleFlush() {
@@ -252,14 +248,12 @@ export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (
         timestamp: Date.now(),
       }
 
-      set(
-        produce((state: EditorStore) => {
+      set((state) => {
           state.agentMessages.push(userMsg)
           state.agentMessages.push(assistantMsg)
           state.agentError = null
           state.isAgentStreaming = true
-        }),
-      )
+        })
 
       // Build conversation history (prior messages)
       const priorMessages = get()
@@ -297,12 +291,10 @@ export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (
             // 502 = agent server not reachable (safe status code — not raw SDK error text)
             console.error('[AgentSlice] 502 — agent server unreachable')
             set({ agentError: 'Agent server is not running. Start it with: bun run dev' })
-            set(
-              produce((state: EditorStore) => {
+            set((state) => {
                 const msg = state.agentMessages.find((m) => m.id === assistantId)
                 if (msg && !msg.content) msg.content = '_(agent error)_'
-              }),
-            )
+              })
             return
           }
           throw new Error(`Agent request failed: ${res.status} ${res.statusText}`)
@@ -351,12 +343,10 @@ export const createAgentSlice: StateCreator<EditorStore, [], [], AgentSlice> = (
           console.error('[AgentSlice] sendAgentMessage error:', err)
           set({ agentError: 'Something went wrong. Please try again.' })
           // Mark assistant message as error
-          set(
-            produce((state: EditorStore) => {
+          set((state) => {
               const msg = state.agentMessages.find((m) => m.id === assistantId)
               if (msg && !msg.content) msg.content = '_(agent error)_'
-            }),
-          )
+            })
         }
       } finally {
         _abortController = null
@@ -400,20 +390,17 @@ export async function processStreamEvent(
         status: 'pending' as const,
       }))
 
-      set(
-        produce((state: EditorStore) => {
+      set((state) => {
           const msg = state.agentMessages.find((m) => m.id === assistantId)
           if (msg) msg.toolCalls.push(...toolCalls)
-        }),
-      )
+        })
 
       // Execute (async, but actions are synchronous Zustand mutations)
       const results = await executeAgentActions(actions)
       const hasFailure = results.some((result) => !result.success)
 
       // Update tool call statuses
-      set(
-        produce((state: EditorStore) => {
+      set((state) => {
           const msg = state.agentMessages.find((m) => m.id === assistantId)
           if (!msg) return
           toolCalls.forEach((tc, idx) => {
@@ -431,11 +418,9 @@ export async function processStreamEvent(
               found.status = 'error'
             }
           })
-        }),
-      )
+        })
       if (hasFailure) {
-        set(
-          produce((state: EditorStore) => {
+        set((state) => {
             state.agentError = 'Some actions could not be completed. The page may be partially updated.'
             const msg = state.agentMessages.find((m) => m.id === assistantId)
             if (!msg || msg.content.includes("couldn't complete all changes")) return
@@ -443,15 +428,13 @@ export async function processStreamEvent(
             msg.content = msg.content.trimEnd()
               ? `${msg.content.trimEnd()}\n\n${notice}`
               : notice
-          }),
-        )
+          })
       }
       break
     }
 
     case 'toolStatus': {
-      set(
-        produce((state: EditorStore) => {
+      set((state) => {
           const msg = state.agentMessages.find((m) => m.id === assistantId)
           if (!msg) return
 
@@ -486,8 +469,7 @@ export async function processStreamEvent(
                 },
             status: event.status,
           })
-        }),
-      )
+        })
       break
     }
 

@@ -1,4 +1,4 @@
-import type { z } from 'zod'
+import type { TSchema, Static } from '@sinclair/typebox'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
@@ -48,7 +48,7 @@ function createAdminPluginApi(pluginId: string, fetchImpl: FetchLike): PluginAdm
             ...init,
           })
         },
-        async json<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
+        async json<T extends TSchema>(path: string, schema: T, init?: RequestInit): Promise<Static<T>> {
           const res = await fetchImpl(runtimePath(pluginId, path), {
             credentials: 'include',
             ...init,

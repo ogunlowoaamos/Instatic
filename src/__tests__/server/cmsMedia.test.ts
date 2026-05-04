@@ -13,8 +13,8 @@ import {
   renameMediaAsset,
 } from '../../../server/cms/mediaRepository'
 
-class MediaFakeDb implements DbClient {
-  admins: Record<string, unknown>[] = [
+function makeFakeDb() {
+  const admins: Record<string, unknown>[] = [
     {
       id: 'admin_1',
       email: 'owner@example.com',
@@ -22,53 +22,66 @@ class MediaFakeDb implements DbClient {
       created_at: new Date('2026-01-01').toISOString(),
     },
   ]
-  sessions: Record<string, unknown>[] = []
-  media: Record<string, unknown>[] = []
+  const sessions: Record<string, unknown>[] = []
+  const media: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized.startsWith('select admin_users.id, admin_users.email')) {
-      const session = this.sessions.find((s) => String(s.id_hash) === String(params[0]))
+
+    // findAdminBySessionHash — values[0] = idHash
+    if (normalized.includes('select admin_users.id, admin_users.email')) {
+      const session = sessions.find((s) => String(s.id_hash) === String(values[0]))
       if (!session) return { rows: [], rowCount: 0 }
-      const admin = this.admins.find((a) => a.id === session.admin_user_id)
+      const admin = admins.find((a) => a.id === session.admin_user_id)
       return { rows: admin ? [admin as Row] : [], rowCount: admin ? 1 : 0 }
     }
-    if (normalized.startsWith('insert into media_assets')) {
+    // createMediaAsset — values[0..5] = id, filename, mimeType, sizeBytes, storagePath, publicPath
+    if (normalized.includes('insert into media_assets')) {
       const row = {
-        id: params[0],
-        filename: params[1],
-        mime_type: params[2],
-        size_bytes: params[3],
-        storage_path: params[4],
-        public_path: params[5],
+        id: values[0],
+        filename: values[1],
+        mime_type: values[2],
+        size_bytes: values[3],
+        storage_path: values[4],
+        public_path: values[5],
         created_at: new Date('2026-01-03').toISOString(),
       }
-      this.media.push(row)
+      media.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('select id, filename, mime_type')) {
-      return { rows: [...this.media].reverse() as Row[], rowCount: this.media.length }
+    // listMediaAssets — no values
+    if (normalized.includes('select id, filename, mime_type')) {
+      return { rows: [...media].reverse() as Row[], rowCount: media.length }
     }
-    if (normalized.startsWith('update media_assets set filename')) {
-      const row = this.media.find((asset) => asset.id === params[0])
+    // renameMediaAsset — values[0] = filename, values[1] = id
+    if (normalized.includes('update media_assets set filename')) {
+      const row = media.find((asset) => asset.id === values[1])
       if (!row) return { rows: [], rowCount: 0 }
-      row.filename = params[1]
+      row.filename = values[0]
       return { rows: [row as Row], rowCount: 1 }
     }
-    if (normalized.startsWith('delete from media_assets')) {
-      const index = this.media.findIndex((asset) => asset.id === params[0])
+    // deleteMediaAsset — values[0] = id
+    if (normalized.includes('delete from media_assets')) {
+      const index = media.findIndex((asset) => asset.id === values[0])
       if (index === -1) return { rows: [], rowCount: 0 }
-      const [row] = this.media.splice(index, 1)
+      const [row] = media.splice(index, 1)
       return { rows: [row as Row], rowCount: 1 }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, { admins, sessions, media })
 }
 
-async function createCookie(db: MediaFakeDb): Promise<string> {
+async function createCookie(db: ReturnType<typeof makeFakeDb>): Promise<string> {
   const token = 'valid-session-token'
   db.sessions.push({
     id_hash: await hashSessionToken(token),
@@ -104,7 +117,7 @@ function cmsRequest(
 
 describe('CMS media repository', () => {
   it('stores and lists media asset metadata newest-first', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
 
     await createMediaAsset(db, {
       id: 'asset_1',
@@ -128,7 +141,7 @@ describe('CMS media repository', () => {
   })
 
   it('renames media asset metadata', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
 
     await createMediaAsset(db, {
       id: 'asset_1',
@@ -146,7 +159,7 @@ describe('CMS media repository', () => {
   })
 
   it('deletes media asset metadata and returns its storage path', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
 
     await createMediaAsset(db, {
       id: 'asset_1',
@@ -168,14 +181,14 @@ describe('CMS media handlers', () => {
   it('requires an admin session for media listing', async () => {
     const res = await handleCmsRequest(
       cmsRequest('http://localhost/api/cms/media'),
-      new MediaFakeDb(),
+      makeFakeDb(),
     )
 
     expect(res.status).toBe(401)
   })
 
   it('uploads image files to disk and stores metadata for authenticated admins', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
     const body = new FormData()
@@ -207,7 +220,7 @@ describe('CMS media handlers', () => {
   })
 
   it('lists uploaded media assets for authenticated admins', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     await createMediaAsset(db, {
       id: 'asset_1',
@@ -232,7 +245,7 @@ describe('CMS media handlers', () => {
   })
 
   it('renames uploaded media assets for authenticated admins', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     await createMediaAsset(db, {
       id: 'asset_1',
@@ -259,7 +272,7 @@ describe('CMS media handlers', () => {
   })
 
   it('deletes uploaded media assets and removes their stored file for authenticated admins', async () => {
-    const db = new MediaFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
     const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
     await createMediaAsset(db, {

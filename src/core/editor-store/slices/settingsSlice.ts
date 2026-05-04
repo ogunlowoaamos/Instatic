@@ -18,8 +18,7 @@
  * @see Guideline #324    — Phase 6 Settings Modal: Implementation Architecture
  */
 
-import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../types'
+import type { EditorStoreSliceCreator } from '../types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,7 +66,7 @@ declare module '@core/editor-store/types' {
   interface EditorStore extends SettingsSlice {}
 }
 
-export const createSettingsSlice: StateCreator<EditorStore, [], [], SettingsSlice> = (set) => ({
+export const createSettingsSlice: EditorStoreSliceCreator<SettingsSlice> = (set) => ({
   isSettingsOpen: false,
   activeSection: DEFAULT_SECTION,
 

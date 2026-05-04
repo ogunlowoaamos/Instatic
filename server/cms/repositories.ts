@@ -9,8 +9,8 @@ interface SetupStatus {
 
 export async function getSetupStatus(db: DbClient): Promise<SetupStatus> {
   const [site, admin] = await Promise.all([
-    db.query<{ count: number }>('select count(*)::int as count from site'),
-    db.query<{ count: number }>('select count(*)::int as count from admin_users'),
+    db<{ count: number }>`select count(*)::int as count from site`,
+    db<{ count: number }>`select count(*)::int as count from admin_users`,
   ])
   const hasSite = Number(site.rows[0]?.count ?? 0) > 0
   const hasAdmin = Number(admin.rows[0]?.count ?? 0) > 0
@@ -22,70 +22,67 @@ export async function createSite(
   name: string,
   settings: Record<string, unknown>,
 ): Promise<void> {
-  await db.query(
-    `insert into site (id, name, settings_json)
-     values ('default', $1, $2)
-     on conflict (id) do update
-       set name = excluded.name,
-           settings_json = excluded.settings_json,
-           updated_at = now()`,
-    [name, settings],
-  )
+  await db`
+    insert into site (id, name, settings_json)
+    values ('default', ${name}, ${settings})
+    on conflict (id) do update
+      set name = excluded.name,
+          settings_json = excluded.settings_json,
+          updated_at = now()
+  `
 }
 
 export async function createAdminUser(
   db: DbClient,
   input: { id: string; email: string; passwordHash: string },
 ): Promise<void> {
-  await db.query(
-    'insert into admin_users (id, email, password_hash) values ($1, $2, $3)',
-    [input.id, input.email.trim().toLowerCase(), input.passwordHash],
-  )
+  await db`
+    insert into admin_users (id, email, password_hash)
+    values (${input.id}, ${input.email.trim().toLowerCase()}, ${input.passwordHash})
+  `
 }
 
 export async function findAdminByEmail(
   db: DbClient,
   email: string,
 ): Promise<AdminUserRow | null> {
-  const result = await db.query<AdminUserRow>(
-    `select id, email, password_hash, created_at
-     from admin_users
-     where email = $1
-     limit 1`,
-    [email.trim().toLowerCase()],
-  )
-  return result.rows[0] ?? null
+  const { rows } = await db<AdminUserRow>`
+    select id, email, password_hash, created_at
+    from admin_users
+    where email = ${email.trim().toLowerCase()}
+    limit 1
+  `
+  return rows[0] ?? null
 }
 
 export async function createSession(
   db: DbClient,
   input: { idHash: string; adminUserId: string; expiresAt: Date },
 ): Promise<void> {
-  await db.query(
-    'insert into sessions (id_hash, admin_user_id, expires_at) values ($1, $2, $3)',
-    [input.idHash, input.adminUserId, input.expiresAt],
-  )
+  await db`
+    insert into sessions (id_hash, admin_user_id, expires_at)
+    values (${input.idHash}, ${input.adminUserId}, ${input.expiresAt})
+  `
 }
 
 export async function findAdminBySessionHash(
   db: DbClient,
   idHash: string,
 ): Promise<AdminUserRow | null> {
-  const result = await db.query<AdminUserRow>(
-    `select admin_users.id,
-            admin_users.email,
-            admin_users.password_hash,
-            admin_users.created_at
-     from sessions
-     join admin_users on admin_users.id = sessions.admin_user_id
-     where sessions.id_hash = $1
-       and sessions.expires_at > now()
-     limit 1`,
-    [idHash],
-  )
-  return result.rows[0] ?? null
+  const { rows } = await db<AdminUserRow>`
+    select admin_users.id,
+           admin_users.email,
+           admin_users.password_hash,
+           admin_users.created_at
+    from sessions
+    join admin_users on admin_users.id = sessions.admin_user_id
+    where sessions.id_hash = ${idHash}
+      and sessions.expires_at > now()
+    limit 1
+  `
+  return rows[0] ?? null
 }
 
 export async function deleteSessionByHash(db: DbClient, idHash: string): Promise<void> {
-  await db.query('delete from sessions where id_hash = $1', [idHash])
+  await db`delete from sessions where id_hash = ${idHash}`
 }

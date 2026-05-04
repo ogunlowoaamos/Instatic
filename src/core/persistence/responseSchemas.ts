@@ -1,10 +1,10 @@
 /**
- * Response-shape Zod schemas for the CMS persistence layer.
+ * Response-shape TypeBox schemas for the CMS persistence layer.
  *
  * Each `await res.json() as Foo` call site in this directory previously
  * trusted the server response without runtime checking. These schemas
  * tighten the boundary so a server-side regression returning the wrong
- * shape now produces a clear ZodError instead of triggering an
+ * shape now produces a clear validation error instead of triggering an
  * undefined-access TypeError deep in callers.
  *
  * Strategy:
@@ -21,7 +21,7 @@
  * Surfaced by /audit-types — see #1 in /health-check report.
  */
 
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
 
 // Re-exported types are inferred from the schemas below — these schemas are
 // the source of truth, the types follow. Removes the previous duplication
@@ -31,47 +31,44 @@ import { z } from 'zod'
 // Error envelope used by every CMS endpoint
 // ---------------------------------------------------------------------------
 
-export const ErrorEnvelopeSchema = z
-  .object({
-    error: z.unknown().optional(),
-  })
-  .partial()
-  .passthrough()
+export const ErrorEnvelopeSchema = Type.Object(
+  { error: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
 // ---------------------------------------------------------------------------
 // cmsAuth.ts
 // ---------------------------------------------------------------------------
 
-export const CmsSetupStatusSchema = z.object({
-  hasSite: z.boolean(),
-  hasAdmin: z.boolean(),
-  needsSetup: z.boolean(),
+export const CmsSetupStatusSchema = Type.Object({
+  hasSite: Type.Boolean(),
+  hasAdmin: Type.Boolean(),
+  needsSetup: Type.Boolean(),
 })
 
-export type CmsSetupStatus = z.infer<typeof CmsSetupStatusSchema>
+export type CmsSetupStatus = Static<typeof CmsSetupStatusSchema>
 
 // ---------------------------------------------------------------------------
 // cmsMedia.ts
 // ---------------------------------------------------------------------------
 
-export const CmsMediaAssetSchema = z.object({
-  id: z.string(),
-  filename: z.string(),
-  mimeType: z.string(),
-  sizeBytes: z.number(),
-  publicPath: z.string(),
-  createdAt: z.string(),
+export const CmsMediaAssetSchema = Type.Object({
+  id: Type.String(),
+  filename: Type.String(),
+  mimeType: Type.String(),
+  sizeBytes: Type.Number(),
+  publicPath: Type.String(),
+  createdAt: Type.String(),
 })
 
-export type CmsMediaAsset = z.infer<typeof CmsMediaAssetSchema>
+export type CmsMediaAsset = Static<typeof CmsMediaAssetSchema>
 
-export const CmsMediaListResponseSchema = z
-  .object({
-    assets: z.array(CmsMediaAssetSchema).optional(),
-  })
-  .passthrough()
+export const CmsMediaListResponseSchema = Type.Object(
+  { assets: Type.Optional(Type.Array(CmsMediaAssetSchema)) },
+  { additionalProperties: true },
+)
 
-export const CmsMediaAssetEnvelopeSchema = z.object({
+export const CmsMediaAssetEnvelopeSchema = Type.Object({
   asset: CmsMediaAssetSchema,
 })
 
@@ -79,65 +76,65 @@ export const CmsMediaAssetEnvelopeSchema = z.object({
 // cmsPublish.ts
 // ---------------------------------------------------------------------------
 
-export const CmsPublishResultSchema = z.object({
-  publishedPages: z.number(),
+export const CmsPublishResultSchema = Type.Object({
+  publishedPages: Type.Number(),
 })
 
-export type CmsPublishResult = z.infer<typeof CmsPublishResultSchema>
+export type CmsPublishResult = Static<typeof CmsPublishResultSchema>
 
-export const CmsPublishStatusSchema = z.object({
-  hasPublishedVersion: z.boolean(),
-  draftMatchesPublished: z.boolean(),
-  draftPages: z.number(),
-  publishedPages: z.number(),
-  lastPublishedAt: z.string().optional(),
+export const CmsPublishStatusSchema = Type.Object({
+  hasPublishedVersion: Type.Boolean(),
+  draftMatchesPublished: Type.Boolean(),
+  draftPages: Type.Number(),
+  publishedPages: Type.Number(),
+  lastPublishedAt: Type.Optional(Type.String()),
 })
 
-export type CmsPublishStatus = z.infer<typeof CmsPublishStatusSchema>
+export type CmsPublishStatus = Static<typeof CmsPublishStatusSchema>
 
 // ---------------------------------------------------------------------------
 // cmsRuntime.ts — envelopes only; inner types are deep
 // ---------------------------------------------------------------------------
 
-export const CmsRuntimeDependencyEnvelopeSchema = z.object({
-  dependencyLock: z.unknown(),
+export const CmsRuntimeDependencyEnvelopeSchema = Type.Object({
+  dependencyLock: Type.Unknown(),
 })
 
-export const CmsRuntimePreviewResponseSchema = z
-  .object({
-    html: z.string(),
-    assets: z.array(z.unknown()),
-    runtimeAssets: z.unknown(),
-    diagnostics: z.array(z.unknown()),
-  })
-  .passthrough()
+export const CmsRuntimePreviewResponseSchema = Type.Object(
+  {
+    html: Type.String(),
+    assets: Type.Array(Type.Unknown()),
+    runtimeAssets: Type.Unknown(),
+    diagnostics: Type.Array(Type.Unknown()),
+  },
+  { additionalProperties: true },
+)
 
 // ---------------------------------------------------------------------------
 // cms.ts — envelope only; SiteDocument is too deep to schema here
 // ---------------------------------------------------------------------------
 
-export const CmsSiteEnvelopeSchema = z
-  .object({
-    site: z.unknown().optional(),
-  })
-  .passthrough()
+export const CmsSiteEnvelopeSchema = Type.Object(
+  { site: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
 
 // ---------------------------------------------------------------------------
 // fonts API — bundled Google directory + install/uninstall envelopes
 // ---------------------------------------------------------------------------
 
-export const GoogleFontFamilySchema = z.object({
-  family: z.string(),
-  category: z.string(),
-  subsets: z.array(z.string()),
-  variants: z.array(z.string()),
-  popularity: z.number().optional(),
+export const GoogleFontFamilySchema = Type.Object({
+  family: Type.String(),
+  category: Type.String(),
+  subsets: Type.Array(Type.String()),
+  variants: Type.Array(Type.String()),
+  popularity: Type.Optional(Type.Number()),
 })
 
-export type GoogleFontFamilyDto = z.infer<typeof GoogleFontFamilySchema>
+export type GoogleFontFamilyDto = Static<typeof GoogleFontFamilySchema>
 
-export const CmsGoogleFontsEnvelopeSchema = z.object({
-  families: z.array(GoogleFontFamilySchema),
+export const CmsGoogleFontsEnvelopeSchema = Type.Object({
+  families: Type.Array(GoogleFontFamilySchema),
 })
 
 // FontEntry mirrors @core/fonts/schemas FontEntry. We schema the envelope
@@ -145,6 +142,6 @@ export const CmsGoogleFontsEnvelopeSchema = z.object({
 // validateSite when the next save happens, so the install response is
 // consumed as `unknown` and immediately committed via the addFont action
 // which only reads stable top-level fields.
-export const CmsFontEntryEnvelopeSchema = z.object({
-  font: z.unknown(),
+export const CmsFontEntryEnvelopeSchema = Type.Object({
+  font: Type.Unknown(),
 })

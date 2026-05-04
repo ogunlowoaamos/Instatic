@@ -153,12 +153,15 @@ describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
 // ─── Gate 2: catalog files export the expected PascalCase component ──────────
 
 describe('Gate 2 — Catalog files export the expected PascalCase component name', () => {
-  // Sample a subset of icons that are actively used in editor components
+  // Sample a subset of icons that are actively used in editor components.
+  // Every entry must be an icon imported somewhere in src/ — otherwise it
+  // won't be present in the vendored pixel-art-icons subset shipped with the
+  // public CMS repo. (Constraint #451 forbids `XIcon` as a close glyph, so
+  // `x` is intentionally NOT in this list.)
   const SAMPLED_ICONS = [
     'eye',
     'undo',
     'redo',
-    'x',
     'file-text',
     'command',
     'upload',
@@ -343,7 +346,7 @@ describe('Gate 4 — No Unicode/emoji characters used as visual icons (user dire
   const APP_DIR = join(PROJECT_ROOT, 'src/admin')
   const ACTIVE_APP_FILES = [
     join(APP_DIR, 'AdminLayout.tsx'),
-    join(APP_DIR, 'router.ts'),
+    join(APP_DIR, 'router.tsx'),
   ]
 
   for (const { char, desc, replacement } of FORBIDDEN_ICON_CHARS) {

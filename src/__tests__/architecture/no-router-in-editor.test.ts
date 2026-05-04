@@ -52,8 +52,8 @@ function collectFiles(dir: string, exts = ['.ts', '.tsx']): string[] {
 describe('Constraint #275 — routers must not be imported in editor/, core/, or modules/', () => {
   // Catches both the legacy `react-router-dom` import and any path-based or
   // alias-based import of the in-house admin router (`src/admin/lib/router`,
-  // `@admin/lib/router`).
-  const ROUTER_IMPORT_RE = /from\s+['"](?:react-router-dom|(?:[./]+|@admin\/)admin\/lib\/router|[./]+lib\/router)['"]/
+  // `src/admin/lib/routerHooks`, `@admin/lib/router(Hooks)?`).
+  const ROUTER_IMPORT_RE = /from\s+['"](?:react-router-dom|(?:[./]+|@admin\/)admin\/lib\/router(?:Hooks)?|[./]+lib\/router(?:Hooks)?)['"]/
 
   it('no file in src/editor/ imports a router', () => {
     const editorFiles = collectFiles(join(SRC_ROOT, 'editor'))

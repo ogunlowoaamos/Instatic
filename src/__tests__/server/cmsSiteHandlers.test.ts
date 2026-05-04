@@ -4,9 +4,9 @@ import { SESSION_COOKIE_NAME, hashSessionToken } from '../../../server/cms/auth'
 import type { DbClient, DbResult } from '../../../server/cms/db'
 import { handleCmsRequest } from '../../../server/cms/handlers'
 
-class SiteHandlerFakeDb implements DbClient {
-  site: Record<string, unknown> | null = null
-  admins: Record<string, unknown>[] = [
+function makeFakeDb() {
+  let siteRow: Record<string, unknown> | null = null
+  const admins: Record<string, unknown>[] = [
     {
       id: 'admin_1',
       email: 'owner@example.com',
@@ -14,62 +14,78 @@ class SiteHandlerFakeDb implements DbClient {
       created_at: new Date('2026-01-01').toISOString(),
     },
   ]
-  sessions: Record<string, unknown>[] = []
-  pages: Record<string, unknown>[] = []
+  const sessions: Record<string, unknown>[] = []
+  let pages: Record<string, unknown>[] = []
 
-  async query<Row extends Record<string, unknown> = Record<string, unknown>>(
-    sql: string,
-    params: unknown[] = [],
-  ): Promise<DbResult<Row>> {
+  const handle = async <Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<DbResult<Row>> => {
+    // Reconstruct a parameterized SQL string for pattern matching.
+    const sql = strings.reduce<string>((acc, str, i) => (i === 0 ? str : `${acc}$${i}${str}`), '')
     const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (normalized === 'begin' || normalized === 'commit' || normalized === 'rollback') {
-      return { rows: [], rowCount: 0 }
-    }
-    if (normalized.startsWith('select admin_users.id, admin_users.email')) {
-      const session = this.sessions.find((s) => String(s.id_hash) === String(params[0]))
+
+    // findAdminBySessionHash — values[0]=idHash
+    if (normalized.includes('select admin_users.id, admin_users.email')) {
+      const session = sessions.find((s) => String(s.id_hash) === String(values[0]))
       if (!session) return { rows: [], rowCount: 0 }
-      const admin = this.admins.find((a) => a.id === session.admin_user_id)
+      const admin = admins.find((a) => a.id === session.admin_user_id)
       return { rows: admin ? [admin as Row] : [], rowCount: admin ? 1 : 0 }
     }
-    if (normalized.startsWith('insert into site')) {
-      this.site = {
+    // saveDraftSite insert into site (via transaction) — values[0]=name, values[1]=siteShell
+    if (normalized.includes('insert into site')) {
+      siteRow = {
         id: 'default',
-        name: params[0],
-        settings_json: params[1],
+        name: values[0],
+        settings_json: values[1],
         created_at: new Date('2026-01-01').toISOString(),
         updated_at: new Date('2026-01-02').toISOString(),
       }
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('insert into pages')) {
+    // saveDraftSite insert into pages (via transaction) — values[0..4]=id, title, slug, page, index
+    if (normalized.includes('insert into pages')) {
       const page = {
-        id: params[0],
-        title: params[1],
-        slug: params[2],
-        draft_document_json: params[3],
-        sort_order: params[4],
+        id: values[0],
+        title: values[1],
+        slug: values[2],
+        draft_document_json: values[3],
+        sort_order: values[4],
       }
-      const index = this.pages.findIndex((p) => p.id === page.id)
-      if (index >= 0) this.pages[index] = page
-      else this.pages.push(page)
+      const index = pages.findIndex((p) => p.id === page.id)
+      if (index >= 0) pages[index] = page
+      else pages.push(page)
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('delete from pages where not')) {
-      const ids = params[0] as string[]
-      this.pages = this.pages.filter((p) => ids.includes(String(p.id)))
+    // saveDraftSite delete stale pages (via transaction) — values[0]=pageIds array
+    if (normalized.includes('delete from pages where not')) {
+      const ids = values[0] as string[]
+      pages = pages.filter((p) => ids.includes(String(p.id)))
       return { rows: [], rowCount: 1 }
     }
-    if (normalized.startsWith('select id, name, settings_json')) {
-      return { rows: this.site ? [this.site as Row] : [], rowCount: this.site ? 1 : 0 }
+    // loadDraftSite: select site — no interpolated values
+    if (normalized.includes('select id, name, settings_json')) {
+      return { rows: siteRow ? [siteRow as Row] : [], rowCount: siteRow ? 1 : 0 }
     }
-    if (normalized.startsWith('select id, title, slug, draft_document_json')) {
+    // loadDraftSite: select pages — no interpolated values
+    if (normalized.includes('select id, title, slug, draft_document_json')) {
       return {
-        rows: [...this.pages].sort((a, b) => Number(a.sort_order) - Number(b.sort_order)) as Row[],
-        rowCount: this.pages.length,
+        rows: [...pages].sort((a, b) => Number(a.sort_order) - Number(b.sort_order)) as Row[],
+        rowCount: pages.length,
       }
     }
     throw new Error(`Unhandled SQL: ${sql}`)
   }
+
+  handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
+    cb(handle as unknown as DbClient)
+
+  return Object.assign(handle as DbClient, {
+    get site() { return siteRow },
+    admins,
+    sessions,
+    get pages() { return pages },
+  })
 }
 
 function site(): SiteDocument {
@@ -108,7 +124,7 @@ function site(): SiteDocument {
   }
 }
 
-async function createCookie(db: SiteHandlerFakeDb): Promise<string> {
+async function createCookie(db: ReturnType<typeof makeFakeDb>): Promise<string> {
   const token = 'valid-session-token'
   db.sessions.push({
     id_hash: await hashSessionToken(token),
@@ -141,14 +157,14 @@ function cmsRequest(
 
 describe('cms site handlers', () => {
   it('requires an admin session for draft site reads', async () => {
-    const db = new SiteHandlerFakeDb()
+    const db = makeFakeDb()
     const res = await handleCmsRequest(cmsRequest('http://localhost/api/cms/site'), db)
 
     expect(res.status).toBe(401)
   })
 
   it('saves and loads the draft site for an authenticated admin', async () => {
-    const db = new SiteHandlerFakeDb()
+    const db = makeFakeDb()
     const cookie = await createCookie(db)
 
     const save = await handleCmsRequest(cmsRequest('http://localhost/api/cms/site', {

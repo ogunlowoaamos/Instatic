@@ -25,9 +25,14 @@ const COMPRESSIBLE_EXTENSIONS = new Set(['.css', '.html', '.js', '.json', '.svg'
 // CPU cost) outweighs the savings.
 const COMPRESS_MIN_BYTES = 1024
 
+// Use ArrayBuffer-backed Uint8Arrays explicitly: gzipSync / Response body
+// require this concrete variant in TS DOM lib, not the SharedArrayBuffer
+// generic.
+type ResponseBytes = Uint8Array<ArrayBuffer>
+
 interface CachedCompression {
-  brotli: Uint8Array | null
-  gzip: Uint8Array | null
+  brotli: ResponseBytes | null
+  gzip: ResponseBytes | null
   // mtime fingerprint so we automatically invalidate when the file changes
   // (e.g. between deploys without a server restart).
   mtimeMs: number
@@ -77,10 +82,10 @@ function selectEncoding(acceptEncoding: string | null): 'br' | 'gzip' | null {
 
 async function compressForEncoding(
   filePath: string,
-  bytes: Uint8Array,
+  bytes: ResponseBytes,
   encoding: 'br' | 'gzip',
   mtimeMs: number,
-): Promise<Uint8Array> {
+): Promise<ResponseBytes> {
   let entry = compressionCache.get(filePath)
   if (!entry || entry.mtimeMs !== mtimeMs) {
     entry = { brotli: null, gzip: null, mtimeMs }
@@ -92,15 +97,18 @@ async function compressForEncoding(
       // Brotli quality 5 — sweet spot for first-request latency on text payloads
       // (~99% of max ratio for ~10% of the CPU vs. quality 11). We cache the
       // result in-process anyway, so repeat hits pay zero cost.
-      entry.brotli = brotliCompressSync(bytes, {
+      const compressed = brotliCompressSync(bytes, {
         params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5 },
       })
+      // Node returns a Buffer (Uint8Array<ArrayBufferLike>); copy into a
+      // fresh ArrayBuffer-backed view so it satisfies BodyInit and our cache type.
+      entry.brotli = new Uint8Array(new Uint8Array(compressed)) as ResponseBytes
     }
     return entry.brotli
   }
 
   if (!entry.gzip) {
-    entry.gzip = Bun.gzipSync(bytes)
+    entry.gzip = Bun.gzipSync(bytes) as ResponseBytes
   }
   return entry.gzip
 }
@@ -122,7 +130,7 @@ export async function serveStaticFile(
   const mime = contentType(filePath)
 
   const buffer = await file.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
+  const bytes = new Uint8Array(buffer) as ResponseBytes
   const acceptEncoding = req?.headers.get('accept-encoding') ?? null
   const encoding = isCompressible(filePath, bytes.byteLength)
     ? selectEncoding(acceptEncoding)

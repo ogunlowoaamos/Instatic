@@ -2,9 +2,9 @@
  * validateSite — Constraint #230: ALL site data loaded from storage MUST be
  * validated before being passed to `store.loadSite()`.
  *
- * Structural validation is delegated entirely to SiteDocumentSchema (Zod).
+ * Structural validation is delegated to parseSiteDocument (TypeBox).
  * runDomainPostChecks() handles the nine cross-cutting rules that cannot be
- * expressed as per-field Zod constraints:
+ * expressed as per-field schema constraints:
  *   1. Page slug syntax
  *   2. Page slug uniqueness
  *   3. SiteFile path safety + deduplication
@@ -18,7 +18,7 @@
  * Referential integrity: rootNodeId must exist in each page's nodes map.
  */
 
-import { SiteDocumentSchema, type SiteDocument } from '@core/page-tree/schemas'
+import { parseSiteDocument, type SiteDocument } from '@core/page-tree/schemas'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
 import { validateComponentName } from '@core/visualComponents/nameValidation'
 import { sanitizeRichtext, isRichtextPropKey } from '@core/sanitize'
@@ -46,6 +46,24 @@ export class SiteValidationError extends Error {
 // ---------------------------------------------------------------------------
 
 /**
+ * Convert a parseSiteDocument error message to a structured site path.
+ *
+ * parseSiteDocument throws Error with messages in two formats:
+ *   1. "<relative.path>: <description>" (from parsePageNode / parsePage)
+ *      → strip the ': ...' suffix, prepend 'site.'
+ *   2. "<firstWord> <rest>" (top-level field errors, e.g. "id must be a string")
+ *      → extract first word as field name, prepend 'site.'
+ */
+function extractSiteErrorPath(message: string): string {
+  const colonIndex = message.indexOf(': ')
+  if (colonIndex > 0) {
+    return `site.${message.slice(0, colonIndex)}`
+  }
+  const firstWord = message.split(' ')[0]
+  return `site.${firstWord}`
+}
+
+/**
  * Validate raw data from storage and return a typed SiteDocument, or throw
  * SiteValidationError describing exactly which field failed.
  *
@@ -57,27 +75,14 @@ export class SiteValidationError extends Error {
  * ```
  */
 export function validateSite(raw: unknown): SiteDocument {
-  const parsed = SiteDocumentSchema.safeParse(raw)
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0]
-    const path = zodPathToValidatePath(issue?.path ?? [])
-    throw new SiteValidationError(issue?.message ?? 'invalid site', path)
+  let site: SiteDocument
+  try {
+    site = parseSiteDocument(raw)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'invalid site'
+    throw new SiteValidationError(message, extractSiteErrorPath(message))
   }
-  return runDomainPostChecks(parsed.data)
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a Zod issue path to the "site.pages[0].nodes.heading-1.id" format. */
-function zodPathToValidatePath(zodPath: PropertyKey[]): string {
-  let result = 'site'
-  for (const segment of zodPath) {
-    if (typeof segment === 'symbol') continue
-    result += typeof segment === 'number' ? `[${segment}]` : `.${segment}`
-  }
-  return result
+  return runDomainPostChecks(site)
 }
 
 /**

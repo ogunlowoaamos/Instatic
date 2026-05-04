@@ -263,7 +263,7 @@ export function ContentPage() {
             onCreateEntry={() => void handleCreateEntry()}
           />
         )}
-        contentRightPanel={(
+        contentRightPanel={workspace.selectedEntry ? (
           <ContentSettingsPanel
             selectedEntry={workspace.selectedEntry}
             collections={workspace.collections}
@@ -289,7 +289,7 @@ export function ContentPage() {
             onChooseFeaturedMedia={() => void mediaPicker.openMediaPicker('featured')}
             onClearFeaturedMedia={() => draft.setFeaturedMediaId(null)}
           />
-        )}
+        ) : undefined}
       />
 
       {mediaPicker.mediaPicker && (

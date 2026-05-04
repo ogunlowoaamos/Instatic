@@ -50,29 +50,21 @@ export async function createMediaAsset(
   db: DbClient,
   input: CreateMediaAssetInput,
 ): Promise<MediaAsset> {
-  const result = await db.query<MediaAssetRow>(
-    `insert into media_assets (id, filename, mime_type, size_bytes, storage_path, public_path)
-     values ($1, $2, $3, $4, $5, $6)
-     returning id, filename, mime_type, size_bytes, public_path, created_at`,
-    [
-      input.id,
-      input.filename,
-      input.mimeType,
-      input.sizeBytes,
-      input.storagePath,
-      input.publicPath,
-    ],
-  )
-  return mapMediaAsset(result.rows[0])
+  const { rows } = await db<MediaAssetRow>`
+    insert into media_assets (id, filename, mime_type, size_bytes, storage_path, public_path)
+    values (${input.id}, ${input.filename}, ${input.mimeType}, ${input.sizeBytes}, ${input.storagePath}, ${input.publicPath})
+    returning id, filename, mime_type, size_bytes, public_path, created_at
+  `
+  return mapMediaAsset(rows[0])
 }
 
 export async function listMediaAssets(db: DbClient): Promise<MediaAsset[]> {
-  const result = await db.query<MediaAssetRow>(
-    `select id, filename, mime_type, size_bytes, public_path, created_at
-     from media_assets
-     order by created_at desc`,
-  )
-  return result.rows.map(mapMediaAsset)
+  const { rows } = await db<MediaAssetRow>`
+    select id, filename, mime_type, size_bytes, public_path, created_at
+    from media_assets
+    order by created_at desc
+  `
+  return rows.map(mapMediaAsset)
 }
 
 export async function renameMediaAsset(
@@ -80,25 +72,23 @@ export async function renameMediaAsset(
   id: string,
   filename: string,
 ): Promise<MediaAsset | null> {
-  const result = await db.query<MediaAssetRow>(
-    `update media_assets set filename = $2
-     where id = $1
-     returning id, filename, mime_type, size_bytes, public_path, created_at`,
-    [id, filename],
-  )
-  return result.rows[0] ? mapMediaAsset(result.rows[0]) : null
+  const { rows } = await db<MediaAssetRow>`
+    update media_assets set filename = ${filename}
+    where id = ${id}
+    returning id, filename, mime_type, size_bytes, public_path, created_at
+  `
+  return rows[0] ? mapMediaAsset(rows[0]) : null
 }
 
 export async function deleteMediaAsset(
   db: DbClient,
   id: string,
 ): Promise<{ storagePath: string } | null> {
-  const result = await db.query<DeletedMediaAssetRow>(
-    `delete from media_assets
-     where id = $1
-     returning storage_path`,
-    [id],
-  )
-  const row = result.rows[0]
+  const { rows } = await db<DeletedMediaAssetRow>`
+    delete from media_assets
+    where id = ${id}
+    returning storage_path
+  `
+  const row = rows[0]
   return row ? { storagePath: row.storage_path } : null
 }

@@ -1,211 +1,222 @@
 /**
- * Content module — Zod schemas and derived types.
+ * Content module — TypeBox schemas and derived types.
  *
- * Schemas are the source of truth. Types are derived via `z.infer<typeof Schema>`.
+ * Schemas are the source of truth. Types are derived via `Static<typeof T>`.
  * No parallel TypeScript interfaces — schema definitions ARE the contract.
  */
 
-import { z } from 'zod'
+import { Type, type Static } from '@sinclair/typebox'
 
 // ---------------------------------------------------------------------------
 // ContentEntryStatus
 // ---------------------------------------------------------------------------
 
-export const ContentEntryStatusSchema = z.enum(['draft', 'published', 'unpublished'])
+export const ContentEntryStatusSchema = Type.Union([
+  Type.Literal('draft'),
+  Type.Literal('published'),
+  Type.Literal('unpublished'),
+])
 
-export type ContentEntryStatus = z.infer<typeof ContentEntryStatusSchema>
+export type ContentEntryStatus = Static<typeof ContentEntryStatusSchema>
 
 // ---------------------------------------------------------------------------
 // BuiltInContentCollectionField
 // ---------------------------------------------------------------------------
 
-export const BuiltInContentCollectionFieldSchema = z.enum(['body', 'featuredMedia', 'seo'])
+export const BuiltInContentCollectionFieldSchema = Type.Union([
+  Type.Literal('body'),
+  Type.Literal('featuredMedia'),
+  Type.Literal('seo'),
+])
 
-export type BuiltInContentCollectionField = z.infer<typeof BuiltInContentCollectionFieldSchema>
+export type BuiltInContentCollectionField = Static<typeof BuiltInContentCollectionFieldSchema>
 
 // ---------------------------------------------------------------------------
 // ContentCollectionBuiltInFields
 // ---------------------------------------------------------------------------
 
-export const ContentCollectionBuiltInFieldsSchema = z.object({
-  body: z.boolean(),
-  featuredMedia: z.boolean(),
-  seo: z.boolean(),
+export const ContentCollectionBuiltInFieldsSchema = Type.Object({
+  body: Type.Boolean(),
+  featuredMedia: Type.Boolean(),
+  seo: Type.Boolean(),
 })
 
-export type ContentCollectionBuiltInFields = z.infer<typeof ContentCollectionBuiltInFieldsSchema>
+export type ContentCollectionBuiltInFields = Static<typeof ContentCollectionBuiltInFieldsSchema>
 
 // ---------------------------------------------------------------------------
 // ContentCustomFieldDefinition
 // ---------------------------------------------------------------------------
 
-export const ContentCustomFieldDefinitionSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  type: z.string(),
+export const ContentCustomFieldDefinitionSchema = Type.Object({
+  id: Type.String(),
+  label: Type.String(),
+  type: Type.String(),
 })
 
-export type ContentCustomFieldDefinition = z.infer<typeof ContentCustomFieldDefinitionSchema>
+export type ContentCustomFieldDefinition = Static<typeof ContentCustomFieldDefinitionSchema>
 
 // ---------------------------------------------------------------------------
 // ContentCollectionFields
 //
 // Previously named ContentCollectionFieldSchema — renamed to drop the
-// confusing *Schema suffix on a TypeScript type (not a Zod schema).
+// confusing *Schema suffix on a TypeScript type (not a TypeBox schema).
 // ---------------------------------------------------------------------------
 
-export const ContentCollectionFieldsSchema = z.object({
+export const ContentCollectionFieldsSchema = Type.Object({
   builtIn: ContentCollectionBuiltInFieldsSchema,
-  custom: z.array(ContentCustomFieldDefinitionSchema),
+  custom: Type.Array(ContentCustomFieldDefinitionSchema),
 })
 
-export type ContentCollectionFields = z.infer<typeof ContentCollectionFieldsSchema>
+export type ContentCollectionFields = Static<typeof ContentCollectionFieldsSchema>
 
 // ---------------------------------------------------------------------------
 // ContentCollection
 // ---------------------------------------------------------------------------
 
-export const ContentCollectionSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  routeBase: z.string(),
-  singularLabel: z.string(),
-  pluralLabel: z.string(),
-  fields: ContentCollectionFieldsSchema.optional(),
+export const ContentCollectionSchema = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  slug: Type.String(),
+  routeBase: Type.String(),
+  singularLabel: Type.String(),
+  pluralLabel: Type.String(),
+  fields: Type.Optional(ContentCollectionFieldsSchema),
   /** ISO datetime string from DB */
-  createdAt: z.string(),
+  createdAt: Type.String(),
   /** ISO datetime string from DB */
-  updatedAt: z.string(),
+  updatedAt: Type.String(),
 })
 
-export type ContentCollection = z.infer<typeof ContentCollectionSchema>
+export type ContentCollection = Static<typeof ContentCollectionSchema>
 
 // ---------------------------------------------------------------------------
 // CreateContentCollectionInput
 // ---------------------------------------------------------------------------
 
-export const CreateContentCollectionInputSchema = z.object({
-  name: z.string(),
-  slug: z.string().optional(),
-  routeBase: z.string().optional(),
-  singularLabel: z.string().optional(),
-  pluralLabel: z.string().optional(),
-  fields: ContentCollectionFieldsSchema.optional(),
+export const CreateContentCollectionInputSchema = Type.Object({
+  name: Type.String(),
+  slug: Type.Optional(Type.String()),
+  routeBase: Type.Optional(Type.String()),
+  singularLabel: Type.Optional(Type.String()),
+  pluralLabel: Type.Optional(Type.String()),
+  fields: Type.Optional(ContentCollectionFieldsSchema),
 })
 
-export type CreateContentCollectionInput = z.infer<typeof CreateContentCollectionInputSchema>
+export type CreateContentCollectionInput = Static<typeof CreateContentCollectionInputSchema>
 
 // ---------------------------------------------------------------------------
 // UpdateContentCollectionInput
 // ---------------------------------------------------------------------------
 
-export const UpdateContentCollectionInputSchema = z.object({
-  name: z.string().optional(),
-  slug: z.string().optional(),
-  routeBase: z.string().optional(),
-  singularLabel: z.string().optional(),
-  pluralLabel: z.string().optional(),
-  fields: ContentCollectionFieldsSchema.optional(),
+export const UpdateContentCollectionInputSchema = Type.Object({
+  name: Type.Optional(Type.String()),
+  slug: Type.Optional(Type.String()),
+  routeBase: Type.Optional(Type.String()),
+  singularLabel: Type.Optional(Type.String()),
+  pluralLabel: Type.Optional(Type.String()),
+  fields: Type.Optional(ContentCollectionFieldsSchema),
 })
 
-export type UpdateContentCollectionInput = z.infer<typeof UpdateContentCollectionInputSchema>
+export type UpdateContentCollectionInput = Static<typeof UpdateContentCollectionInputSchema>
 
 // ---------------------------------------------------------------------------
 // ContentEntry
 // ---------------------------------------------------------------------------
 
-export const ContentEntrySchema = z.object({
-  id: z.string(),
-  collectionId: z.string(),
-  title: z.string(),
-  slug: z.string(),
+export const ContentEntrySchema = Type.Object({
+  id: Type.String(),
+  collectionId: Type.String(),
+  title: Type.String(),
+  slug: Type.String(),
   status: ContentEntryStatusSchema,
-  bodyMarkdown: z.string(),
-  featuredMediaId: z.string().nullable(),
-  seoTitle: z.string(),
-  seoDescription: z.string(),
+  bodyMarkdown: Type.String(),
+  featuredMediaId: Type.Union([Type.String(), Type.Null()]),
+  seoTitle: Type.String(),
+  seoDescription: Type.String(),
   /** ISO datetime string from DB */
-  createdAt: z.string(),
+  createdAt: Type.String(),
   /** ISO datetime string from DB */
-  updatedAt: z.string(),
-  publishedAt: z.string().nullable(),
-  deletedAt: z.string().nullable(),
+  updatedAt: Type.String(),
+  publishedAt: Type.Union([Type.String(), Type.Null()]),
+  deletedAt: Type.Union([Type.String(), Type.Null()]),
 })
 
-export type ContentEntry = z.infer<typeof ContentEntrySchema>
+export type ContentEntry = Static<typeof ContentEntrySchema>
 
 // ---------------------------------------------------------------------------
 // ContentEntryDraftInput
 // ---------------------------------------------------------------------------
 
-export const ContentEntryDraftInputSchema = z.object({
-  title: z.string(),
-  slug: z.string(),
-  bodyMarkdown: z.string(),
-  featuredMediaId: z.string().nullable(),
-  seoTitle: z.string(),
-  seoDescription: z.string(),
+export const ContentEntryDraftInputSchema = Type.Object({
+  title: Type.String(),
+  slug: Type.String(),
+  bodyMarkdown: Type.String(),
+  featuredMediaId: Type.Union([Type.String(), Type.Null()]),
+  seoTitle: Type.String(),
+  seoDescription: Type.String(),
 })
 
-export type ContentEntryDraftInput = z.infer<typeof ContentEntryDraftInputSchema>
+export type ContentEntryDraftInput = Static<typeof ContentEntryDraftInputSchema>
 
 // ---------------------------------------------------------------------------
 // CreateContentEntryInput
 // ---------------------------------------------------------------------------
 
-export const CreateContentEntryInputSchema = z.object({
-  title: z.string(),
-  slug: z.string().optional(),
-  bodyMarkdown: z.string().optional(),
-  featuredMediaId: z.string().nullable().optional(),
-  seoTitle: z.string().optional(),
-  seoDescription: z.string().optional(),
+export const CreateContentEntryInputSchema = Type.Object({
+  title: Type.String(),
+  slug: Type.Optional(Type.String()),
+  bodyMarkdown: Type.Optional(Type.String()),
+  featuredMediaId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  seoTitle: Type.Optional(Type.String()),
+  seoDescription: Type.Optional(Type.String()),
 })
 
-export type CreateContentEntryInput = z.infer<typeof CreateContentEntryInputSchema>
+export type CreateContentEntryInput = Static<typeof CreateContentEntryInputSchema>
 
 // ---------------------------------------------------------------------------
 // UpdateContentEntryCollectionInput
 // ---------------------------------------------------------------------------
 
-export const UpdateContentEntryCollectionInputSchema = z.object({
-  collectionId: z.string(),
+export const UpdateContentEntryCollectionInputSchema = Type.Object({
+  collectionId: Type.String(),
 })
 
-export type UpdateContentEntryCollectionInput = z.infer<typeof UpdateContentEntryCollectionInputSchema>
+export type UpdateContentEntryCollectionInput = Static<typeof UpdateContentEntryCollectionInputSchema>
 
 // ---------------------------------------------------------------------------
 // ContentMediaType
 // ---------------------------------------------------------------------------
 
-export const ContentMediaTypeSchema = z.enum(['image', 'video'])
+export const ContentMediaTypeSchema = Type.Union([
+  Type.Literal('image'),
+  Type.Literal('video'),
+])
 
-export type ContentMediaType = z.infer<typeof ContentMediaTypeSchema>
+export type ContentMediaType = Static<typeof ContentMediaTypeSchema>
 
 // ---------------------------------------------------------------------------
 // ContentBlock — discriminated union on `type`
 // ---------------------------------------------------------------------------
 
-export const ContentBlockSchema = z.discriminatedUnion('type', [
-  z.object({
-    id: z.string(),
-    type: z.literal('paragraph'),
-    text: z.string(),
+export const ContentBlockSchema = Type.Union([
+  Type.Object({
+    id: Type.String(),
+    type: Type.Literal('paragraph'),
+    text: Type.String(),
   }),
-  z.object({
-    id: z.string(),
-    type: z.literal('heading'),
-    level: z.union([z.literal(2), z.literal(3), z.literal(4)]),
-    text: z.string(),
+  Type.Object({
+    id: Type.String(),
+    type: Type.Literal('heading'),
+    level: Type.Union([Type.Literal(2), Type.Literal(3), Type.Literal(4)]),
+    text: Type.String(),
   }),
-  z.object({
-    id: z.string(),
-    type: z.literal('media'),
-    mediaType: ContentMediaTypeSchema.nullable(),
-    src: z.string(),
-    alt: z.string(),
+  Type.Object({
+    id: Type.String(),
+    type: Type.Literal('media'),
+    mediaType: Type.Union([ContentMediaTypeSchema, Type.Null()]),
+    src: Type.String(),
+    alt: Type.String(),
   }),
 ])
 
-export type ContentBlock = z.infer<typeof ContentBlockSchema>
+export type ContentBlock = Static<typeof ContentBlockSchema>
