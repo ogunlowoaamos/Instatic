@@ -7,143 +7,62 @@
  */
 
 .frameWrapper {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  opacity: 1;
-  transition: opacity 140ms ease, filter 140ms ease;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    opacity: 1;
+    transition:
+        opacity 140ms ease,
+        filter 140ms ease;
 }
 
 .frameWrapperDimmed {
-  filter: saturate(0.72);
-  opacity: 0.42;
+    filter: saturate(0.72);
+    opacity: 0.42;
 }
 
 .frameWrapperDimmed:hover {
-  opacity: 0.68;
+    opacity: 0.68;
 }
 
 /**
  * Frame chrome row — sits above the viewport and matches its width.
- * Holds the breakpoint label button and (in preview mode) a small status pill.
- * Using a flex row keeps the wide label-button hit area on the left while the
- * pill sits flush right.
+ * Holds the breakpoint label button. Preview-mode chrome (status pill +
+ * Refresh) lives in CanvasPreviewSurface, not here.
  */
 .labelRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: var(--bp-width);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: var(--bp-width);
 }
 
 /* Label button takes most of the row; shrinks just enough to make room for the pill. */
 .labelBtn {
-  flex: 1 1 auto;
-  min-width: 0;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* Pixel-count badge inside label button */
 .pxBadge {
-  opacity: 0.6;
+    opacity: 0.6;
 }
 
 /* Viewport frame — width driven by --bp-width CSS var */
 .viewport {
-  width: var(--bp-width);
-  min-height: 600px;
-  background: var(--editor-accent);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
+    width: var(--bp-width);
+    min-height: 100vh;
+    background: var(--editor-accent);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
 }
 
 .viewportActive {
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.15),
-    0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-/**
- * Preview-mode iframe occupies the viewport in place of the React canvas
- * (BreakpointFrame swaps them based on canvasView). Pointer-events are
- * enabled so the user can actually click into the running page.
- */
-.runtimePreviewFrame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: inherit;
-  border: 0;
-  background: transparent;
-}
-
-/**
- * Runtime preview status pill — lives in the frame chrome row (next to the
- * breakpoint label), NOT over the iframe. Keeping it out of the viewport
- * means the live page is never obscured by editor UI.
- */
-.runtimePreviewStatus {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  padding: 0 4px 0 8px;
-  border: 1px solid rgba(142, 230, 200, 0.22);
-  border-radius: 999px;
-  background: rgba(24, 24, 27, 0.82);
-  color: var(--editor-success-text);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.runtimePreviewStatus[data-status='building'] {
-  border-color: rgba(245, 158, 11, 0.28);
-  color: var(--editor-warning-text);
-}
-
-.runtimePreviewStatus[data-status='idle'] {
-  border-color: var(--editor-border-med);
-  color: var(--editor-text-subtle);
-}
-
-.runtimePreviewStatus[data-status='error'] {
-  border-color: rgba(239, 68, 68, 0.32);
-  color: var(--editor-danger-text);
-}
-
-.runtimePreviewStatusLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 220px;
-}
-
-.runtimePreviewRefresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 16px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.runtimePreviewRefresh:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.runtimePreviewRefresh:disabled {
-  opacity: 0.5;
-  cursor: progress;
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.15),
+        0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* Empty canvas onboarding state — canvas-specific layout extension applied
@@ -151,8 +70,8 @@
  * visual chrome (icon + title + hint, centered, muted text); this rule only
  * adds the canvas-specific 600px frame height + non-interactive feel. */
 .emptyState {
-  height: 600px;
-  pointer-events: none;
-  user-select: none;
-  font-family: system-ui, sans-serif;
+    height: 100vh;
+    pointer-events: none;
+    user-select: none;
+    font-family: system-ui, sans-serif;
 }

@@ -1,44 +1,26 @@
 /**
- * BreakpointFrame — a fixed-width viewport container for one breakpoint.
+ * BreakpointFrame — a fixed-width design-mode viewport for one breakpoint.
  *
  * Renders the page tree inside a frame sized to the breakpoint's width.
- * The frame appears as a device preview on the canvas.
- *
  * One BreakpointFrame is rendered per breakpoint, positioned side-by-side
- * on the canvas. All frames live inside CanvasTransformLayer and are therefore
- * panned/zoomed together by the CSS transform.
+ * inside CanvasTransformLayer (so they're panned/zoomed together).
  *
- * Two render surfaces are mutually exclusive depending on `canvasView`:
- * - 'design'  → React-based <NodeRenderer> (live, fully reactive, no scripts)
- * - 'preview' → sandboxed runtime <CanvasRuntimePreview> (scripts run; manual refresh)
- *
- * They are never stacked. The previous overlay design caused scripts to
- * re-execute on every property edit because the iframe srcDoc had to be
- * replaced to reflect the live state — see the runtime dependencies design
- * doc, "Canvas Runtime Preview" section.
- *
- * In preview mode the frame chrome (label row) also surfaces a small status
- * pill + Refresh control next to the breakpoint label, so the iframe area
- * itself stays clean of UI overlays.
+ * Frame is design-only after the canvas-view redesign: preview mode now
+ * lives in its own surface (CanvasPreviewSurface) which owns a single
+ * full-bleed iframe instead of one iframe per breakpoint frame. See the
+ * "Canvas Preview Surface" architecture note in CanvasPreviewSurface.tsx
+ * for why preview no longer reuses these frames.
  */
 
 import { useRef, type CSSProperties } from 'react'
 import type { Page, Breakpoint } from '@core/page-tree/schemas'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
-import { useEditorStore } from '@core/editor-store/store'
 import { NodeRenderer } from './NodeRenderer'
 import { BreakpointSelectionOverlay } from './BreakpointSelectionOverlay'
 import { CanvasBreakpointContext, CanvasTemplateContext } from './CanvasContexts'
-import { CanvasRuntimePreview } from './CanvasRuntimePreview'
-import {
-  useRuntimePreviewBuild,
-  type RuntimePreviewBuildState,
-  type RuntimePreviewStatus,
-} from './useRuntimePreviewBuild'
 import { PlusBoxIcon } from 'pixel-art-icons/icons/plus-box'
 import { Button } from '@ui/components/Button'
 import { EmptyState } from '@ui/components/EmptyState'
-import { Tooltip } from '@ui/components/Tooltip'
 import { cn } from '@ui/cn'
 import styles from './BreakpointFrame.module.css'
 
@@ -61,23 +43,11 @@ export function BreakpointFrame({
 }: BreakpointFrameProps) {
   // --bp-width drives both label width and viewport width via CSS (dynamic value)
   const bpStyle = { '--bp-width': `${breakpoint.width}px` } as CSSProperties
-  const canvasView = useEditorStore((s) => s.canvasView)
-  const isPreview = canvasView === 'preview'
 
   // Ref to the viewport `<div>` — passed to the selection overlay so ring
   // positions are computed relative to this frame (handles canvas pan/zoom
   // for free, since the viewport itself is transformed with the canvas).
   const viewportRef = useRef<HTMLDivElement>(null)
-
-  // Single source of truth for the iframe build. The hook is called even in
-  // design mode but its `enabled` arg stops it from firing any work — keeps
-  // hook-call order stable across renders without paying for unused fetches.
-  const previewBuild = useRuntimePreviewBuild({
-    page,
-    breakpointId: breakpoint.id,
-    templateContext,
-    enabled: isPreview && isActive,
-  })
 
   return (
     <div
@@ -85,7 +55,7 @@ export function BreakpointFrame({
       data-breakpoint-dimmed={isDimmed ? 'true' : undefined}
       style={bpStyle}
     >
-      {/* Frame chrome row — breakpoint label and (in preview) status + refresh */}
+      {/* Frame chrome row — breakpoint label */}
       <div className={styles.labelRow}>
         <Button
           variant="ghost"
@@ -98,17 +68,12 @@ export function BreakpointFrame({
           {breakpoint.label}
           <span className={styles.pxBadge}>{breakpoint.width}px</span>
         </Button>
-
-        {isPreview && previewBuild.hasScripts && (
-          <RuntimePreviewChromeStatus build={previewBuild} />
-        )}
       </div>
 
       {/* Viewport frame */}
       <div
         ref={viewportRef}
         data-breakpoint-id={breakpoint.id}
-        data-canvas-view={canvasView}
         className={cn(styles.viewport, isActive && styles.viewportActive)}
         onClick={(e) => {
           // Click on empty frame area → activate this breakpoint
@@ -116,92 +81,32 @@ export function BreakpointFrame({
           e.stopPropagation()
         }}
       >
-        {isPreview ? (
-          <CanvasRuntimePreview
-            page={page}
-            srcDoc={previewBuild.srcDoc}
-            hasScripts={previewBuild.hasScripts}
-          />
-        ) : (
-          <>
-            {/* Empty canvas state — shown only when the page is a base.root
-                wrapper with no children. Visual Components whose rootNode is
-                not base.root (e.g. a single Button converted via Componentize)
-                use the rootNode itself as the rendered content, so the empty
-                state would be misleading there. */}
-            {(() => {
-              const rootNode = page.nodes[page.rootNodeId]
-              return rootNode?.moduleId === 'base.root' && rootNode.children.length === 0
-                ? <EmptyCanvasState />
-                : null
-            })()}
+        {/* Empty canvas state — shown only when the page is a base.body
+            wrapper with no children. Visual Components whose rootNode is
+            not base.body (e.g. a single Button converted via Componentize)
+            use the rootNode itself as the rendered content, so the empty
+            state would be misleading there. */}
+        {(() => {
+          const rootNode = page.nodes[page.rootNodeId]
+          return rootNode?.moduleId === 'base.body' && rootNode.children.length === 0
+            ? <EmptyCanvasState />
+            : null
+        })()}
 
-            <CanvasTemplateContext.Provider value={templateContext}>
-              <CanvasBreakpointContext.Provider value={breakpoint.id}>
-                <NodeRenderer nodeId={page.rootNodeId} />
-              </CanvasBreakpointContext.Provider>
-            </CanvasTemplateContext.Provider>
+        <CanvasTemplateContext.Provider value={templateContext}>
+          <CanvasBreakpointContext.Provider value={breakpoint.id}>
+            <NodeRenderer nodeId={page.rootNodeId} />
+          </CanvasBreakpointContext.Provider>
+        </CanvasTemplateContext.Provider>
 
-            {/* Selection / hover rings, rendered as an absolutely-positioned
-                overlay so the wrapper divs (`NodeWrapper`) can stay
-                `display: contents`. See BreakpointSelectionOverlay.tsx. */}
-            <BreakpointSelectionOverlay
-              breakpointId={breakpoint.id}
-              viewportRef={viewportRef}
-            />
-          </>
-        )}
+        {/* Selection / hover rings, rendered as an absolutely-positioned
+            overlay so the wrapper divs (`NodeWrapper`) can stay
+            `display: contents`. See BreakpointSelectionOverlay.tsx. */}
+        <BreakpointSelectionOverlay
+          breakpointId={breakpoint.id}
+          viewportRef={viewportRef}
+        />
       </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Runtime preview status pill — lives in the frame chrome row, not over the
-// iframe. Shows a small "Live"/"Building"/"Runtime error" badge plus a
-// Refresh button so the user can pull a fresh build after editing styles.
-// ---------------------------------------------------------------------------
-
-function statusLabel(status: RuntimePreviewStatus, build: RuntimePreviewBuildState): string {
-  if (status === 'building') return 'Building'
-  if (status === 'error') {
-    return build.diagnostics[0]?.packageName ?? build.diagnostics[0]?.message ?? 'Runtime error'
-  }
-  if (status === 'idle') return 'Idle'
-  return 'Live'
-}
-
-interface RuntimePreviewChromeStatusProps {
-  build: RuntimePreviewBuildState
-}
-
-function RuntimePreviewChromeStatus({ build }: RuntimePreviewChromeStatusProps) {
-  return (
-    <div
-      className={styles.runtimePreviewStatus}
-      data-status={build.status}
-      role="status"
-      aria-live="polite"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <span className={styles.runtimePreviewStatusLabel}>
-        {statusLabel(build.status, build)}
-      </span>
-      <Tooltip content="Rebuild preview from current site state">
-        <button
-          type="button"
-          className={styles.runtimePreviewRefresh}
-          onClick={(e) => {
-            e.stopPropagation()
-            build.refresh()
-          }}
-          disabled={build.status === 'building'}
-          data-testid="canvas-runtime-preview-refresh"
-          aria-label="Refresh preview"
-        >
-          Refresh
-        </button>
-      </Tooltip>
     </div>
   )
 }

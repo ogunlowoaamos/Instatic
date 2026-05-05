@@ -29,6 +29,7 @@ import { registry } from '@core/module-engine/registry'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { useCanvas } from '../../hooks/useCanvas'
 import { CanvasTransformLayer } from './CanvasTransformLayer'
+import { CanvasPreviewSurface } from './CanvasPreviewSurface'
 import { CanvasNotch } from './CanvasNotch'
 import { CanvasModeToggle } from './CanvasModeToggle'
 import { CanvasBreakpointSelector } from './CanvasBreakpointSelector'
@@ -76,7 +77,9 @@ export function CanvasRoot() {
   const canvasPage = useEditorStore(selectActiveCanvasPage)
   const breakpoints = useEditorStore((s) => s.site?.breakpoints ?? EMPTY_BREAKPOINTS)
   const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
+  const canvasView = useEditorStore((s) => s.canvasView)
   const rightSidebarExpanded = useEditorStore(selectRightSidebarExpanded)
+  const isPreview = canvasView === 'preview'
   // selectedNodeId is needed here for canvas-level keyboard shortcuts (Delete, Ctrl+D).
   // hoveredNodeId is NOT subscribed here — NodeRenderer handles its own hover state
   // via per-node selectors to avoid O(N) re-renders on every hover event (#495).
@@ -95,10 +98,16 @@ export function CanvasRoot() {
   const templatePreviewContext = useTemplatePreviewContext(canvasPage)
   const focusActiveBreakpoint = Boolean(selectedNodeId && rightSidebarExpanded)
 
-  // Canvas gesture hook (pan/zoom)
+  // Canvas gesture hook (pan/zoom). Disabled in preview mode — preview owns
+  // its own surface (CanvasPreviewSurface) and pan/zoom is meaningless on a
+  // single sandboxed iframe. Critically, this also stops wheel events from
+  // silently mutating transformRef while in preview, which would otherwise
+  // make the design canvas visibly jump on the first interaction after
+  // returning from preview.
   const { bind, handleKeyDown: canvasKeyDown } = useCanvas({
     canvasRootRef: canvasRef,
     transformLayerRef,
+    enabled: !isPreview,
   })
 
   // ─── Selection context value ───────────────────────────────────────────────
@@ -234,6 +243,20 @@ export function CanvasRoot() {
     renameNode(nodeId, nextName)
   }, [renameNode])
 
+  // Resolve the active breakpoint object for the preview surface (which
+  // wants the full Breakpoint, not just the id, to read .width).
+  const activeBreakpoint = useMemo(
+    () => breakpoints.find((bp) => bp.id === activeBreakpointId) ?? breakpoints[0] ?? null,
+    [breakpoints, activeBreakpointId],
+  )
+
+  // Preview mode skips canvas-level gestures and shortcuts: there's nothing
+  // to pan/zoom/select on a single sandboxed iframe. Spreading {} keeps the
+  // outer div's prop shape stable when toggling.
+  const gestureBindings = isPreview ? {} : bind()
+  const onCanvasKeyDown = isPreview ? undefined : handleKeyDown
+  const onCanvasClick = isPreview ? undefined : handleCanvasClick
+
   return (
     <CanvasSelectionContext.Provider value={selectionContextValue}>
       <div
@@ -243,13 +266,15 @@ export function CanvasRoot() {
         tabIndex={0}
         data-testid="canvas-root"
         data-canvas-state={canvasPage ? 'canvas-ready' : 'canvas-empty'}
+        data-canvas-view={canvasView}
         data-vc-mode={activeDocument?.kind === 'visualComponent' ? 'true' : undefined}
-        onKeyDown={handleKeyDown}
-        onClick={handleCanvasClick}
+        onKeyDown={onCanvasKeyDown}
+        onClick={onCanvasClick}
         onFocus={() => setFocusedPanel('canvas')}
         className={styles.canvas}
-        // Spread gesture handlers from useGesture (wheel, drag, pinch)
-        {...bind()}
+        // Spread gesture handlers from useGesture (wheel, drag, pinch).
+        // Empty in preview mode — see gestureBindings above.
+        {...gestureBindings}
       >
         {/* CSS for prefers-reduced-motion — no transitions for accessibility */}
         <style>{`
@@ -263,13 +288,15 @@ export function CanvasRoot() {
         {/* Phase C — CSS class styles injected into document.head */}
         <ClassStyleInjector />
 
-        {/* Fixed insert controls — part of canvas chrome, not the zoom layer. */}
-        <CanvasNotch />
+        {/* Insert toolbar and breakpoint context selector are design-only —
+            preview has its own chrome inside CanvasModeToggle. */}
+        {!isPreview && <CanvasNotch />}
 
-        {/* Design / Preview view toggle — top-left chrome */}
+        {/* Design / Preview view toggle — top-left chrome. In preview mode
+            this also hosts inline breakpoint switcher buttons. */}
         <CanvasModeToggle />
 
-        {rightSidebarExpanded && (
+        {!isPreview && rightSidebarExpanded && (
           <CanvasBreakpointSelector
             breakpoints={breakpoints}
             activeBreakpointId={activeBreakpointId}
@@ -286,20 +313,28 @@ export function CanvasRoot() {
         */}
         <ErrorBoundary
           location="canvas"
-          resetKeys={[canvasPage?.id ?? null, activeDocument?.kind ?? null]}
+          resetKeys={[canvasPage?.id ?? null, activeDocument?.kind ?? null, canvasView]}
         >
-          <CanvasTransformLayer
-            ref={transformLayerRef}
-            page={canvasPage}
-            breakpoints={breakpoints}
-            activeBreakpointId={activeBreakpointId}
-            dimInactiveBreakpoints={focusActiveBreakpoint}
-            onBreakpointActivate={setActiveBreakpoint}
-            templateContext={templatePreviewContext}
-          />
+          {isPreview ? (
+            <CanvasPreviewSurface
+              page={canvasPage}
+              activeBreakpoint={activeBreakpoint}
+              templateContext={templatePreviewContext}
+            />
+          ) : (
+            <CanvasTransformLayer
+              ref={transformLayerRef}
+              page={canvasPage}
+              breakpoints={breakpoints}
+              activeBreakpointId={activeBreakpointId}
+              dimInactiveBreakpoints={focusActiveBreakpoint}
+              onBreakpointActivate={setActiveBreakpoint}
+              templateContext={templatePreviewContext}
+            />
+          )}
         </ErrorBoundary>
 
-        {contextMenu && createPortal(
+        {!isPreview && contextMenu && createPortal(
           <LayerNodeContextMenu
             x={contextMenu.x}
             y={contextMenu.y}

@@ -5,35 +5,22 @@
  * renders the status pill in the frame's chrome row so the iframe area
  * itself stays uncluttered.
  *
- * Renders one of three things:
- * - Nothing (no scripts to run yet — empty-state copy)
- * - Nothing (build hasn't produced an srcDoc yet — caller should also be
- *   rendering a "Building" indicator in the frame chrome)
- * - The actual sandboxed iframe
+ * Preview mode always renders the page (the publisher emits a complete
+ * HTML document for any page, scripts or no scripts) so the user sees a
+ * live, scrollable rendering of their work. The only time we render
+ * nothing is the brief window before the first build resolves; the
+ * "Building" status in the frame chrome covers that beat.
  */
 
 import type { Page } from '@core/page-tree/schemas'
-import { EmptyState } from '@ui/components/EmptyState'
-import styles from './BreakpointFrame.module.css'
+import styles from './CanvasPreviewSurface.module.css'
 
 interface CanvasRuntimePreviewProps {
   page: Page
   srcDoc: string
-  hasScripts: boolean
 }
 
-export function CanvasRuntimePreview({ page, srcDoc, hasScripts }: CanvasRuntimePreviewProps) {
-  if (!hasScripts) {
-    return (
-      <EmptyState
-        variant="centered"
-        className={styles.emptyState}
-        title="Nothing to preview"
-        description="Add a script in the Site explorer and enable “Run in canvas” to test it here."
-      />
-    )
-  }
-
+export function CanvasRuntimePreview({ page, srcDoc }: CanvasRuntimePreviewProps) {
   if (!srcDoc) return null
 
   return (

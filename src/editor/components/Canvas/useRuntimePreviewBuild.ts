@@ -1,25 +1,26 @@
 /**
  * useRuntimePreviewBuild — owns the runtime-preview iframe build state.
  *
- * Extracted from CanvasRuntimePreview so two render surfaces (the iframe
- * itself, and the status pill in BreakpointFrame's label row) can share one
- * source of truth without spawning duplicate fetches.
- *
  * Build trigger contract:
- * - The build does NOT auto-rebuild on every site change. It used to (when
- *   the iframe overlaid the design canvas), which caused scripts to
- *   re-execute on every keystroke — confetti firing per character, etc.
- * - The build DOES rebuild when something that actually affects the bundle
- *   or the rendered HTML changes:
- *   - script-file content (id + content)
- *   - packageJson (deps added/removed/version edits)
- *   - site.runtime (script config, dependency lock)
- *   - active page navigation
- *   - active breakpoint navigation
- *   - templateContext (entry currently being previewed for templates)
- * - For non-bundle visual edits (class CSS, node prop tweaks) the user
- *   explicitly calls `refresh()` to pull a fresh build. The preview is a
- *   user-controlled snapshot, not an always-live mirror.
+ * - The build rebuilds on any site mutation (debounced by 350ms). Tracked
+ *   via `site.updatedAt`, which every site-mutating slice action bumps.
+ *   That covers script edits, packageJson edits, page tree edits, class
+ *   CSS edits, etc. — i.e. anything the user can change in design mode is
+ *   reflected the next time the preview surface renders.
+ * - It also rebuilds on context changes that don't mutate the site:
+ *     - active page navigation
+ *     - active breakpoint navigation
+ *     - templateContext (entry currently previewed for templates)
+ *     - explicit Refresh action
+ *
+ * Design rationale:
+ * - The hook only runs while the canvas is in preview mode (see
+ *   CanvasPreviewSurface). It does NOT run while the user is typing or
+ *   dragging in the design canvas — design and preview are mutually
+ *   exclusive surfaces. So rebuilding on every site edit doesn't cause
+ *   the "scripts re-execute on every keystroke" problem the previous
+ *   overlay design suffered from. The 350ms debounce coalesces rapid
+ *   external mutations (e.g. agent tool batches).
  *
  * State architecture:
  * - We hold a single `BuildResult` in state, tagged with the
@@ -36,11 +37,7 @@ import type { Page, SiteDocument } from '@core/page-tree/schemas'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
 import { useEditorStore } from '@core/editor-store/store'
 import { buildCmsRuntimePreview } from '@core/persistence/cmsRuntime'
-import {
-  collectRuntimeScripts,
-  normalizeSiteRuntimeConfig,
-  type SiteRuntimeDiagnostic,
-} from '@core/site-runtime'
+import type { SiteRuntimeDiagnostic } from '@core/site-runtime'
 import { materializeRuntimePreviewDocument } from './runtimePreviewDocument'
 
 export type RuntimePreviewStatus = 'idle' | 'building' | 'ready' | 'error'
@@ -52,14 +49,18 @@ export interface RuntimePreviewBuildState {
   status: RuntimePreviewStatus
   /** Diagnostics surfaced by the server build (esbuild errors, etc.). */
   diagnostics: SiteRuntimeDiagnostic[]
-  /** True when the active page has at least one runtime script enabled in canvas. */
-  hasScripts: boolean
   /** Force a rebuild from current site state, bypassing the bundle-signature memo. */
   refresh: () => void
 }
 
 interface UseRuntimePreviewBuildArgs {
-  page: Page
+  /**
+   * Active page being previewed. May be null while the editor is between
+   * pages — the hook will quietly idle without firing a build until a page
+   * arrives. Callers that genuinely require a page (e.g. design canvas)
+   * should check before passing.
+   */
+  page: Page | null
   breakpointId: string
   templateContext?: TemplateRenderDataContext
   /** Gates the effect — pass `false` while in design mode to skip building entirely. */
@@ -80,18 +81,17 @@ interface BuildResult {
 
 function computeBuildSignature(
   site: SiteDocument | null,
-  pageId: string,
+  pageId: string | null,
   breakpointId: string,
   templateContext: TemplateRenderDataContext | undefined,
 ): string | null {
-  if (!site) return null
-  const scriptInputs = site.files
-    .filter((file) => file.type === 'script')
-    .map((file) => [file.id, file.content ?? ''])
+  if (!site || !pageId) return null
+  // site.updatedAt is bumped by every site-mutating slice action (classSlice,
+  // siteSlice, filesSlice, visualComponentsSlice, sitePanelSlice). Including
+  // it here means the next preview build always reflects the user's latest
+  // canvas edits — no need to press Publish, no need to click Refresh.
   return JSON.stringify({
-    scripts: scriptInputs,
-    packageJson: site.packageJson,
-    runtime: site.runtime,
+    siteUpdatedAt: site.updatedAt,
     pageId,
     breakpointId,
     templateContext: templateContext ?? null,
@@ -108,25 +108,19 @@ export function useRuntimePreviewBuild({
   const [build, setBuild] = useState<BuildResult | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
 
-  const hasScripts = useMemo(() => {
-    if (!site) return false
-    return collectRuntimeScripts({
-      files: site.files,
-      runtime: normalizeSiteRuntimeConfig(site.runtime),
-      page,
-      target: 'canvas',
-    }).length > 0
-  }, [page, site])
-
   const buildSignature = useMemo(
-    () => computeBuildSignature(site, page.id, breakpointId, templateContext),
-    [site, page.id, breakpointId, templateContext],
+    () => computeBuildSignature(site, page?.id ?? null, breakpointId, templateContext),
+    [site, page?.id, breakpointId, templateContext],
   )
 
-  const isIdle = !enabled || !site || buildSignature === null
+  const isIdle = !enabled || !site || !page || buildSignature === null
 
   useEffect(() => {
-    if (isIdle || buildSignature === null) return
+    if (isIdle || buildSignature === null || page === null) return
+
+    // Capture pageId in a local — `page` is guaranteed non-null at this
+    // point but TypeScript can't narrow it through the setTimeout closure.
+    const pageId = page.id
 
     let cancelled = false
     let cleanup: (() => void) | null = null
@@ -141,7 +135,7 @@ export function useRuntimePreviewBuild({
 
       buildCmsRuntimePreview({
         site: currentSite,
-        pageId: page.id,
+        pageId,
         breakpointId,
         templateContext,
       })
@@ -204,5 +198,5 @@ export function useRuntimePreviewBuild({
   const srcDoc = isIdle || !matchesCurrent ? '' : build.srcDoc
   const diagnostics = isIdle || !matchesCurrent ? [] : build.diagnostics
 
-  return { srcDoc, status, diagnostics, hasScripts, refresh }
+  return { srcDoc, status, diagnostics, refresh }
 }

@@ -238,6 +238,36 @@ describe('generateClassCSS', () => {
     // The rule should be omitted entirely (no safe decls → no block emitted)
     expect(css).not.toContain('.evil')
   })
+
+  it('emits @media blocks in descending width order regardless of insertion order', () => {
+    // The user might define class breakpoint styles in any order — say
+    // mobile first, then desktop, then tablet. If we emitted them in
+    // insertion order, the desktop @media (max-width: 1440px) rule would
+    // come last and override mobile/tablet at narrow viewports because
+    // all three @media (max-width: ...) selectors have equal specificity
+    // and the latest in source wins. Sorting widest-first puts the
+    // narrowest matching breakpoint last, which is what users actually
+    // expect from a "mobile" breakpoint.
+    const breakpoints = [
+      { id: 'mobile', width: 375 },
+      { id: 'tablet', width: 768 },
+      { id: 'desktop', width: 1440 },
+    ]
+    const classes = {
+      hero: makeClass('hero', { fontSize: '24px' }, {
+        mobile: { fontSize: '14px' },
+        desktop: { fontSize: '32px' },
+        tablet: { fontSize: '18px' },
+      }),
+    }
+    const css = generateClassCSS(classes, breakpoints)
+    const desktopIdx = css.indexOf('@media (max-width: 1440px)')
+    const tabletIdx = css.indexOf('@media (max-width: 768px)')
+    const mobileIdx = css.indexOf('@media (max-width: 375px)')
+    expect(desktopIdx).toBeGreaterThanOrEqual(0)
+    expect(tabletIdx).toBeGreaterThan(desktopIdx)
+    expect(mobileIdx).toBeGreaterThan(tabletIdx)
+  })
 })
 
 // ---------------------------------------------------------------------------

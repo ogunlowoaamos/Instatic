@@ -95,10 +95,10 @@ const ALLOWLIST = new Set([
 
   // ── §8.3 Sub-micro pill controls inside a status badge ──────────────────
   // The runtime-preview Refresh control lives inside a 22px status pill in
-  // the breakpoint-frame chrome. It is a 16px-high pill — smaller than the
+  // the canvas preview chrome. It is a 16px-high pill — smaller than the
   // Button "micro" size (18px) — sized to read as inline status chrome
   // rather than a primary action. Button's token sizes can't go that small.
-  'editor/components/Canvas/BreakpointFrame.tsx',
+  'editor/components/Canvas/CanvasPreviewSurface.tsx',
 
   // ── §8.6 ARIA tablist tabs ──────────────────────────────────────────────
   // role="tab" buttons inside role="tablist" need a custom tab layout

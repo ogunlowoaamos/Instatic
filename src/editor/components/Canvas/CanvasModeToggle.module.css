@@ -52,3 +52,22 @@
     background: var(--editor-surface-3);
     color: var(--editor-text);
 }
+
+/* Vertical separator between the design/preview toggle and the inline
+   breakpoint group when preview mode is active. */
+.divider {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: var(--editor-border-med);
+}
+
+/* Inline breakpoint icon row — only rendered in preview mode. Sits flush in
+   the same pill as the design/preview tabs so the chrome reads as a single
+   control group. */
+.breakpointGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}

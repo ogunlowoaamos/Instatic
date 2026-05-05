@@ -8,7 +8,7 @@ import { useCanvas } from '../../editor/hooks/useCanvas'
 function TestCanvas() {
   const canvasRootRef = useRef<HTMLDivElement>(null)
   const transformLayerRef = useRef<HTMLDivElement>(null)
-  const { bind } = useCanvas({ canvasRootRef, transformLayerRef })
+  const { bind } = useCanvas({ canvasRootRef, transformLayerRef, enabled: true })
 
   return (
     <div ref={canvasRootRef} data-testid="test-canvas-root" {...bind()}>

@@ -41,6 +41,14 @@ interface UseCanvasOptions {
   canvasRootRef: React.RefObject<HTMLElement | null>
   /** Ref to the div that gets the CSS transform applied to it */
   transformLayerRef: React.RefObject<HTMLElement | null>
+  /**
+   * Whether the canvas accepts pan/zoom gestures. False while the canvas is
+   * showing a preview iframe (preview mode owns its own surface, no panning).
+   * When this flips false→true the hook re-syncs the DOM transform from the
+   * store so the freshly-mounted transform layer doesn't visibly jump on the
+   * first wheel/pinch event.
+   */
+  enabled: boolean
 }
 
 type CanvasTransformSnapshot = readonly [zoom: number, panX: number, panY: number]
@@ -65,7 +73,7 @@ function areCanvasTransformSnapshotsEqual(
  */
 const ANIMATED_TRANSFORM_MS = 220
 
-export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions) {
+export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanvasOptions) {
   // Ref-based transform — not React state — avoids re-renders during interaction
   const transformRef = useRef<Transform>({ zoom: 1, panX: 0, panY: 0 })
   const rafRef = useRef<number | null>(null)
@@ -118,16 +126,19 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
     el.style.transform = `translate(${t.panX}px, ${t.panY}px) scale(${t.zoom})`
   }, [transformLayerRef])
 
-  // Sync from store on mount (restore saved pan/zoom).
-  // PERF FIX (Contribution #495): read initial values via getState() — NOT via
-  // useEditorStore subscriptions. Live subscriptions on s.zoom/s.panX/s.panY
-  // would cause CanvasRoot to re-render on every debounced pan commit (100ms
-  // cadence during active pan). getState() reads once on mount, no subscription.
+  // Sync from store on mount AND whenever the canvas re-becomes enabled
+  // (preview→design transition). Reading via getState() (not subscriptions)
+  // avoids re-renders on every debounced pan commit — see Contribution #495.
+  // The `enabled` dep ensures that when the user returns from preview mode,
+  // the freshly-mounted transform layer immediately reflects the saved
+  // pan/zoom instead of starting at the identity transform and visibly
+  // jumping on the first wheel/pinch.
   useEffect(() => {
+    if (!enabled) return
     const { zoom, panX, panY } = useEditorStore.getState()
     transformRef.current = { zoom, panX, panY }
     applyTransformToDOM(transformRef.current)
-  }, [applyTransformToDOM])
+  }, [applyTransformToDOM, enabled])
 
   /**
    * Schedule a DOM write for the next animation frame.
@@ -187,6 +198,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
   // before the browser claims the gesture, regardless of where the pointer is.
   // Same pattern used by Figma, Excalidraw, and Miro.
   useEffect(() => {
+    if (!enabled) return
     const preventWheelZoom = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) e.preventDefault()
     }
@@ -203,7 +215,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
       document.removeEventListener('gesturestart', preventGestureZoom)
       document.removeEventListener('gesturechange', preventGestureZoom)
     }
-  }, [])
+  }, [enabled])
 
   // ─── Spacebar tracking (for Space+drag pan) ───────────────────────────────
 
@@ -341,7 +353,13 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
   // Wheel cannot go through @use-gesture's React bind() path: React synthetic
   // wheel listeners are passive in modern React, so preventDefault is ignored,
   // and currentTarget can be null by the time @use-gesture invokes the handler.
+  //
+  // Skipped entirely while disabled (preview mode). If the listener stayed
+  // bound, wheel-during-preview would silently mutate `transformRef` and the
+  // debounced store commit, then on return to design the freshly mounted
+  // transform layer would visibly jump on the first interaction.
   useEffect(() => {
+    if (!enabled) return
     const canvasEl = canvasRootRef.current
     if (!canvasEl) return
 
@@ -370,7 +388,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions
     return () => {
       canvasEl.removeEventListener('wheel', handleWheel)
     }
-  }, [canvasRootRef, updateTransform])
+  }, [canvasRootRef, updateTransform, enabled])
 
   // ─── Gesture handlers ─────────────────────────────────────────────────────
 
