@@ -13,6 +13,7 @@ dist-ssr
 .worktrees/
 .superpowers/
 .claude/
+.tmp/
 *.local
 
 # Environment variable files — never commit secrets
@@ -35,4 +36,3 @@ dist-ssr
 *.sw?
 .agents/
 .skills/
-.claude/
