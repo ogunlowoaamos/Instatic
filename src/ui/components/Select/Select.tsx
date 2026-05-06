@@ -146,33 +146,73 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     [ref],
   )
 
-  // The anchor element used for the dropdown's positioning + width. For
-  // 'bottom-start' a caller may provide a wider anchor (e.g. a multi-cell
-  // grid row) so the menu can extend past the trigger; 'left-start' always
-  // anchors to the trigger so the menu lines up with the field's top edge.
+  // The dropdown's dismiss anchor is ALWAYS the Select's own wrapper —
+  // not a wider parent the caller may pass via `menuAnchorRef`. This is
+  // critical for two UX behaviours:
   //
-  // We resolve which ref to use at open-time (not render-time) because
-  // parent refs may not yet be populated on the first render — the
-  // `menuAnchorRef` is typically set by a `<div ref={menuAnchorRef}>` in
-  // the parent that is committed after this component renders.
+  //   1. Clicking another Select that lives inside the same wider parent
+  //      (e.g. two ratio selects sharing one `baseSettings` row) closes
+  //      the currently open menu, so opening the new one feels seamless.
+  //   2. Clicking the trigger of an open menu toggles it closed (the
+  //      `onClick` handler reads `open` and routes to closeMenu). If the
+  //      wider parent gated dismiss, mousedown wouldn't fire onClose, but
+  //      the click would still be eaten by the open menu's own logic.
+  //
+  // The wider `menuAnchorRef` only contributes to the menu's HORIZONTAL
+  // extent (width + x for left edge) via `getAnchorRect()` and the
+  // `menuSizing.width` prop — both used purely for layout.
   const resolvedAnchorRef = useRef<HTMLElement | null>(null)
 
-  const resolveActiveAnchor = useCallback((): HTMLElement | null => {
-    if (menuPlacement !== 'left-start' && menuAnchorRef?.current != null) {
-      return menuAnchorRef.current
+  // Compose the rect ContextMenu uses for floating-position math. When the
+  // dropdown is anchored to a wider parent (`menuAnchorRef`), horizontal
+  // extent (left/right/width) comes from the wider parent so the menu can
+  // span past the narrow trigger cell and show full option labels — but
+  // vertical extent (top/bottom/height) keeps coming from the trigger so
+  // the menu opens directly below the field instead of below the entire
+  // wider parent. When no wider anchor is set, this falls through to the
+  // trigger's own rect (identical behaviour to a plain anchored menu).
+  const getAnchorRect = useCallback((): DOMRect | null => {
+    const triggerRect = selectRef.current?.getBoundingClientRect()
+    if (!triggerRect) return null
+    if (menuPlacement === 'left-start' || !menuAnchorRef?.current) {
+      return triggerRect
     }
-    return selectRef.current
+    const wideRect = menuAnchorRef.current.getBoundingClientRect()
+    const left = wideRect.left
+    const right = wideRect.right
+    const width = wideRect.width
+    const top = triggerRect.top
+    const bottom = triggerRect.bottom
+    const height = triggerRect.height
+    return {
+      left,
+      right,
+      width,
+      top,
+      bottom,
+      height,
+      x: left,
+      y: top,
+      toJSON() {
+        return { left, right, width, top, bottom, height, x: left, y: top }
+      },
+    } as DOMRect
   }, [menuAnchorRef, menuPlacement])
 
   const updateMenuSizing = useCallback(() => {
-    const anchor = resolvedAnchorRef.current ?? resolveActiveAnchor()
-    if (!anchor) return
-    resolvedAnchorRef.current = anchor
-    const anchorRect = anchor.getBoundingClientRect()
+    // Width comes from the wider parent when provided (so long option
+    // labels stay readable past the narrow trigger cell); otherwise from
+    // the trigger itself.
+    const widthAnchor =
+      menuPlacement !== 'left-start' && menuAnchorRef?.current
+        ? menuAnchorRef.current
+        : selectRef.current
+    if (!widthAnchor) return
+    const anchorRect = widthAnchor.getBoundingClientRect()
     const resolvedMinWidth = menuMinWidth ?? anchorRect.width
     const resolvedWidth = Math.max(anchorRect.width, resolvedMinWidth)
     setMenuSizing({ width: resolvedWidth, minWidth: resolvedMinWidth })
-  }, [menuMinWidth, resolveActiveAnchor])
+  }, [menuAnchorRef, menuMinWidth, menuPlacement])
 
   const closeMenu = useCallback(() => {
     setOpen(false)
@@ -183,13 +223,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   const openMenu = useCallback(() => {
     if (disabled) return
-    // Resolve which element to anchor to (parent grid vs trigger) and
-    // capture the choice for the duration of the open menu.
-    resolvedAnchorRef.current = resolveActiveAnchor()
+    // The dismiss anchor is always the Select itself. See comment on
+    // `resolvedAnchorRef` for why this matters.
+    resolvedAnchorRef.current = selectRef.current
     updateMenuSizing()
     setActiveIndex(getInitialActiveIndex(normalizedOptions, selectedValue))
     setOpen(true)
-  }, [disabled, normalizedOptions, resolveActiveAnchor, selectedValue, updateMenuSizing])
+  }, [disabled, normalizedOptions, selectedValue, updateMenuSizing])
 
   useEffect(() => {
     if (!open) return
@@ -247,7 +287,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       return
     }
     triggerRef.current?.focus()
-    openMenu()
+    // Toggle so a second click on the trigger closes an already-open menu.
+    // The document-level mousedown listener inside ContextMenu does NOT fire
+    // for this click (the trigger is `anchorRef.current`, so dismiss is
+    // suppressed), which would otherwise leave the menu permanently open.
+    if (open) {
+      closeMenu()
+    } else {
+      openMenu()
+    }
   }
 
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -369,6 +417,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         <ContextMenu
           id={menuId}
           anchorRef={resolvedAnchorRef}
+          getAnchorRect={getAnchorRect}
           side={menuPlacement === 'left-start' ? 'left' : 'auto'}
           align="start"
           offset={6}

@@ -52,13 +52,18 @@ interface ResolvedLoopProps {
  */
 const CANVAS_MAX_ITEMS = 6
 
+// Shared sentinel for "no filters configured" — keeps identity stable across
+// renders so downstream memos that depend on `filters` don't re-run when the
+// node simply has no filters set. Treated as read-only at every call site.
+const EMPTY_FILTERS: Record<string, unknown> = Object.freeze({}) as Record<string, unknown>
+
 function readLoopProps(node: PageNode): ResolvedLoopProps {
   const props = node.props
   const sourceId = typeof props.sourceId === 'string' ? props.sourceId : ''
   const filters =
     props.filters && typeof props.filters === 'object' && !Array.isArray(props.filters)
       ? (props.filters as Record<string, unknown>)
-      : {}
+      : EMPTY_FILTERS
   const orderBy = typeof props.orderBy === 'string' ? props.orderBy : ''
   const direction = props.direction === 'asc' ? 'asc' : 'desc'
   const rawLimit = typeof props.limit === 'number' ? Math.floor(props.limit) : 3
@@ -185,13 +190,15 @@ function filterPagesForLoop(pages: readonly Page[], filters: Record<string, unkn
 // ---------------------------------------------------------------------------
 
 export function useLoopPreviewItems(node: PageNode): LoopItem[] {
+  // `readLoopProps()` reuses the shared `EMPTY_FILTERS` sentinel when the
+  // node has no filters set, so `filters` identity is stable across renders
+  // for the no-filter case. When filters ARE set, the value comes straight
+  // from `node.props.filters`, which the editor store (zustand + immer)
+  // keeps referentially stable until the user actually edits it. Either way
+  // the downstream memo can depend on `filters` directly without thrashing.
   const { sourceId, filters, orderBy, direction, offset, limit } = readLoopProps(node)
   const collectionId = typeof filters.collectionId === 'string' ? filters.collectionId : ''
   const mimePrefix = typeof filters.mimePrefix === 'string' ? filters.mimePrefix : ''
-
-  // Stable filter signature so per-source filters (collectionId, mimePrefix,
-  // templateOnly, excludeTemplates, …) drive a fresh re-run.
-  const filtersSignature = useMemo(() => JSON.stringify(filters), [filters])
 
   // Subscribe reactively so site.pages updates trigger re-renders.
   const site = useEditorStore((s) => s.site)
@@ -203,11 +210,12 @@ export function useLoopPreviewItems(node: PageNode): LoopItem[] {
   const [asyncMediaAssetsForEntries, setAsyncMediaAssetsForEntries] = useState<CmsMediaAsset[]>([])
 
   // ── Async fetch: content.entries ────────────────────────────────────
+  // When the active source isn't `content.entries`, the useMemo below
+  // never reads `asyncEntries`, so we don't need to clear stale state
+  // synchronously inside the effect (doing so would cascade an extra
+  // render). Stale data is naturally overwritten by the next fetch.
   useEffect(() => {
-    if (sourceId !== 'content.entries' || !collectionId) {
-      if (sourceId !== 'content.entries') setAsyncEntries([])
-      return
-    }
+    if (sourceId !== 'content.entries' || !collectionId) return
     let cancelled = false
     Promise.all([
       listCmsContentEntries(collectionId),
@@ -231,10 +239,7 @@ export function useLoopPreviewItems(node: PageNode): LoopItem[] {
 
   // ── Async fetch: site.media ─────────────────────────────────────────
   useEffect(() => {
-    if (sourceId !== 'site.media') {
-      if (sourceId !== 'site.media') setAsyncMedia([])
-      return
-    }
+    if (sourceId !== 'site.media') return
     let cancelled = false
     listCmsMediaAssets()
       .then((assets) => {
@@ -294,7 +299,6 @@ export function useLoopPreviewItems(node: PageNode): LoopItem[] {
     asyncMedia,
     sitePages,
     site,
-    filtersSignature,
     filters,
     orderBy,
     direction,

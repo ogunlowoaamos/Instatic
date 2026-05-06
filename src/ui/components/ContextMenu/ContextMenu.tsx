@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -85,8 +86,24 @@ interface ContextMenuProps extends Omit<HTMLAttributes<HTMLDivElement>, 'childre
    *
    * Position recomputes on window resize and capture-phase scroll while
    * the menu is open, so the menu stays glued to the trigger.
+   *
+   * `anchorRef` is also used for dismiss handling — clicks inside this
+   * element don't close the menu. When `getAnchorRect` is provided, it
+   * overrides the rect used for positioning while `anchorRef` continues
+   * to gate dismiss-on-outside-click.
    */
   anchorRef?: RefObject<HTMLElement | null>
+  /**
+   * Optional override for the rect used to position the menu. When
+   * provided, the menu uses this rect instead of
+   * `anchorRef.current.getBoundingClientRect()` for floating-position
+   * math. Use this when the menu's horizontal extent (width / x) and
+   * vertical extent (y / opens-below-trigger) need different sources —
+   * e.g. a Select whose dropdown spans a wider parent for label
+   * visibility but should still open just below the narrow trigger.
+   * `anchorRef` is still required (it gates dismiss handling).
+   */
+  getAnchorRect?: () => DOMRect | null
   /**
    * Preferred side relative to the anchor. `'auto'` tries the priority
    * list `bottom → top → right → left` and picks the first that fits.
@@ -104,6 +121,15 @@ interface ContextMenuProps extends Omit<HTMLAttributes<HTMLDivElement>, 'childre
    * `anchorRef` is not provided.
    */
   offset?: number
+  /**
+   * When `true` and `anchorRef` is provided, the menu's rendered width
+   * matches the anchor's measured width (clamped to `minWidth` floor).
+   * Tracks the anchor live via ResizeObserver so dropdowns stay flush
+   * with their trigger when the panel is resized. Use for combobox /
+   * input-attached dropdowns (ClassPicker, DynamicBindingControl,
+   * SpacingBoxControl) where the dropdown should span the input row.
+   */
+  matchAnchorWidth?: boolean
 }
 
 export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function ContextMenu(
@@ -120,9 +146,11 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     x: pointX,
     y: pointY,
     anchorRef,
+    getAnchorRect,
     side = 'auto',
     align = 'start',
     offset = 6,
+    matchAnchorWidth = false,
     onKeyDown,
     ...domProps
   },
@@ -143,13 +171,27 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
   // via the shared floating-position helper. This mirrors the auto-flip
   // behaviour of <Tooltip> so dropdown menus never overflow off-screen.
   const [autoPosition, setAutoPosition] = useState<ContextMenuPositionState | null>(null)
+  // Live anchor width, used when `matchAnchorWidth` is set. Tracked via
+  // ResizeObserver so the dropdown stays glued to the trigger's width
+  // even as the surrounding panel resizes.
+  const [anchorWidth, setAnchorWidth] = useState<number | null>(null)
+
+  // Effective render width: when `matchAnchorWidth` is set, the menu
+  // expands to the anchor's measured width but never shrinks below the
+  // explicit `minWidth` floor.
+  const effectiveWidth = matchAnchorWidth && anchorWidth != null
+    ? Math.max(anchorWidth, minWidth)
+    : width
 
   const recomputeAutoPosition = useEvent(() => {
     if (!anchorRef) return
     const anchorEl = anchorRef.current
     const menuEl = menuRef.current
     if (!anchorEl || !menuEl) return
-    const anchorRect = anchorEl.getBoundingClientRect()
+    // Position math uses `getAnchorRect()` when provided so callers can
+    // decouple the dismiss-handling anchor (`anchorRef`) from the rect
+    // used for positioning (e.g. wider parent for X/width, trigger for Y).
+    const anchorRect = getAnchorRect?.() ?? anchorEl.getBoundingClientRect()
     const menuRect = menuEl.getBoundingClientRect()
     // Use the explicit `width` prop (which the CSS renders to) rather than
     // the measured rect width — this keeps positioning predictable in jsdom
@@ -162,7 +204,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
       ? Math.min(menuRect.height, maxHeight)
       : menuRect.height
     const next = computeFloatingPosition(anchorRect, {
-      floatingWidth: width,
+      floatingWidth: effectiveWidth,
       floatingHeight: effectiveHeight,
       side,
       align,
@@ -175,7 +217,27 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
   useLayoutEffect(() => {
     if (!anchorRef) return
     recomputeAutoPosition()
-  }, [anchorRef, recomputeAutoPosition])
+    // `anchorWidth` is intentionally a dep — when the anchor resizes (and
+    // `matchAnchorWidth` is on) the dropdown's own width changes, so the
+    // floating-position math must run again to keep alignment correct.
+  }, [anchorRef, anchorWidth, recomputeAutoPosition])
+
+  // Track the anchor's measured width so `matchAnchorWidth` dropdowns
+  // can render flush with their trigger and respond to panel resizes.
+  useLayoutEffect(() => {
+    if (!matchAnchorWidth || !anchorRef) return
+    const anchorEl = anchorRef.current
+    if (!anchorEl) return
+    setAnchorWidth(anchorEl.getBoundingClientRect().width)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      setAnchorWidth(entry.contentRect.width)
+    })
+    observer.observe(anchorEl)
+    return () => observer.disconnect()
+  }, [matchAnchorWidth, anchorRef])
 
   useEffect(() => {
     if (!anchorRef) return
@@ -208,7 +270,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     '--context-menu-x': `${resolvedX ?? 0}px`,
     '--context-menu-y': `${resolvedY ?? 0}px`,
     '--context-menu-min-width': `${minWidth}px`,
-    '--context-menu-width': `${width}px`,
+    '--context-menu-width': `${effectiveWidth}px`,
     '--context-menu-z-index': zIndex,
     ...(maxHeight != null ? { '--context-menu-max-height': `${maxHeight}px` } : null),
     ...(measuring ? { visibility: 'hidden' as const } : null),
@@ -295,8 +357,11 @@ function useEvent<TArgs extends unknown[], TReturn>(
   useLayoutEffect(() => {
     ref.current = fn
   })
-  const stable = useRef((...args: TArgs) => ref.current(...args))
-  return stable.current
+  // useCallback returns a stable wrapper that reads the latest function
+  // off the ref when invoked — so callers see a stable identity but always
+  // call the latest closure. Reading `ref.current` happens at call time,
+  // not during render.
+  return useCallback((...args: TArgs) => ref.current(...args), [])
 }
 
 interface ContextMenuItemProps extends Omit<ButtonProps, 'variant' | 'size' | 'menuItem' | 'tone'> {

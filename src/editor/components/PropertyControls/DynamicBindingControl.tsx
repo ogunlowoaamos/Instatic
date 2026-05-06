@@ -236,8 +236,8 @@ export function DynamicBindingControl({
           side="auto"
           align="start"
           offset={6}
-          width={wrapperRef.current?.getBoundingClientRect().width ?? 240}
-          minWidth={wrapperRef.current?.getBoundingClientRect().width ?? 240}
+          matchAnchorWidth
+          minWidth={240}
           zIndex={10000}
           ariaLabel={`${label} dynamic bindings`}
           onClose={() => setOpen(false)}

@@ -90,6 +90,119 @@ describe('Select', () => {
     expect(combobox.getAttribute('aria-expanded')).toBe('false')
   })
 
+  it('toggles closed when the trigger is clicked while the menu is open', () => {
+    render(
+      <Select
+        id="toggle-status"
+        aria-label="Toggle status"
+        value="draft"
+        options={OPTIONS}
+        onChange={() => {}}
+      />,
+    )
+
+    const combobox = screen.getByRole('combobox', { name: /toggle status/i })
+    const chevron = combobox.nextElementSibling as HTMLElement
+
+    // First click opens.
+    fireEvent.click(chevron)
+    expect(combobox.getAttribute('aria-expanded')).toBe('true')
+
+    // Second click on the trigger should close (toggle), not leave the menu
+    // hanging open. The mousedown listener inside the menu doesn't fire
+    // dismiss because the trigger is the menu's anchor — the click handler
+    // on the Select wrapper is what closes it.
+    fireEvent.click(chevron)
+    expect(combobox.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('listbox', { name: /toggle status/i })).toBeNull()
+  })
+
+  it('closes the open dropdown and opens the new one when another Select is clicked', () => {
+    // Two selects living inside the SAME wider parent (`menuAnchorRef` shared
+    // across both). The dismiss anchor must be each Select's own wrapper,
+    // not the shared parent — otherwise clicking the second trigger wouldn't
+    // close the first menu, breaking the "switch dropdowns seamlessly" UX.
+    function Pair() {
+      const sharedAnchorRef = useRef<HTMLDivElement>(null)
+      return (
+        <div ref={sharedAnchorRef} data-testid="shared-anchor">
+          <Select
+            id="paired-first"
+            aria-label="Paired first"
+            value="draft"
+            menuAnchorRef={sharedAnchorRef}
+            options={OPTIONS}
+            onChange={() => {}}
+          />
+          <Select
+            id="paired-second"
+            aria-label="Paired second"
+            value="draft"
+            menuAnchorRef={sharedAnchorRef}
+            options={OPTIONS}
+            onChange={() => {}}
+          />
+        </div>
+      )
+    }
+
+    render(<Pair />)
+
+    const first = screen.getByRole('combobox', { name: /paired first/i })
+    const second = screen.getByRole('combobox', { name: /paired second/i })
+
+    // Open the first dropdown.
+    fireEvent.click(first.nextElementSibling as HTMLElement)
+    expect(first.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.queryByRole('listbox', { name: /paired first/i })).not.toBeNull()
+
+    // Mouse down on the second dropdown's trigger fires the document-level
+    // dismiss listener inside the first menu (because `second` is outside
+    // `first`'s selectRef anchor). Then the click event opens the second menu.
+    fireEvent.mouseDown(second.nextElementSibling as HTMLElement)
+    fireEvent.click(second.nextElementSibling as HTMLElement)
+
+    expect(first.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('listbox', { name: /paired first/i })).toBeNull()
+    expect(second.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.queryByRole('listbox', { name: /paired second/i })).not.toBeNull()
+  })
+
+  it('closes when clicking elsewhere inside the wider menuAnchorRef parent', () => {
+    // Reproduces the user-reported regression: when `menuAnchorRef` points
+    // at a wider parent (for label-friendly dropdown width), clicking ANY
+    // sibling inside that parent must still dismiss the menu — not just
+    // clicks fully outside the parent.
+    function WiderAnchor() {
+      const sharedAnchorRef = useRef<HTMLDivElement>(null)
+      return (
+        <div ref={sharedAnchorRef} data-testid="shared-anchor">
+          <Select
+            id="wider-status"
+            aria-label="Wider status"
+            value="draft"
+            menuAnchorRef={sharedAnchorRef}
+            options={OPTIONS}
+            onChange={() => {}}
+          />
+          <button type="button" data-testid="sibling">Sibling</button>
+        </div>
+      )
+    }
+
+    render(<WiderAnchor />)
+
+    const combobox = screen.getByRole('combobox', { name: /wider status/i })
+    fireEvent.click(combobox.nextElementSibling as HTMLElement)
+    expect(combobox.getAttribute('aria-expanded')).toBe('true')
+
+    // The sibling button lives inside the wider anchor — clicking it must
+    // still dismiss the open menu.
+    fireEvent.mouseDown(screen.getByTestId('sibling'))
+    expect(combobox.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('listbox', { name: /wider status/i })).toBeNull()
+  })
+
   it('closes when a click occurs outside the trigger and menu', () => {
     render(
       <Select
