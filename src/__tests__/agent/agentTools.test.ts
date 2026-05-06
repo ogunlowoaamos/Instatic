@@ -17,6 +17,7 @@ function makeContext(): PageContext {
       { id: 'page-about', title: 'About', slug: 'about', active: false, isHomepage: false },
     ],
     selectedNodeId: null,
+    selectedNodeIds: [],
     activeBreakpointId: 'mobile',
     breakpoints: [
       { id: 'mobile', label: 'Mobile', width: 375, icon: 'smartphone' },
@@ -119,9 +120,14 @@ describe('page-builder agent tools', () => {
       breakpointId: 'mobile',
     })
 
+    // Module props are content (single value across all breakpoints), so
+    // even though the fixture seeded a `mobile.text` override, the resolved
+    // props at any breakpoint return the BASE text. Stale override data on
+    // a non-`breakpointOverridable` prop is ignored at read time, mirroring
+    // the canvas/publisher.
     expect(inspected.node?.resolvedProps).toEqual({
       tag: 'h1',
-      text: 'Design tools for mobile',
+      text: 'Design tools',
     })
     expect(inspected.node?.resolvedClassStyles).toEqual({
       fontSize: '36px',

@@ -54,6 +54,11 @@ import { LoopPropertiesView } from './LoopPropertiesView'
 import { ParamPromotableRow } from './ParamPromotableRow'
 import { ComponentParamsOverview } from './ComponentParamsOverview'
 import { ConvertToComponentButton } from './ConvertToComponentButton'
+import {
+  MultiSelectionInspector,
+  MultiSelectionHeader,
+} from './MultiSelectionInspector'
+import { useShallow } from 'zustand/react/shallow'
 import { SearchBar } from '@ui/components/SearchBar'
 import { PanelHeader } from '../shared/PanelHeader'
 import { useDraggablePanel } from '../../hooks/useDraggablePanel'
@@ -86,6 +91,10 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   // ─── Store subscriptions ───────────────────────────────────────────────────
   const selectedNode = useEditorStore(selectSelectedNode)
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
+  // Multi-select awareness: when 2+ ids are selected we show the
+  // MultiSelectionInspector instead of the single-node UI.
+  const selectedNodeIds = useEditorStore(useShallow((s) => s.selectedNodeIds))
+  const isMultiSelect = selectedNodeIds.length > 1
   const updateNodeProps = useEditorStore((s) => s.updateNodeProps)
   const setNodeDynamicBinding = useEditorStore((s) => s.setNodeDynamicBinding)
   const clearNodeDynamicBinding = useEditorStore((s) => s.clearNodeDynamicBinding)
@@ -146,11 +155,24 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
 
   const definition = selectedNode ? registry.get(selectedNode.moduleId) : null
   const resolvedPropsForBreakpoint = selectedNode
-    ? resolveProps(selectedNode, activeBreakpointId !== 'desktop' ? activeBreakpointId : undefined)
+    ? resolveProps(
+        selectedNode,
+        activeBreakpointId !== 'desktop' ? activeBreakpointId : undefined,
+        definition?.schema,
+      )
     : null
+  // Only props the module marks `breakpointOverridable: true` may carry a
+  // per-breakpoint override; everything else is content (single value across
+  // all breakpoints). Filter the override-indicator set the same way so the
+  // UI never claims a content prop has a per-breakpoint variant — even if
+  // stale data on disk technically does.
   const overrideKeys =
-    selectedNode && activeBreakpointId && activeBreakpointId !== 'desktop'
-      ? new Set(Object.keys(selectedNode.breakpointOverrides[activeBreakpointId] ?? {}))
+    selectedNode && definition && activeBreakpointId && activeBreakpointId !== 'desktop'
+      ? new Set(
+          Object.keys(selectedNode.breakpointOverrides[activeBreakpointId] ?? {}).filter(
+            (key) => definition.schema[key]?.breakpointOverridable === true,
+          ),
+        )
       : new Set<string>()
 
   const selectedSelectorClass = selectedSelectorClassId ? site?.classes[selectedSelectorClassId] ?? null : null
@@ -186,17 +208,33 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   const dynamicBindingsEnabled = activePage?.template?.context === 'entry' || !!enclosingLoopNode
 
   // ─── Prop change handler ───────────────────────────────────────────────────
+  //
+  // A non-default breakpoint frame routes writes through
+  // `setBreakpointOverride` ONLY when the module schema marks the prop
+  // `breakpointOverridable: true`. For everything else (the default — content
+  // props like text, tag, src, alt) the edit always lands on base props,
+  // because the published page is one HTML document and content cannot
+  // meaningfully differ per viewport. Visual responsive variation lives in
+  // class breakpoint styles, not in module props.
+  //
+  // The schema lookup is intentionally performed via `registry.get()` inside
+  // the callback rather than closing over the `definition` object — that
+  // keeps the callback's deps array referentially stable and lets the
+  // memoization survive parent re-renders that recompute `definition`.
+  const moduleId = selectedNode?.moduleId
   const handleChange = useCallback(
     (propKey: string, value: unknown) => {
       if (!selectedNodeId) return
-      if (activeBreakpointId && activeBreakpointId !== 'desktop') {
+      const def = moduleId ? registry.get(moduleId) : null
+      const isOverridable = def?.schema[propKey]?.breakpointOverridable === true
+      if (activeBreakpointId && activeBreakpointId !== 'desktop' && isOverridable) {
         setBreakpointOverride(selectedNodeId, activeBreakpointId, { [propKey]: value })
       } else {
         updateNodeProps(selectedNodeId, { [propKey]: value })
       }
       setStatusMessage(`${propKey} updated`)
     },
-    [selectedNodeId, activeBreakpointId, updateNodeProps, setBreakpointOverride],
+    [selectedNodeId, moduleId, activeBreakpointId, updateNodeProps, setBreakpointOverride],
   )
 
   const collapsed = panelState.collapsed
@@ -312,6 +350,8 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
             cls={selectedSelectorClass}
             onRename={(name) => renameClass(selectedSelectorClass.id, name)}
           />
+        ) : isMultiSelect ? (
+          <MultiSelectionHeader count={selectedNodeIds.length} />
         ) : selectedNode && definition ? (
           <NodeHeader
             key={selectedNodeId}
@@ -350,6 +390,8 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
             cls={selectedSelectorClass}
             activeBreakpointId={activeBreakpointId}
           />
+        ) : isMultiSelect ? (
+          <MultiSelectionInspector selectedNodeIds={selectedNodeIds} />
         ) : !selectedNode || !definition ? (
           activeDocument?.kind === 'visualComponent' && selectedNodeId === null && selectedSelectorClassId === null && activeVc
             ? <ComponentParamsOverview vc={activeVc} />

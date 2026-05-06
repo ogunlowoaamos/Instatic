@@ -316,6 +316,12 @@ export interface AgentModulePropContext {
   description?: string
   defaultValue?: unknown
   options?: AgentModulePropOptionContext[]
+  /**
+   * When true, this prop can carry per-breakpoint overrides via
+   * `updateNodeProps` with `breakpointId`. Default `false` — module props are
+   * content (single value across breakpoints) unless the schema opts in.
+   */
+  breakpointOverridable?: boolean
 }
 
 export interface AgentModuleStyleContext {

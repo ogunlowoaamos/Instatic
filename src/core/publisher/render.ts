@@ -464,8 +464,10 @@ export function renderNode(nodeId: string, ctx: RenderContext): string {
     renderNode(childId, ctx),
   )
 
-  // 2. Resolve effective props (base + breakpoint shallow-merge)
-  const effectiveProps = resolveProps(node, ctx.breakpointId)
+  // 2. Resolve effective props (base + breakpoint shallow-merge for
+  //    breakpointOverridable schema keys only — content props always
+  //    publish their base value because HTML is a single document).
+  const effectiveProps = resolveProps(node, ctx.breakpointId, def.schema)
   const resolvedProps = resolveDynamicProps(effectiveProps, node.dynamicBindings, ctx.templateContext)
 
   // 3. Escape all string props (Constraint #211) before calling render()

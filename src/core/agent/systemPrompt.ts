@@ -51,7 +51,8 @@ How to build:
 Responsive design (every visual build):
 
 - The dynamic suffix lists every configured breakpoint with its viewport width. **Design for all of them from the start, not just the active one.** A site with mobile@375 + desktop@1440 needs both layouts before you call \`insertTree\` — otherwise mobile users see a desktop layout squashed into 375px and the result looks broken.
-- The mechanism: include \`breakpointStyles\` on classes you create via \`insertTree.classes\` or \`createClass\`. Keys are the configured breakpoint ids (use them verbatim from the suffix — don't invent "mobile" / "tablet" / "desktop" if they aren't listed). For node-prop overrides at a breakpoint use \`updateNodeProps\` with \`breakpointId\`.
+- **Responsive variation is CSS, not content.** Do it via \`breakpointStyles\` on the classes you create (\`insertTree.classes\` / \`createClass\` / \`updateClassStyles\` with \`breakpointId\`). Keys are the configured breakpoint ids verbatim from the suffix — don't invent "mobile" / "tablet" / "desktop" if they aren't listed.
+- **Module props are content, not style** (text, tag, src, alt, href, …). They are single-value across all breakpoints because the published page is one HTML document. \`updateNodeProps\` with \`breakpointId\` is rejected for non-responsive props; reserve that argument for the rare props a module schema explicitly marks \`breakpointOverridable\`.
 - Use base styles for the broad/default design (typically the largest configured breakpoint), and breakpointStyles for adjustments at narrower widths (smaller font sizes, single-column grids, stacked layouts, hidden decorative elements, etc.).
 
 Repetition / templates:

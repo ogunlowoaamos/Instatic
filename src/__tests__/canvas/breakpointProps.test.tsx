@@ -27,6 +27,7 @@ beforeEach(() => {
     canUndo: false,
     canRedo: false,
     selectedNodeId: null,
+    selectedNodeIds: [],
     hoveredNodeId: null,
     activeDocument: null,
     activePageId: null,
@@ -38,7 +39,12 @@ beforeEach(() => {
 })
 
 describe('canvas breakpoint rendering', () => {
-  it('renders node breakpoint prop overrides inside the matching breakpoint frame', () => {
+  it('renders the SAME content prop value in every breakpoint frame, even if a stale override exists', () => {
+    // Module props (text, tag, src, …) are content — single-value across all
+    // breakpoints because the published page is one HTML document. Even if
+    // legacy / hand-crafted data carries a per-breakpoint override for a
+    // non-responsive prop, the canvas must ignore it so the editor matches
+    // what a real visitor will see.
     const site = useEditorStore.getState().createSite('Breakpoint Props')
     const page = site.pages[0]
     const rootId = page.rootNodeId
@@ -46,6 +52,8 @@ describe('canvas breakpoint rendering', () => {
       text: 'Desktop headline',
       tag: 'h1',
     }, rootId)
+    // Direct mutation simulating stale data — the Properties Panel and agent
+    // executor both reject this kind of write at the boundary now.
     useEditorStore.getState().setBreakpointOverride(textId, 'mobile', {
       text: 'Mobile headline',
     })
@@ -59,8 +67,9 @@ describe('canvas breakpoint rendering', () => {
       />,
     )
 
-    expect(screen.getByText('Mobile headline')).toBeTruthy()
-    expect(screen.queryByText('Desktop headline')).toBeNull()
+    // The mobile frame must render the BASE text — never the stale override.
+    expect(screen.getByText('Desktop headline')).toBeTruthy()
+    expect(screen.queryByText('Mobile headline')).toBeNull()
   })
 
   it('activates the clicked breakpoint when selecting a node inside that frame', () => {

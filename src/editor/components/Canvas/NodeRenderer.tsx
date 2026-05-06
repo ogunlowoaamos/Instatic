@@ -47,8 +47,13 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
   // Per-node selection/hover subscriptions (Perf fix — Contribution #495).
   // Only the 2 nodes whose boolean flips will re-render on any selection/hover
   // event. Context carries only stable callbacks — no context-driven re-renders.
+  //
+  // Multi-select: this checks `selectedNodeIds.includes(nodeId)` so every node
+  // in a multi-selection shows the selection ring. The selector still resolves
+  // to a boolean, so per-node memoization isn't disturbed — only rows whose
+  // `includes(nodeId)` result flips will re-render.
   const isSelected = useEditorStore(
-    useCallback((s) => s.selectedNodeId === nodeId, [nodeId]),
+    useCallback((s) => s.selectedNodeIds.includes(nodeId), [nodeId]),
   )
   const isHovered = useEditorStore(
     useCallback(
@@ -160,7 +165,14 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
 
   const ComponentType = definition.component
   const shouldRenderSandbox = Boolean(definition.editorRuntime?.sandbox && !definition.trusted)
-  const effectiveProps = resolveDynamicProps(resolveProps(node, breakpointId), node.dynamicBindings, templateContext)
+  // Pass the module schema so resolveProps drops breakpoint overrides for
+  // non-responsive (content) keys — text/tag/src etc. must look identical
+  // across every breakpoint frame, since published HTML is one document.
+  const effectiveProps = resolveDynamicProps(
+    resolveProps(node, breakpointId, definition.schema),
+    node.dynamicBindings,
+    templateContext,
+  )
 
   // Build className from classIds using the user-facing class names.
   const effectiveClassIds = getCanvasNodeClassIds(node.classIds, previewClassAssignment, nodeId)

@@ -117,24 +117,47 @@ export function isAncestor<TNode extends BaseNode>(tree: NodeTree<TNode>, ancest
 
 /**
  * Resolve props for a node at a given breakpoint.
- * Breakpoint overrides shallow-merge on top of base props.
- * Returns base props unchanged if no breakpointId is provided.
+ *
+ * Breakpoint overrides shallow-merge on top of base props, but ONLY for keys
+ * the module schema marks `breakpointOverridable: true`. Module props are
+ * content (single value across all breakpoints) by default — the published
+ * page is one HTML document, so text/tag/src/etc. cannot meaningfully differ
+ * per viewport. Visual responsive variation lives in class breakpoint styles,
+ * not in module props.
+ *
+ * Pass `schema` from `ModuleDefinition.schema` so legacy or hand-crafted
+ * override entries for non-responsive keys are ignored at read time. If
+ * `schema` is omitted (e.g. unknown module, low-level tree tooling), every
+ * override key applies — same shape as the raw map. Returns base props
+ * unchanged if no `breakpointId` is provided.
  */
 export function resolveProps(
   node: PageNode,
-  breakpointId?: string
+  breakpointId?: string,
+  schema?: PropertySchema,
 ): Record<string, unknown> {
   if (!breakpointId) return node.props
   const override = node.breakpointOverrides[breakpointId]
   if (!override || Object.keys(override).length === 0) return node.props
-  return { ...node.props, ...override }
+  if (!schema) return { ...node.props, ...override }
+  // Filter out keys the module schema does NOT mark breakpointOverridable.
+  // Anything else is content; it must not vary per breakpoint at read time
+  // even if the persisted data carries a value (legacy / agent / fixture).
+  const filtered: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(override)) {
+    if (schema[key]?.breakpointOverridable === true) {
+      filtered[key] = value
+    }
+  }
+  if (Object.keys(filtered).length === 0) return node.props
+  return { ...node.props, ...filtered }
 }
 
 // ---------------------------------------------------------------------------
 // Property condition evaluation
 // ---------------------------------------------------------------------------
 
-import type { PropertyCondition } from '../module-engine/types'
+import type { PropertyCondition, PropertySchema } from '../module-engine/types'
 
 /**
  * Evaluate a declarative PropertyCondition against a props object.

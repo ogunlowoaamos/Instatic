@@ -408,11 +408,61 @@ function runUpdateNodeProps(input: Static<typeof updateNodePropsSchema>): AgentA
   if (input.breakpointId) {
     const breakpointError = validateBreakpointId(store, input.breakpointId)
     if (breakpointError) return { success: false, error: breakpointError }
+
+    // Per-breakpoint writes are restricted to props the module schema marks
+    // `breakpointOverridable: true`. Content props (text, tag, src, alt, …)
+    // are single-value across all breakpoints because the published page is
+    // one HTML document. Reject the call rather than silently dropping
+    // non-overridable keys, so the agent gets a clear signal.
+    const node = findNodeAcrossSite(store, input.nodeId)
+    if (!node) {
+      return { success: false, error: `Node not found: ${input.nodeId}` }
+    }
+    const definition = registry.get(node.moduleId)
+    if (!definition) {
+      return { success: false, error: `Unknown module on node: ${node.moduleId}` }
+    }
+    const nonOverridable = Object.keys(sanitizedPatch).filter(
+      (key) => definition.schema[key]?.breakpointOverridable !== true,
+    )
+    if (nonOverridable.length > 0) {
+      return {
+        success: false,
+        error:
+          `Cannot store breakpoint overrides for non-responsive prop(s) on ${node.moduleId}: ` +
+          `${nonOverridable.join(', ')}. ` +
+          `Module props are content (single value across breakpoints) unless the schema marks them ` +
+          `\`breakpointOverridable: true\`. For per-breakpoint *visual* variation use class breakpoint ` +
+          `styles via updateClassStyles / createClass.breakpointStyles instead.`,
+      }
+    }
     store.setBreakpointOverride(input.nodeId, input.breakpointId, sanitizedPatch)
   } else {
     store.updateNodeProps(input.nodeId, sanitizedPatch)
   }
   return { success: true }
+}
+
+/**
+ * Locate a node by ID across every page and visual-component tree on the site.
+ *
+ * Mutations touch the active canvas tree, but the agent passes node IDs that
+ * may belong to any page or VC. We need the node's `moduleId` to look the
+ * schema up before calling `setBreakpointOverride`, so a single-shot
+ * cross-tree search is the simplest correct lookup.
+ */
+function findNodeAcrossSite(store: EditorStore, nodeId: string) {
+  const site = store.site
+  if (!site) return undefined
+  for (const page of site.pages) {
+    const node = page.nodes[nodeId]
+    if (node) return node
+  }
+  for (const vc of site.visualComponents ?? []) {
+    const node = vc.tree.nodes[nodeId]
+    if (node) return node
+  }
+  return undefined
 }
 
 function runMoveNode(input: Static<typeof moveNodeSchema>): AgentActionResult {

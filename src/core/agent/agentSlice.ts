@@ -682,6 +682,10 @@ function controlToAgentProp(
     defaultValue: toSerializableValue(defaultValue),
   }
 
+  if (control.breakpointOverridable === true) {
+    prop.breakpointOverridable = true
+  }
+
   if (control.type === 'select') {
     prop.options = control.options.map((option) => ({
       label: option.label,

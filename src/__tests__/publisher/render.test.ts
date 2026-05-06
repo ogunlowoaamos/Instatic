@@ -238,10 +238,28 @@ describe('renderNode', () => {
     expect(html).toContain('href="#"')
   })
 
-  it('applies breakpoint overrides when breakpointId is provided', () => {
+  it('applies breakpoint overrides only for schema keys marked breakpointOverridable', () => {
+    // Use a module whose schema explicitly opts `level` into per-breakpoint
+    // overrides while leaving `text` as content. The publisher must apply
+    // the `level` override but ignore the `text` override — content is
+    // single-value across all breakpoints.
+    const responsiveDef: ModuleDefinition<{ text: string; level: number }> = makeModule(
+      'test.responsive-heading',
+      {
+        canHaveChildren: false,
+        schema: {
+          text: { type: 'text', label: 'Text' },
+          level: { type: 'number', label: 'Level', breakpointOverridable: true },
+        },
+        render: (props) => ({
+          html: `<h${props.level}>${props.text}</h${props.level}>`,
+        }),
+      },
+    )
+    const responsiveRegistry = makeRegistry({ 'test.responsive-heading': responsiveDef })
     const page = makePage({
       root: {
-        moduleId: 'base.text',
+        moduleId: 'test.responsive-heading',
         props: { text: 'Desktop', level: 1 },
         breakpointOverrides: { mobile: { text: 'Mobile', level: 2 } },
       },
@@ -249,14 +267,15 @@ describe('renderNode', () => {
     const cssMap = new Map<string, string>()
 
     const htmlDesktop = renderNode('root', {
-      page, site, registry, breakpointId: undefined, cssMap,
+      page, site, registry: responsiveRegistry, breakpointId: undefined, cssMap,
     })
     const htmlMobile = renderNode('root', {
-      page, site, registry, breakpointId: 'mobile', cssMap,
+      page, site, registry: responsiveRegistry, breakpointId: 'mobile', cssMap,
     })
 
     expect(htmlDesktop).toBe('<h1>Desktop</h1>')
-    expect(htmlMobile).toBe('<h2>Mobile</h2>')
+    // `level` overridden to 2; `text` override silently dropped (content prop).
+    expect(htmlMobile).toBe('<h2>Desktop</h2>')
   })
 
   // Regression — parent classes must not bleed into descendants

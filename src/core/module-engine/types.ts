@@ -46,6 +46,25 @@ type PropertyControlBase = {
    * `richtext` default to `stacked`; everything else defaults to `inline`.
    */
   layout?: PropertyControlLayout
+  /**
+   * Whether edits to this prop on a non-default breakpoint should be stored as
+   * a per-breakpoint override (`breakpointOverrides[bp][key]`) instead of the
+   * base value (`props[key]`).
+   *
+   * Default `false`: the prop is treated as **content** — there is exactly
+   * one value across all breakpoints, and the editor writes to base props
+   * regardless of which breakpoint frame the user is editing in. This is the
+   * right default for module props: the published page is a single HTML
+   * document, so text, tags, image src/alt, etc. cannot meaningfully differ
+   * per breakpoint.
+   *
+   * Set to `true` only when the prop is consumed by something that *can*
+   * legitimately read its value at runtime per viewport — e.g. a future JS
+   * runtime variable surface that swaps values via media query. Visual
+   * (CSS-shaped) variation already lives in class breakpoint styles, not in
+   * module props.
+   */
+  breakpointOverridable?: boolean
 }
 
 export type PropertyControl = PropertyControlBase &

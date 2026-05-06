@@ -27,6 +27,7 @@ function freshStore() {
     canUndo: false,
     canRedo: false,
     selectedNodeId: null,
+    selectedNodeIds: [],
     hoveredNodeId: null,
     activeClassId: null,
     isAgentOpen: false,
@@ -169,7 +170,13 @@ describe('executeAgentTool — updateNodeProps', () => {
     expect(page.nodes[nodeId!].props.text).toBe('New')
   })
 
-  it('can target a configured breakpoint without changing base props', async () => {
+  it('rejects updateNodeProps with breakpointId for content props', async () => {
+    // Module props are content (single value across all breakpoints) because
+    // the published page is one HTML document. Per-breakpoint visual
+    // variation lives in class breakpoint styles, not in module props. The
+    // executor must reject the call with a clear error so the agent doesn't
+    // silently produce data that the canvas/publisher will discard at read
+    // time anyway.
     const { rootId } = freshStore()
     const { nodeId } = await executeAgentTool('insertNode', {
       moduleId: 'base.text',
@@ -183,10 +190,11 @@ describe('executeAgentTool — updateNodeProps', () => {
       patch: { text: 'Mobile copy' },
     })
 
-    expect(result.success).toBe(true)
+    expect(result.success).toBe(false)
+    expect(result.error ?? '').toContain('breakpointOverridable')
     const page = useEditorStore.getState().site!.pages[0]
     expect(page.nodes[nodeId!].props.text).toBe('Desktop copy')
-    expect(page.nodes[nodeId!].breakpointOverrides.mobile.text).toBe('Mobile copy')
+    expect(page.nodes[nodeId!].breakpointOverrides.mobile).toBeUndefined()
   })
 
   it('rejects updateNodeProps targeting an unknown breakpoint', async () => {
@@ -583,11 +591,10 @@ describe('executeAgentTool — duplicateNode', () => {
       props: { text: 'Hi' },
       classIds: [cls.id],
     })
-    await executeAgentTool('updateNodeProps', {
-      nodeId: sourceId!,
-      breakpointId: 'mobile',
-      patch: { text: 'Hi (mobile)' },
-    })
+    // Seed a breakpoint override directly on the store — the agent executor
+    // would reject this for content props, but the duplicateNode mutation
+    // itself is generic and must carry whatever override data exists.
+    useEditorStore.getState().setBreakpointOverride(sourceId!, 'mobile', { text: 'Hi (mobile)' })
 
     const result = await executeAgentTool('duplicateNode', { nodeId: sourceId! })
     expect(result.success).toBe(true)
