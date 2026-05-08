@@ -1,22 +1,19 @@
 /**
- * Router hooks + shared internals — companion to `./router.tsx`.
+ * Router hooks + shared internals — companion to `./Router.tsx`.
  *
- * Why this file exists separately from `router.tsx`
+ * Why this file exists separately from `Router.tsx`
  * --------------------------------------------------
  * Vite's React Fast Refresh (via `react-refresh/only-export-components` lint
  * rule) requires that a file exports either ONLY components or ONLY non-
  * components — not a mix. Mixing breaks HMR for that file: any change forces
  * a full page reload instead of hot-swapping the component.
  *
- * Splitting components into `router.tsx` and hooks/types/contexts into this
+ * Splitting components into `Router.tsx` and hooks/types/contexts into this
  * `.ts` file keeps Fast Refresh working when we tweak components.
  *
- * Public API: re-exported from `./router.tsx` for convenience? No — Fast
- * Refresh would still complain about a mixed-export barrel. Callers should
- * import hooks directly from this file:
+ * Public API is re-exported from `./index.ts`. Callers import:
  *
- *   import { useLocation, useNavigate } from './lib/routerHooks'
- *   import { Link, Router } from './lib/router'
+ *   import { useLocation, useNavigate, Link, Router } from '@admin/lib/routing'
  */
 
 import { createContext, useContext } from 'react'

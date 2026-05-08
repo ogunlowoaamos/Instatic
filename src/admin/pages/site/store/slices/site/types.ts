@@ -29,7 +29,7 @@ import type {
   FrameworkTypographyGroup,
 } from '@core/page-tree'
 import type { FrameworkChangeImpact } from '@core/framework/changeImpact'
-import type { EditorStore } from '../../types'
+import type { EditorStore } from '@site/store/types'
 
 // ---------------------------------------------------------------------------
 // Public action surface — every method below appears as a top-level entry on

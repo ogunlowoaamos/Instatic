@@ -1,7 +1,7 @@
 /**
  * Architecture Source-Scan — Constraint #283
  *
- * No file under `src/editor/` or `src/core/` may import:
+ * No file under `src/admin/pages/site/` or `src/core/` may import:
  *   - `@anthropic-ai/sdk`          — raw Anthropic API SDK (prohibited everywhere)
  *   - `@anthropic-ai/claude-agent-sdk` — Claude Agent SDK (server-side ONLY;
  *                                     allowed only in `packages/editor-app/server/`)
@@ -125,10 +125,10 @@ describe('Constraint #283 — @anthropic-ai/sdk must not be imported in producti
 // ---------------------------------------------------------------------------
 
 describe('Constraint #286 — AgentPanel uses fetch, not AI SDK clients', () => {
-  it('src/editor/ contains no AI SDK imports (Phase D gate)', () => {
+  it('src/admin/pages/site/ contains no AI SDK imports (Phase D gate)', () => {
     // Pre-emptive guard: once Phase D is built, no AI SDK must appear in editor code.
     // Includes the confirmed Claude Agent SDK package name (@anthropic-ai/claude-agent-sdk)
-    // which must ONLY appear in packages/editor-app/server/, never in src/editor/ or src/core/.
+    // which must ONLY appear in packages/editor-app/server/, never in src/admin/pages/site/ or src/core/.
     const AI_SDK_PATTERNS = [
       /from\s+['"]@anthropic-ai\//,           // blocks @anthropic-ai/sdk AND @anthropic-ai/claude-agent-sdk
       /from\s+['"]claude-agent-sdk['"]/,       // blocks unscoped variant (if it exists)
@@ -150,7 +150,7 @@ describe('Constraint #286 — AgentPanel uses fetch, not AI SDK clients', () => 
 
     if (violations.length > 0) {
       throw new Error(
-        `[Constraint #286] AI SDK client found in src/editor/. ` +
+        `[Constraint #286] AI SDK client found in src/admin/pages/site/. ` +
         `The AgentPanel must communicate via fetch('/api/agent'), not directly import AI SDK.\n` +
         violations.map((f) => `  ${f}`).join('\n')
       )

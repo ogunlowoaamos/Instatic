@@ -16,7 +16,7 @@
 
 import { nanoid } from 'nanoid'
 import type { Draft } from 'immer'
-import type { EditorStore, EditorStoreSliceCreator } from '../types'
+import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
 import type { BaseNode, SiteDocument } from '@core/page-tree'
 import type { CSSClass, CSSPropertyBag } from '@core/page-tree/schemas'
 import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree/classUtils'
@@ -242,7 +242,7 @@ function uniqueClassCopyName(classes: Record<string, CSSClass>, originalName: st
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends ClassSlice {}
 }
 

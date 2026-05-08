@@ -116,13 +116,19 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
     expect(violations).toHaveLength(0)
   })
 
-  it('CI-2: SiteCreateDialog close button uses CloseIcon from pixel-art-icons/icons/close', () => {
-    const modalPath = join(SRC_ROOT, 'editor/components/SiteCreateDialog/SiteCreateDialog.tsx')
+  it('CI-2: shared Dialog primitive owns the close button and uses CloseIcon', () => {
+    // The Dialog primitive in src/ui/components/Dialog/ is the single owner
+    // of the close button across every dialog in the admin app
+    // (ConfirmDeleteDialog, SiteCreateDialog, FrameworkChangeConfirmDialog,
+    // PluginSettingsDialog, PluginRemoveDialog all compose <Dialog/>).
+    // Validating it once here covers every consumer transitively — they
+    // can no longer drift onto a wrong close icon.
+    const dialogPath = join(SRC_ROOT, 'ui/components/Dialog/Dialog.tsx')
     let src: string
     try {
-      src = readFileSync(modalPath, 'utf8')
+      src = readFileSync(dialogPath, 'utf8')
     } catch {
-      throw new Error(`[CI-2] SiteCreateDialog.tsx not found at expected path: ${modalPath}`)
+      throw new Error(`[CI-2] Dialog primitive not found at expected path: ${dialogPath}`)
     }
 
     // Must import CloseIcon
@@ -136,7 +142,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
   })
 
   it('CI-3: SettingsModal close button uses CloseIcon from pixel-art-icons/icons/close', () => {
-    const modalPath = join(SRC_ROOT, 'editor/components/Settings/SettingsModal.tsx')
+    const modalPath = join(SRC_ROOT, 'admin/modals/Settings/SettingsModal.tsx')
     let src: string
     try {
       src = readFileSync(modalPath, 'utf8')
@@ -150,7 +156,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
   })
 
   it('CI-4: PreviewOverlay close button uses CloseIcon from pixel-art-icons/icons/close', () => {
-    const overlayPath = join(SRC_ROOT, 'editor/components/Preview/PreviewOverlay.tsx')
+    const overlayPath = join(SRC_ROOT, 'admin/pages/site/preview/PreviewOverlay.tsx')
     let src: string
     try {
       src = readFileSync(overlayPath, 'utf8')

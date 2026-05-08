@@ -4,7 +4,7 @@ import {
   getDomDropZone,
   resolveDomDropTarget,
   type DomDropRowMeta,
-} from '../../editor/components/DomPanel/domPanelDnd'
+} from '@site/panels/DomPanel/domPanelDnd'
 
 function node(id: string, moduleId: string, children: string[] = [], locked = false): PageNode {
   return {

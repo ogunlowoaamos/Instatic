@@ -12,8 +12,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
-import { useEditorStore } from '@core/editor-store/store'
-import { SlotOutletEditor } from '../../modules/base/slotOutlet/SlotOutletEditor'
+import { useEditorStore } from '@site/store/store'
+import { SlotOutletEditor } from '@modules/base/slotOutlet/SlotOutletEditor'
 
 afterEach(cleanup)
 

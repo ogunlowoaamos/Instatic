@@ -9,9 +9,8 @@
  */
 
 import { type CSSProperties } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { TYPE_RATIO_OPTIONS } from '@core/framework/scale'
-import type { SiteDocument } from '@core/page-tree/schemas'
 import type {
   FrameworkTypographyClassGenerator,
   FrameworkTypographyGroup,
@@ -21,14 +20,11 @@ import { TextColumsIcon } from 'pixel-art-icons/icons/text-colums'
 import {
   FrameworkScalePanel,
   type ScaleAdapter,
-} from '../shared/FrameworkScalePanel'
-import { useFrameworkChangeConfirm } from '../shared/FrameworkChangeConfirmDialog'
-import { FontsSection } from '../FontsSection'
-import styles from '../shared/FrameworkScalePanel/FrameworkScalePanel.module.css'
-
-interface TypographyPanelProps {
-  variant?: 'docked'
-}
+} from '@site/panels/FrameworkScalePanel'
+import { useFrameworkChangeConfirm } from '@admin/shared/dialogs/FrameworkChangeConfirmDialog'
+import { applyTypographyGroupPatchPreview } from '@site/store/slices/site/framework/typography'
+import { FontsSection } from './FontsSection'
+import styles from './TypographyPanel.module.css'
 
 const TYPOGRAPHY_CSS_PROPERTIES = [
   { value: 'font-size', label: 'font-size' },
@@ -39,35 +35,6 @@ const TYPOGRAPHY_CSS_PROPERTIES = [
 const EMPTY_GROUPS: FrameworkTypographyGroup[] = []
 const EMPTY_CLASSES: FrameworkTypographyClassGenerator[] = []
 
-/**
- * Mirror the field-level effect of `applyFrameworkTypographyGroupPatch`
- * (in siteSlice) on a draft site for the *preview* path. Only fields
- * that influence which utility classes get generated need to be applied
- * — `name` etc. don't affect class IDs or class names so they're
- * intentionally skipped.
- */
-function applyTypographyGroupPatchPreview(
-  draft: SiteDocument,
-  groupId: string,
-  patch: Record<string, unknown>,
-): void {
-  const tg = draft.settings.framework?.typography
-  if (!tg) return
-  const group = tg.groups.find((g) => g.id === groupId)
-  if (!group) return
-  if (typeof patch.namingConvention === 'string') {
-    group.namingConvention = patch.namingConvention
-  }
-  if (typeof patch.steps === 'string') group.steps = patch.steps
-  if (typeof patch.mode === 'string') {
-    group.mode = patch.mode as FrameworkTypographyGroup['mode']
-  }
-  if (typeof patch.isDisabled === 'boolean') group.isDisabled = patch.isDisabled
-  if (Array.isArray(patch.manualSizes)) {
-    group.manualSizes = patch.manualSizes as FrameworkTypographyGroup['manualSizes']
-  }
-}
-
 function groupActionLabel(prefix: string, groupId: string): string {
   // The dialog header gets shortened — prefer "<prefix>" without the
   // raw group ID. Group name is unknown at this layer; the prefix
@@ -76,7 +43,7 @@ function groupActionLabel(prefix: string, groupId: string): string {
   return prefix
 }
 
-export function TypographyPanel({ variant = 'docked' }: TypographyPanelProps) {
+export function TypographyPanel() {
   const isOpen = useEditorStore((s) => s.typographyPanelOpen)
   const setOpen = useEditorStore((s) => s.setTypographyPanelOpen)
   const onToggleDisabled = useEditorStore((s) => s.toggleFrameworkTypographyDisabled)
@@ -177,7 +144,6 @@ export function TypographyPanel({ variant = 'docked' }: TypographyPanelProps) {
 
   return (
     <FrameworkScalePanel
-      variant={variant}
       isOpen={isOpen}
       onClose={() => setOpen(false)}
       adapter={adapter}

@@ -22,7 +22,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { loopSourceRegistry } from '@core/loops/registry'
 import type { LoopItem } from '@core/loops/types'
 import type { ContentEntry } from '@core/content/schemas'

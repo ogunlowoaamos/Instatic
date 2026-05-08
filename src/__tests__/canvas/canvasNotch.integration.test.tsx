@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useEditorStore } from '@core/editor-store/store'
-import { CanvasNotch } from '../../editor/components/Canvas/CanvasNotch'
-import '../../modules/base/index'
+import { useEditorStore } from '@site/store/store'
+import { CanvasNotch } from '@site/canvas/CanvasNotch'
+import '@modules/base/index'
 
 beforeEach(() => {
   localStorage.clear()

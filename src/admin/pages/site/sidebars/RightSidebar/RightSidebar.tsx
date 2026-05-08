@@ -1,7 +1,7 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react'
-import { selectRightSidebarExpanded, useEditorStore } from '@core/editor-store/store'
-import { PropertiesPanel } from '../PropertiesPanel'
-import { SidebarResizeHandle } from '../shared/SidebarResizeHandle'
+import { selectRightSidebarExpanded, useEditorStore } from '@site/store/store'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel'
+import { SidebarResizeHandle } from '@admin/shared/SidebarResizeHandle'
 import styles from './RightSidebar.module.css'
 
 interface RightSidebarProps {

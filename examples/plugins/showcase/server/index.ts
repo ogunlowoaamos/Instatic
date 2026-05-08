@@ -45,9 +45,16 @@ const mod: ServerPluginModule = {
 
     api.cms.hooks.on('tracker.event', async (evt) => {
       if (evt.pluginId !== api.plugin.id && evt.pluginId !== '__implicit__') return
+
+      // Settings drive runtime behaviour — read live, not at activate-time,
+      // so user edits in the Settings dialog take effect immediately.
+      const prefix = api.cms.settings.get<string>('eventLabelPrefix') ?? ''
+      const storeOutbound = api.cms.settings.get<boolean>('storeOutboundClicks') ?? true
+      if (evt.eventName === 'link-click' && !storeOutbound) return
+
       try {
         await events.create({
-          name: evt.eventName,
+          name: prefix ? `${prefix}:${evt.eventName}` : evt.eventName,
           page: evt.pagePath || '',
           visitor: evt.visitorId || '',
           session: evt.sessionId || '',

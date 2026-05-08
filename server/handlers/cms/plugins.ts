@@ -25,6 +25,7 @@
  */
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { gt as semverGt, lt as semverLt } from 'semver'
 import type { DbClient } from '../../db/client'
 import { requireCapability } from '../../auth/authz'
 import type { AuthUser } from '../../repositories/users'
@@ -65,6 +66,7 @@ import {
   loadServerPluginModule,
   refreshPluginSettingsCache,
   runServerPluginLifecycleHook,
+  runServerPluginMigrateHook,
   serverPluginRuntime,
 } from '../../plugins/runtime'
 import {
@@ -128,11 +130,17 @@ function lifecycleErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Plugin lifecycle hook failed'
 }
 
+/**
+ * Wrapper used for the install / activate / deactivate / uninstall lifecycle
+ * paths. The `migrate` hook is intentionally excluded — its signature differs
+ * (takes a context object) and the upgrade flow handles it directly via
+ * `runServerPluginMigrateHook`.
+ */
 async function runPluginLifecycleHook(
   db: DbClient,
   plugin: InstalledPlugin,
   options: CmsHandlerOptions,
-  hook: ServerPluginLifecycleHook,
+  hook: Exclude<ServerPluginLifecycleHook, 'migrate'>,
   successStatus: PluginLifecycleStatus,
 ): Promise<{ plugin: InstalledPlugin; ok: boolean }> {
   const manifest = pluginManifestWithGrants(plugin)
@@ -172,6 +180,49 @@ async function runPluginLifecycleHook(
     const updated = await setPluginLifecycleStatus(db, plugin.id, 'error', lifecycleErrorMessage(err))
     return { plugin: updated ?? plugin, ok: false }
   }
+}
+
+/**
+ * Schedule deletion of a plugin's old version directory after the current
+ * tick — fire-and-forget. Used by the upgrade flow's success and rollback
+ * paths instead of an inline `await rm(...)` so the calling handler can
+ * return its Response synchronously without waiting on filesystem cleanup.
+ *
+ * Why deferred? In dev (`bun --watch`) the runtime tracks dynamically-
+ * imported plugin server files in its watch graph; deleting one triggers
+ * a server reload. Done inline that reload races the in-flight HTTP
+ * response and kills it mid-flush, leaving the client (e.g. the upgrade
+ * dialog in the admin UI) hanging in an inconsistent state. Deferring the
+ * `rm` past the response boundary is enough: the client receives its 200
+ * (or 400 on rollback) before bun's watcher fires.
+ *
+ * In production (no `--watch`), there is no reload to race with — the
+ * deferral is a harmless no-op delay.
+ */
+function scheduleStaleVersionCleanup(
+  pluginId: string,
+  version: string,
+  uploadsDir: string,
+): void {
+  const target = join(uploadsDir, `plugins/${pluginId}/${version}`)
+  // Defense-in-depth — same containment check as `removePluginAssets`.
+  try {
+    assertPluginPathWithin(uploadsDir, target)
+  } catch (err) {
+    console.error(
+      `[plugin:${pluginId}] scheduleStaleVersionCleanup refused to delete escaping path:`,
+      err,
+    )
+    return
+  }
+  setTimeout(() => {
+    rm(target, { recursive: true, force: true }).catch((err: unknown) => {
+      console.error(
+        `[plugin:${pluginId}] cleanup of /uploads/plugins/${pluginId}/${version} failed:`,
+        err,
+      )
+    })
+  }, 0)
 }
 
 async function removePluginAssets(plugin: InstalledPlugin, uploadsDir?: string): Promise<void> {
@@ -219,7 +270,7 @@ async function readPluginPackageForm(req: Request): Promise<{
 async function writePluginPackageFiles(
   uploadsDir: string,
   manifest: PluginManifest,
-  files: Record<string, string>,
+  files: Record<string, string | Uint8Array>,
 ): Promise<PluginManifest> {
   const relativeBasePath = `plugins/${manifest.id}/${manifest.version}`
   const diskBasePath = join(uploadsDir, relativeBasePath)
@@ -229,7 +280,13 @@ async function writePluginPackageFiles(
     if (path === 'plugin.json') continue
     const outputPath = join(diskBasePath, path)
     await mkdir(dirname(outputPath), { recursive: true })
-    await writeFile(outputPath, content, 'utf-8')
+    // Binary entries (icon PNG/WEBP, fonts) come through as Uint8Array;
+    // text entries (JS / JSON / SVG) as string. `writeFile` accepts both.
+    if (typeof content === 'string') {
+      await writeFile(outputPath, content, 'utf-8')
+    } else {
+      await writeFile(outputPath, content)
+    }
   }
 
   return {
@@ -249,24 +306,27 @@ async function getEnabledPluginResource(
 }
 
 /**
- * Record a plugin lifecycle action in the audit log. All four mutation
- * endpoints (install / enable / disable / delete) emit the same envelope —
- * actor, action verb, and a `{ pluginId }` metadata payload — so this helper
- * exists purely to keep the route handlers tidy.
+ * Record a plugin lifecycle action in the audit log. The mutation endpoints
+ * (install / update / enable / disable / delete) emit the same envelope —
+ * actor, action verb, and a metadata payload — so this helper exists purely
+ * to keep the route handlers tidy. Update events carry the version delta in
+ * metadata so audit log consumers can distinguish a fresh install from an
+ * upgrade without re-fetching the plugin row.
  */
 async function recordPluginAuditEvent(
   db: DbClient,
   user: AuthUser,
   req: Request,
-  action: 'plugin.install' | 'plugin.enable' | 'plugin.disable' | 'plugin.delete',
+  action: 'plugin.install' | 'plugin.update' | 'plugin.enable' | 'plugin.disable' | 'plugin.delete',
   pluginId: string,
+  metadata: Record<string, unknown> = {},
 ): Promise<void> {
   await createAuditEvent(db, {
     actorUserId: user.id,
     action,
     targetType: 'plugin',
     targetId: pluginId,
-    metadata: { pluginId },
+    metadata: { pluginId, ...metadata },
     ...requestAuditContext(req),
   })
 }
@@ -346,64 +406,329 @@ async function handlePackageInstall(
     const pluginPackage = await readPluginPackage(file)
     const grantError = assertPluginPermissionGrants(pluginPackage.manifest, grantedPermissions)
     if (grantError) return grantError
-    const manifest = await writePluginPackageFiles(
-      options.uploadsDir,
-      pluginPackage.manifest,
-      pluginPackage.files,
-    )
-    const installed = await installPlugin(db, manifest, grantedPermissions)
-    const installLifecycle = await runPluginLifecycleHook(db, installed, options, 'install', 'installed')
-    if (!installLifecycle.ok) {
-      return jsonResponse(
-        { plugin: installLifecycle.plugin, ...await pluginsPayload(db) },
-        { status: 201 },
+
+    // Detect upgrade vs. fresh install BEFORE writing assets. The repository
+    // does an upsert, but the lifecycle and rollback semantics differ
+    // significantly between the two paths so we branch explicitly.
+    const existing = await getInstalledPlugin(db, pluginPackage.manifest.id)
+    if (existing && semverLt(pluginPackage.manifest.version, existing.version)) {
+      return badRequest(
+        `Plugin "${existing.id}" is installed at ${existing.version}; refusing to downgrade to ${pluginPackage.manifest.version}.`,
       )
     }
 
-    serverPluginRuntime.unregisterPlugin(installed.id)
-    const activateLifecycle = await runPluginLifecycleHook(
-      db,
-      installLifecycle.plugin,
-      options,
-      'activate',
-      'active',
-    )
-
-    // Auto-install bundled pack — when the manifest declares one and the user
-    // granted `visualComponents.register`, importing the pack is what they
-    // expected. Skipping the manual "Install pack" click means a UI Kit-style
-    // plugin "just works" after upload.
-    let packSummary: Awaited<ReturnType<typeof installPluginPackToSite>> | null = null
-    if (
-      activateLifecycle.ok &&
-      activateLifecycle.plugin.manifest.pack &&
-      activateLifecycle.plugin.grantedPermissions.includes('visualComponents.register') &&
-      options.uploadsDir
-    ) {
-      try {
-        packSummary = await installPluginPackToSite(
-          db,
-          activateLifecycle.plugin,
-          options.uploadsDir,
-          user.id,
-          req,
-        )
-      } catch (err) {
-        console.error(`[plugins:${activateLifecycle.plugin.id}] auto pack install failed`, err)
-      }
+    if (existing && semverGt(pluginPackage.manifest.version, existing.version)) {
+      return await handlePluginUpgrade({
+        db,
+        options,
+        user,
+        req,
+        existing,
+        pluginPackage,
+        grantedPermissions,
+      })
     }
 
-    await recordPluginAuditEvent(db, user, req, 'plugin.install', activateLifecycle.plugin.id)
-    return jsonResponse(
-      {
-        plugin: activateLifecycle.plugin,
-        ...await pluginsPayload(db),
-        pack: packSummary,
-      },
-      { status: 201 },
-    )
+    return await handleFreshPluginInstall({
+      db,
+      options,
+      user,
+      req,
+      pluginPackage,
+      grantedPermissions,
+    })
   } catch (err) {
     return badRequest(err instanceof Error ? err.message : 'Invalid plugin package')
+  }
+}
+
+interface InstallContext {
+  db: DbClient
+  options: CmsHandlerOptions
+  user: AuthUser
+  req: Request
+  pluginPackage: Awaited<ReturnType<typeof readPluginPackage>>
+  grantedPermissions: PluginPermission[]
+}
+
+async function handleFreshPluginInstall(ctx: InstallContext): Promise<Response> {
+  const { db, options, user, req, pluginPackage, grantedPermissions } = ctx
+  if (!options.uploadsDir) throw new Error('uploadsDir required')
+
+  const manifest = await writePluginPackageFiles(
+    options.uploadsDir,
+    pluginPackage.manifest,
+    pluginPackage.files,
+  )
+  const installed = await installPlugin(db, manifest, grantedPermissions)
+  const installLifecycle = await runPluginLifecycleHook(db, installed, options, 'install', 'installed')
+  if (!installLifecycle.ok) {
+    return jsonResponse(
+      { plugin: installLifecycle.plugin, ...await pluginsPayload(db) },
+      { status: 201 },
+    )
+  }
+
+  serverPluginRuntime.unregisterPlugin(installed.id)
+  const activateLifecycle = await runPluginLifecycleHook(
+    db,
+    installLifecycle.plugin,
+    options,
+    'activate',
+    'active',
+  )
+
+  // Auto-install bundled pack — when the manifest declares one and the user
+  // granted `visualComponents.register`, importing the pack is what they
+  // expected. Skipping the manual "Install pack" click means a UI Kit-style
+  // plugin "just works" after upload.
+  let packSummary: Awaited<ReturnType<typeof installPluginPackToSite>> | null = null
+  if (
+    activateLifecycle.ok &&
+    activateLifecycle.plugin.manifest.pack &&
+    activateLifecycle.plugin.grantedPermissions.includes('visualComponents.register') &&
+    options.uploadsDir
+  ) {
+    try {
+      packSummary = await installPluginPackToSite(
+        db,
+        activateLifecycle.plugin,
+        options.uploadsDir,
+        user.id,
+        req,
+      )
+    } catch (err) {
+      console.error(`[plugins:${activateLifecycle.plugin.id}] auto pack install failed`, err)
+    }
+  }
+
+  await recordPluginAuditEvent(db, user, req, 'plugin.install', activateLifecycle.plugin.id, {
+    version: activateLifecycle.plugin.version,
+  })
+  return jsonResponse(
+    {
+      plugin: activateLifecycle.plugin,
+      ...await pluginsPayload(db),
+      pack: packSummary,
+    },
+    { status: 201 },
+  )
+}
+
+interface UpgradeContext extends InstallContext {
+  existing: InstalledPlugin
+}
+
+/**
+ * Upgrade an existing plugin to a newer version.
+ *
+ * Order of operations:
+ *   1. Run old version's `deactivate(api)` and unregister its module pack.
+ *   2. Write the new version's assets to its own version-stamped dir
+ *      (`/uploads/plugins/{id}/{newVersion}/`). The old version's dir is
+ *      preserved on disk until step 6 — that's what makes rollback cheap.
+ *   3. Replace the DB row with the new manifest (settings, granted
+ *      permissions from the user's confirmation, installed_at preserved).
+ *   4. Run new version's `migrate({ fromVersion }, api)`.
+ *   5. Run new version's `activate(api)`.
+ *   6. Delete the OLD version's asset dir.
+ *
+ * Any failure in steps 4 or 5 triggers a rollback: revert the DB row to the
+ * previous manifest, delete the new version's assets, re-activate the
+ * previous version. The plugin ends in `error` status with a message that
+ * explains the upgrade failure.
+ */
+async function handlePluginUpgrade(ctx: UpgradeContext): Promise<Response> {
+  const { db, options, user, req, existing, pluginPackage, grantedPermissions } = ctx
+  if (!options.uploadsDir) throw new Error('uploadsDir required')
+  const fromVersion = existing.version
+  const newVersion = pluginPackage.manifest.version
+  const pluginId = existing.id
+
+  // 1. Deactivate the old version. Best-effort — a deactivate failure
+  //    shouldn't prevent the upgrade from proceeding (the new version is
+  //    about to replace it anyway). We log and move on.
+  try {
+    const oldManifest = pluginManifestWithGrants(existing)
+    if (oldManifest.entrypoints?.server) {
+      const oldMod = await loadServerPluginModule(oldManifest, options.uploadsDir)
+      if (oldMod?.deactivate) {
+        await runServerPluginLifecycleHook(oldManifest, oldMod, db, 'deactivate')
+      }
+    }
+  } catch (err) {
+    console.error(`[plugin:${pluginId}] pre-upgrade deactivate failed`, err)
+  }
+  serverPluginRuntime.unregisterPlugin(pluginId)
+  deactivatePluginModulePack(pluginId)
+
+  // 2. Write new assets.
+  const newManifest = await writePluginPackageFiles(
+    options.uploadsDir,
+    pluginPackage.manifest,
+    pluginPackage.files,
+  )
+
+  // 3. Replace DB row. `installPlugin` upserts — settings_json + installed_at
+  //    are preserved by the SET clause (it doesn't reference them).
+  const upgraded = await installPlugin(db, newManifest, grantedPermissions)
+
+  // 4 + 5. Try to migrate then activate. On any failure we restore the old
+  //        version end-to-end.
+  try {
+    const upgradedManifest = pluginManifestWithGrants(upgraded)
+    const newMod = await loadServerPluginModule(upgradedManifest, options.uploadsDir)
+    if (newMod?.migrate) {
+      await runServerPluginMigrateHook(upgradedManifest, newMod, db, { fromVersion })
+    }
+    if (
+      upgradedManifest.entrypoints?.modules
+      && upgradedManifest.grantedPermissions?.includes('modules.register')
+    ) {
+      try {
+        const pack = await loadPluginModulePack(upgradedManifest, options.uploadsDir)
+        if (pack) activatePluginModulePack(upgradedManifest, pack)
+      } catch (err) {
+        console.error(`[plugin:${pluginId}] post-upgrade module pack load failed`, err)
+      }
+    }
+    if (newMod?.activate) {
+      await runServerPluginLifecycleHook(upgradedManifest, newMod, db, 'activate')
+    }
+    await setPluginLifecycleStatus(db, pluginId, 'active')
+  } catch (err) {
+    // Rollback. The DB row + on-disk new assets need to be reverted.
+    const failureMessage = lifecycleErrorMessage(err)
+    console.error(`[plugin:${pluginId}] upgrade ${fromVersion} → ${newVersion} failed:`, err)
+    await rollbackUpgrade({ db, options, existing, newManifest })
+    return jsonResponse(
+      {
+        error: `Upgrade failed: ${failureMessage}. Rolled back to version ${fromVersion}.`,
+        ...await pluginsPayload(db),
+      },
+      { status: 400 },
+    )
+  }
+
+  // 6. Drop the old version's assets — DEFERRED. In dev (`bun --watch`)
+  //    the runtime tracks dynamically-imported plugin files in its watch
+  //    graph, and deleting one triggers a server reload. If we awaited the
+  //    `rm` here, the reload would race the response write: the in-flight
+  //    HTTP response would get killed mid-flush and the admin client would
+  //    see an aborted connection (catch block fires → `setPendingInstall`
+  //    never clears → upgrade dialog sticks). Scheduling the cleanup with
+  //    `setTimeout(_, 0)` returns the response synchronously after this
+  //    function ends; bun's reload (if it happens) fires after the client
+  //    has its 200. In production (no `--watch`), this is just a tiny
+  //    bookkeeping deferral — no reload to worry about.
+  scheduleStaleVersionCleanup(pluginId, fromVersion, options.uploadsDir)
+
+  // Re-fetch so the response carries the post-activation row (settings,
+  // lifecycle = 'active', etc.).
+  const finalRow = (await getInstalledPlugin(db, pluginId)) ?? upgraded
+
+  // Auto-install pack on upgrade too — same trigger conditions as fresh
+  // install. A new pack version often ships new VCs/templates that the
+  // user expects to see immediately.
+  let packSummary: Awaited<ReturnType<typeof installPluginPackToSite>> | null = null
+  if (
+    finalRow.manifest.pack &&
+    finalRow.grantedPermissions.includes('visualComponents.register')
+  ) {
+    try {
+      packSummary = await installPluginPackToSite(db, finalRow, options.uploadsDir, user.id, req)
+    } catch (err) {
+      console.error(`[plugins:${pluginId}] post-upgrade pack install failed`, err)
+    }
+  }
+
+  await recordPluginAuditEvent(db, user, req, 'plugin.update', pluginId, {
+    fromVersion,
+    toVersion: newVersion,
+  })
+  return jsonResponse(
+    {
+      plugin: finalRow,
+      ...await pluginsPayload(db),
+      pack: packSummary,
+      upgrade: { fromVersion, toVersion: newVersion },
+    },
+    { status: 200 },
+  )
+}
+
+/**
+ * Restore a plugin to its prior version after a failed upgrade.
+ *
+ *  - DB row is rolled back via `installPlugin(prevManifest, prevGrants)`.
+ *    This is the same upsert path as a fresh install — `settings_json`
+ *    and `installed_at` are preserved automatically.
+ *  - The prior version's asset dir is still on disk (we didn't touch it
+ *    during the upgrade attempt), so no asset restore is needed.
+ *  - The new version's asset dir is removed.
+ *  - Best-effort re-activation of the prior version. If THAT fails too,
+ *    the plugin is parked in `error` state with a chained message; the
+ *    site owner can resolve manually from the admin UI.
+ */
+async function rollbackUpgrade(args: {
+  db: DbClient
+  options: CmsHandlerOptions
+  existing: InstalledPlugin
+  newManifest: PluginManifest
+}): Promise<void> {
+  const { db, options, existing, newManifest } = args
+  const pluginId = existing.id
+
+  // Restore DB row to previous manifest + grants. The upsert preserves
+  // settings + installed_at automatically.
+  const restored = await installPlugin(
+    db,
+    pluginManifestWithGrants(existing),
+    existing.grantedPermissions,
+  )
+
+  // Drop new version assets — the upgrade didn't take. Same dev-watch
+  // hazard as the success-path cleanup: deleting an imported plugin file
+  // races the response write under `bun --watch`. Defer with the shared
+  // helper so the 400 lands on the client first.
+  if (options.uploadsDir) {
+    scheduleStaleVersionCleanup(pluginId, newManifest.version, options.uploadsDir)
+  }
+
+  // Re-activate prior version. Best-effort: a rollback that crashes during
+  // re-activation leaves the plugin disabled-with-error, which is still a
+  // safer state than half-upgraded.
+  serverPluginRuntime.unregisterPlugin(pluginId)
+  deactivatePluginModulePack(pluginId)
+  try {
+    const restoredManifest = pluginManifestWithGrants(restored)
+    if (
+      restoredManifest.entrypoints?.modules
+      && restoredManifest.grantedPermissions?.includes('modules.register')
+    ) {
+      const pack = await loadPluginModulePack(restoredManifest, options.uploadsDir)
+      if (pack) activatePluginModulePack(restoredManifest, pack)
+    }
+    if (restoredManifest.entrypoints?.server) {
+      const restoredMod = await loadServerPluginModule(restoredManifest, options.uploadsDir)
+      if (restoredMod?.activate) {
+        await runServerPluginLifecycleHook(restoredManifest, restoredMod, db, 'activate')
+      }
+    }
+    await setPluginLifecycleStatus(
+      db,
+      pluginId,
+      'error',
+      `Upgrade to ${newManifest.version} failed; rolled back to ${existing.version}.`,
+    )
+  } catch (err) {
+    console.error(`[plugin:${pluginId}] rollback re-activate failed`, err)
+    await setPluginLifecycleStatus(
+      db,
+      pluginId,
+      'error',
+      `Upgrade to ${newManifest.version} failed and rollback re-activate failed: ${lifecycleErrorMessage(err)}`,
+    )
   }
 }
 

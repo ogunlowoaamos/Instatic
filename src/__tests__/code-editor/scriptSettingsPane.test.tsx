@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { CodeEditorPanel } from '../../editor/components/CodeEditor'
-import { useEditorStore } from '@core/editor-store/store'
+import { CodeEditorPanel } from '@site/code-editor'
+import { useEditorStore } from '@site/store/store'
 import { makePage, makeSite } from '../fixtures'
 import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
 

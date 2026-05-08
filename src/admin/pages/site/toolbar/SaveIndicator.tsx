@@ -9,15 +9,15 @@
  * without interrupting the user's workflow (polite, not assertive).
  */
 
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { useState } from 'react'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
 import { CircleAlertIcon } from 'pixel-art-icons/icons/circle-alert'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import { SaveIcon } from 'pixel-art-icons/icons/save'
-import { useEditorPreference } from '../../preferences/editorPreferences'
-import type { PersistenceSaveStatus } from '@editor/hooks/usePersistence'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
+import type { PersistenceSaveStatus } from '@site/hooks/usePersistence'
 import styles from './Toolbar.module.css'
 
 interface SaveIndicatorProps {

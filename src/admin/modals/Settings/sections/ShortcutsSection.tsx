@@ -1,7 +1,7 @@
 /**
  * ShortcutsSection — keyboard shortcut reference table.
  */
-import s from '../Settings.module.css'
+import s from '../SettingsModal.module.css'
 
 const SHORTCUTS: Array<{ category: string; items: Array<{ keys: string[]; action: string }> }> = [
   {

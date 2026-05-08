@@ -14,6 +14,7 @@ import {
 } from '@core/plugins/manifest'
 import type {
   PluginManifest,
+  PluginMigrationContext,
   PluginModulesEntrypointModule,
   RouteMethod,
   ServerPluginApi,
@@ -282,11 +283,28 @@ export async function runServerPluginLifecycleHook(
   manifest: PluginManifest,
   mod: ServerPluginModule,
   db: DbClient,
-  hook: ServerPluginLifecycleHook,
+  hook: Exclude<ServerPluginLifecycleHook, 'migrate'>,
 ): Promise<void> {
   const handler = mod[hook]
   if (!handler) return
   await handler(createServerPluginApi(manifest, db))
+}
+
+/**
+ * Run the `migrate` hook on a plugin module. Separated from the generic
+ * lifecycle runner because the signature differs — `migrate` takes a context
+ * object with the previous version string in addition to the standard
+ * `ServerPluginApi`.
+ */
+export async function runServerPluginMigrateHook(
+  manifest: PluginManifest,
+  mod: ServerPluginModule,
+  db: DbClient,
+  ctx: PluginMigrationContext,
+): Promise<void> {
+  const handler = mod.migrate
+  if (!handler) return
+  await handler(ctx, createServerPluginApi(manifest, db))
 }
 
 /**

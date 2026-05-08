@@ -17,12 +17,12 @@ import { publishPage, renderNode, type RenderContext } from '@core/publisher/ren
 import { makePage, makeSite, makeModule, makeRegistry } from './helpers'
 
 // Import REAL base modules — they self-register on import
-import { TextModule } from '../../modules/base/text'
-import { ButtonModule } from '../../modules/base/button'
-import { LinkModule } from '../../modules/base/link'
-import { ImageModule } from '../../modules/base/image'
-import { ContainerModule } from '../../modules/base/container'
-import { ListModule } from '../../modules/base/list'
+import { TextModule } from '@modules/base/text'
+import { ButtonModule } from '@modules/base/button'
+import { LinkModule } from '@modules/base/link'
+import { ImageModule } from '@modules/base/image'
+import { ContainerModule } from '@modules/base/container'
+import { ListModule } from '@modules/base/list'
 import { registry } from '@core/module-engine/registry'
 
 // Confirm real modules are registered

@@ -1,8 +1,8 @@
 import { useCallback, type ReactNode, type SyntheticEvent } from "react";
 import { registry } from "@core/module-engine/registry";
-import { useInsertModule } from "../../hooks/useInsertModule";
-import { ModulePickerDropdown } from "../Toolbar/ModulePickerDropdown";
-import { ModuleIcon } from "../../ui/ModuleIcon";
+import { useInsertModule } from "@site/hooks/useInsertModule";
+import { ModulePickerDropdown } from "@site/toolbar/ModulePickerDropdown";
+import { ModuleIcon } from "@site/ui/ModuleIcon";
 import type { IconComponent } from "pixel-art-icons/types";
 import { Button } from "@ui/components/Button";
 import { UndoRedoButtons } from "./UndoRedoButtons";

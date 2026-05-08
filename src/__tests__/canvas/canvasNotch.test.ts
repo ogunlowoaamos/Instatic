@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'bun:test'
 import { readFileSync } from 'fs'
 
-const CANVAS_ROOT = new URL('../../editor/components/Canvas/CanvasRoot.tsx', import.meta.url)
-const CANVAS_NOTCH = new URL('../../editor/components/Canvas/CanvasNotch.tsx', import.meta.url)
-const CANVAS_NOTCH_CSS = new URL('../../editor/components/Canvas/CanvasNotch.module.css', import.meta.url)
-const TOOLBAR = new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url)
-const MODULE_PICKER = new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url)
+const CANVAS_ROOT = new URL('../../admin/pages/site/canvas/CanvasRoot.tsx', import.meta.url)
+const CANVAS_NOTCH = new URL('../../admin/pages/site/canvas/CanvasNotch.tsx', import.meta.url)
+const CANVAS_NOTCH_CSS = new URL('../../admin/pages/site/canvas/CanvasNotch.module.css', import.meta.url)
+const TOOLBAR = new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url)
+const MODULE_PICKER = new URL('../../admin/pages/site/toolbar/ModulePickerDropdown.tsx', import.meta.url)
 
 describe('CanvasNotch', () => {
   it('is rendered by CanvasRoot as fixed canvas chrome', () => {

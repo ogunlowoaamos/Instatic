@@ -187,7 +187,7 @@ describe('CanvasRoot — stable breakpoints selector (crash regression)', () => 
    * to define a module-level constant `EMPTY_BREAKPOINTS` and use it as the
    * fallback. This test locks in that fix so it cannot be silently reverted.
    */
-  const canvasRootPath = join(SRC_ROOT, 'editor/components/Canvas/CanvasRoot.tsx')
+  const canvasRootPath = join(SRC_ROOT, 'admin/pages/site/canvas/CanvasRoot.tsx')
 
   it('declares a module-level EMPTY_BREAKPOINTS constant', () => {
     const src = readFileSync(canvasRootPath, 'utf-8')
@@ -342,7 +342,7 @@ describe('Guideline #239 — multi-line selector fallback scan', () => {
 
 describe('usePersistence — subscription selector is primitive, not inline object', () => {
   // usePersistence moved to src/editor/hooks/ per Constraint #179 (Phase 0 — no React in core)
-  const persistencePath = join(SRC_ROOT, 'editor/hooks/usePersistence.ts')
+  const persistencePath = join(SRC_ROOT, 'admin/pages/site/hooks/usePersistence.ts')
 
   it('subscribe call does not use an inline object literal as selector', () => {
     const src = readFileSync(persistencePath, 'utf-8')
@@ -408,7 +408,7 @@ describe('usePersistence — subscription selector is primitive, not inline obje
 // ---------------------------------------------------------------------------
 
 describe('Guideline #242 — spread-setter Object.is guards in uiSlice', () => {
-  const uiSlicePath = join(SRC_ROOT, 'core/editor-store/slices/uiSlice.ts')
+  const uiSlicePath = join(SRC_ROOT, 'admin/pages/site/store/slices/uiSlice.ts')
 
   it('uiSlice.ts setDomTreePanel uses Object.is to guard against no-op mutations', () => {
     const src = readFileSync(uiSlicePath, 'utf-8')
@@ -468,7 +468,7 @@ describe('Guideline #242 — spread-setter Object.is guards in uiSlice', () => {
 
 describe('Guideline #242 — no new unguarded spread setters in slice files', () => {
   it('every slice file that uses spread-based partial merges also has Object.is guards', () => {
-    const slicesDir = join(SRC_ROOT, 'core/editor-store/slices')
+    const slicesDir = join(SRC_ROOT, 'admin/pages/site/store/slices')
 
     let sliceFiles: string[] = []
     try {

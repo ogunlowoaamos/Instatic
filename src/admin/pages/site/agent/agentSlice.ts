@@ -26,15 +26,15 @@
  */
 
 import { nanoid } from 'nanoid'
-import type { EditorStore, EditorStoreSliceCreator } from '../editor-store/types'
-import { registry } from '../module-engine/registry'
+import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
+import { registry } from '@core/module-engine/registry'
 import type {
   AnyModuleDefinition,
   PropertyControl,
   PropertySchema,
-} from '../module-engine/types'
+} from '@core/module-engine/types'
 import { Type } from '@core/utils/typeboxHelpers'
-import type { Page } from '../page-tree/schemas'
+import type { Page } from '@core/page-tree/schemas'
 import { executeAgentTool } from './executor'
 import { AGENT_API_PATH, AGENT_TOOL_RESULT_PATH } from './agentConfig'
 import { safeParseJson } from '@core/utils/jsonValidate'
@@ -182,7 +182,7 @@ async function postToolResult(
 // Implementation
 // ---------------------------------------------------------------------------
 
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends AgentSlice {}
 }
 

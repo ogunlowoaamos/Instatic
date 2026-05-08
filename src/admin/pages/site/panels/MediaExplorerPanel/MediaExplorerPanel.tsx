@@ -9,7 +9,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { checkSizeLimit } from '@core/files/upload'
 import {
   deleteCmsMediaAsset,
@@ -18,7 +18,7 @@ import {
   uploadCmsMediaAsset,
   type CmsMediaAsset,
 } from '@core/persistence/cmsMedia'
-import { PanelHeader } from '../shared/PanelHeader'
+import { PanelHeader } from '@admin/shared/PanelHeader'
 import { Button } from '@ui/components/Button'
 import { EmptyState } from '@ui/components/EmptyState'
 import { FileUpload } from '@ui/components/FileUpload'
@@ -38,7 +38,7 @@ import {
   ExplorerRenameDialog,
   type ExplorerContextMenuItem,
   type ExplorerRenamePayload,
-} from '../ExplorerPanelActions'
+} from '@site/explorer-actions'
 import styles from '../SiteExplorerPanel/SiteExplorerPanel.module.css'
 
 interface MediaExplorerPanelProps {

@@ -18,7 +18,7 @@
  * @see Guideline #324    — Phase 6 Settings Modal: Implementation Architecture
  */
 
-import type { EditorStoreSliceCreator } from '../types'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,7 +62,7 @@ const DEFAULT_SECTION: SettingsSection = 'general'
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends SettingsSlice {}
 }
 

@@ -22,10 +22,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DndContext } from '@dnd-kit/core'
-import { useEditorStore } from '@core/editor-store/store'
-import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
-import '../../modules/base'
+import { useEditorStore } from '@site/store/store'
+import { CanvasRoot } from '@site/canvas/CanvasRoot'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
+import '@modules/base'
 
 afterEach(cleanup)
 

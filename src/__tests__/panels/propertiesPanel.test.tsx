@@ -19,12 +19,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
-import { useEditorStore } from '@core/editor-store/store'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
+import { useEditorStore } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import { makeSite, makePage, makeNode } from '../fixtures'
 // Register all base modules so registry.get() works during tests
-import '../../modules/base/index'
+import '@modules/base/index'
 
 afterEach(cleanup)
 
@@ -245,7 +245,7 @@ describe('PropertiesPanel — header rename uncontrolled input (Guideline #220)'
   it('element name input uses defaultValue (not value) — uncontrolled pattern', async () => {
     const { readFileSync } = await import('fs')
     const src = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/PropertiesPanel.tsx', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/PropertiesPanel.tsx', import.meta.url),
       'utf-8'
     )
     // NodeHeader uses defaultValue for the inline label editor

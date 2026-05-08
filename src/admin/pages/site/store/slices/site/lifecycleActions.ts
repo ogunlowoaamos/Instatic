@@ -2,7 +2,7 @@
  * SiteDocument lifecycle actions: createSite, loadSite, clearSite, updateSiteName.
  */
 
-import { renderCache } from '@core/engine/renderCache'
+import { renderCache } from '@site/canvas/renderCache'
 import {
   clonePackageJson,
   DEFAULT_SITE_PACKAGE_JSON,

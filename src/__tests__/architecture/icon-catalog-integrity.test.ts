@@ -14,14 +14,14 @@
  * dev; once published, consumers install from the registry.
  *
  * This test file:
- *   Gate 1 — scans all src/editor/ .tsx files for direct icon imports and
+ *   Gate 1 — scans all src/admin/pages/site/ .tsx files for direct icon imports and
  *             asserts each imported icon has a matching catalog file in the
  *             pixel-art-icons package (resolved through node_modules).
  *
  *   Gate 2 — verifies each catalog file exports the expected PascalCase component.
  *             Confirms direct imports target the expected component names.
  *
- *   Gate 3 — scans src/editor/ for inline <svg JSX (raw SVG definitions inside
+ *   Gate 3 — scans src/admin/pages/site/ for inline <svg JSX (raw SVG definitions inside
  *             component files), which violates Constraint #348 / Guideline #350.
  *
  * @see Task #389       — Icon Investigation + UI Polish Audit
@@ -34,7 +34,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { join, extname } from 'path'
 
 const PROJECT_ROOT = join(import.meta.dir, '../../../')
-const EDITOR_DIR   = join(PROJECT_ROOT, 'src/editor')
+const EDITOR_DIR   = join(PROJECT_ROOT, 'src/admin/pages/site')
 // Resolve the pixel-art-icons package via node_modules. The published shape
 // exposes built artifacts under dist/icons/<name>.js (+ .d.ts), so that's what
 // we check against — same path consumers see whether installed from the file:
@@ -95,7 +95,7 @@ function extractIconNames(source: string): string[] {
   return names
 }
 
-// ─── Gate 1: every direct icon import in src/editor/ has a catalog file ──────
+// ─── Gate 1: every direct icon import in src/admin/pages/site/ has a catalog file ──────
 
 describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
   const editorFiles = collectFiles(EDITOR_DIR)
@@ -116,7 +116,7 @@ describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
   // Deduplicate for the per-name tests
   const uniqueNames = [...new Set(allRefs.map((r) => r.name))]
 
-  it('at least one direct icon import is found in src/editor/ (sanity check)', () => {
+  it('at least one direct icon import is found in src/admin/pages/site/ (sanity check)', () => {
     expect(allRefs.length).toBeGreaterThan(0)
   })
 
@@ -194,13 +194,13 @@ describe('Gate 2 — Catalog files export the expected PascalCase component name
   }
 })
 
-// ─── Gate 3: no inline <svg JSX in src/editor/ components ────────────────────
+// ─── Gate 3: no inline <svg JSX in src/admin/pages/site/ components ────────────────────
 
-describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () => {
+describe('Gate 3 — No inline <svg JSX in src/admin/pages/site/ (Constraint #348)', () => {
   // Inline SVG definitions inside component files violate Constraint #348;
   // UI chrome should import concrete components from the MotionPageMaster set.
 
-  it('no src/editor/ .tsx file contains inline <svg JSX element definitions', () => {
+  it('no src/admin/pages/site/ .tsx file contains inline <svg JSX element definitions', () => {
     const editorFiles = collectFiles(EDITOR_DIR, ['.tsx'])
 
     // An "inline SVG definition" is a local function or component that returns
@@ -228,7 +228,7 @@ describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () =>
 
     if (violations.length > 0) {
       throw new Error(
-        `[Gate 3 — Task #389 / Constraint #348] ${violations.length} file(s) in src/editor/ ` +
+        `[Gate 3 — Task #389 / Constraint #348] ${violations.length} file(s) in src/admin/pages/site/ ` +
           `define inline <svg JSX elements.\n` +
           `All icons must use direct imports from 'pixel-art-icons/icons/<name>'.\n\n` +
           violations.map((f) => `  ${f}`).join('\n') +
@@ -259,7 +259,7 @@ describe('Gate 5 — No X/Twitter logo used as close/dismiss button (Constraint 
    *   — File path contains "Share" or "Social" (social-sharing UI)
    *   — File contains the comment: // allowed: X social brand mark
    */
-  it('no src/editor/ file imports XIcon unless it is an allowed social/share context', () => {
+  it('no src/admin/pages/site/ file imports XIcon unless it is an allowed social/share context', () => {
     const editorFiles = collectFiles(EDITOR_DIR, ['.tsx', '.ts'])
 
     // NOTE: patterns are assembled from parts so this test file does not self-match.
@@ -289,7 +289,7 @@ describe('Gate 5 — No X/Twitter logo used as close/dismiss button (Constraint 
 
     if (violations.length > 0) {
       throw new Error(
-        `[Gate 5 — Constraint #451] ${violations.length} file(s) in src/editor/ use XIcon (Twitter/X logo).\n` +
+        `[Gate 5 — Constraint #451] ${violations.length} file(s) in src/admin/pages/site/ use XIcon (Twitter/X logo).\n` +
           `X icon is the Twitter logo — see Constraint #451 for the correct icon.\n\n` +
           `Use the site-standard close icon instead:\n` +
           `  import { CloseIcon } from 'pixel-art-icons/icons/close'\n` +
@@ -347,7 +347,7 @@ describe('Gate 4 — No Unicode/emoji characters used as visual icons (user dire
     { char: '⬆',  desc: 'upwards black arrow', replacement: 'ArrowUpIcon' },
   ]
 
-  // Scan src/editor/ and src/admin/.
+  // Scan src/admin/pages/site/ and src/admin/.
   const APP_DIR = join(PROJECT_ROOT, 'src/admin')
   const ACTIVE_APP_FILES = [
     join(APP_DIR, 'AdminLayout.tsx'),

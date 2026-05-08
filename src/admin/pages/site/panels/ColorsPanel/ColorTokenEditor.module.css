@@ -1,0 +1,29 @@
+.editor {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+}
+
+.field {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.utilityGrid {
+    display: grid;
+    gap: 4px;
+    padding-top: 3px;
+    border-top: 1px solid var(--panel-border);
+}
+
+.variantControl {
+    display: grid;
+    gap: 7px;
+    padding-top: 7px;
+    border-top: 1px solid var(--panel-border);
+}

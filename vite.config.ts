@@ -150,10 +150,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@core': path.resolve(__dirname, 'src/core'),
-      '@editor': path.resolve(__dirname, 'src/editor'),
       '@modules': path.resolve(__dirname, 'src/modules'),
       '@ui': path.resolve(__dirname, 'src/ui'),
       '@admin': path.resolve(__dirname, 'src/admin'),
+      '@site': path.resolve(__dirname, 'src/admin/pages/site'),
+      '@content': path.resolve(__dirname, 'src/admin/pages/content'),
+      '@plugins': path.resolve(__dirname, 'src/admin/pages/plugins'),
+      '@users': path.resolve(__dirname, 'src/admin/pages/users'),
       // pixel-art-icons resolves through node_modules (link: dep during local
       // dev, registry version once published). No alias needed.
     },

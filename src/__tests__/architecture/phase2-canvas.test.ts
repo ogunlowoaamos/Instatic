@@ -65,7 +65,7 @@ const SRC_ROOT = join(import.meta.dir, '../../')
 // Phase 2 canvas implementation directory (expected location)
 // Adjust if Full Stack Engineer places it elsewhere.
 const CANVAS_DIRS = [
-  join(SRC_ROOT, 'editor/components/Canvas'), // actual site layout
+  join(SRC_ROOT, 'admin/pages/site/canvas'), // actual site layout
   join(SRC_ROOT, 'components/Canvas'),
   join(SRC_ROOT, 'editor/Canvas'),
   join(SRC_ROOT, 'ui/Canvas'),
@@ -338,8 +338,8 @@ describe('Phase 2 — No React onWheel= on canvas root (must use native listener
 
   it('useCanvas must not route wheel pan/zoom through @use-gesture React handlers', () => {
     const useCanvasPaths = [
-      join(SRC_ROOT, 'editor/hooks/useCanvas.ts'),
-      join(SRC_ROOT, 'editor/hooks/useCanvas.tsx'),
+      join(SRC_ROOT, 'admin/pages/site/hooks/useCanvas.ts'),
+      join(SRC_ROOT, 'admin/pages/site/hooks/useCanvas.tsx'),
       join(PHASE2_CANVAS_DIR!, 'useCanvas.ts'),
       join(PHASE2_CANVAS_DIR!, 'useCanvas.tsx'),
     ].filter(existsSync)
@@ -796,10 +796,10 @@ describe('Phase 2 — useCanvas must not live-subscribe to s.zoom/s.panX/s.panY 
       return
     }
 
-    // useCanvas lives in src/editor/hooks/ (outside the canvas component dir)
+    // useCanvas lives in src/admin/pages/site/hooks/ (outside the canvas component dir)
     const USE_CANVAS_PATHS = [
-      join(SRC_ROOT, 'editor/hooks/useCanvas.ts'),
-      join(SRC_ROOT, 'editor/hooks/useCanvas.tsx'),
+      join(SRC_ROOT, 'admin/pages/site/hooks/useCanvas.ts'),
+      join(SRC_ROOT, 'admin/pages/site/hooks/useCanvas.tsx'),
       join(PHASE2_CANVAS_DIR!, 'useCanvas.ts'),
       join(PHASE2_CANVAS_DIR!, 'useCanvas.tsx'),
     ].filter(existsSync)

@@ -1,0 +1,63 @@
+.card {
+    display: grid;
+    overflow: hidden;
+}
+
+.row {
+    display: grid;
+    width: 100%;
+    min-height: 42px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    border-radius: 12px;
+    background: var(--editor-surface);
+    color: var(--editor-text);
+    font: inherit;
+    padding: 6px 8px;
+}
+
+.swatches {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.rowToggle {
+    display: grid;
+    min-width: 0;
+    grid-column: 2 / 4;
+    align-items: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-align: left;
+}
+
+.rowText {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.rowTitle {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--editor-text);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rowMeta {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}

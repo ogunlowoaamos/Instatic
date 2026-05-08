@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import type { Page, PageNode } from '@core/page-tree/schemas'
-import { resolveDomDropTarget } from '../../editor/components/DomPanel/domPanelDnd'
+import { resolveDomDropTarget } from '@site/panels/DomPanel/domPanelDnd'
 
 // ---------------------------------------------------------------------------
 // Helpers

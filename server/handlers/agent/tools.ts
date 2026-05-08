@@ -6,7 +6,7 @@ import type {
   AgentRenderSnapshotPayload,
   PageContext,
   ServerStreamEvent,
-} from '../../../src/core/agent/types'
+} from '@site/agent/types'
 
 // ---------------------------------------------------------------------------
 // Snapshot consumed by read-only tools (built once per request from PageContext)

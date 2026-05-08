@@ -20,10 +20,10 @@
  * filters. Both depend on schema work that hasn't landed yet.
  */
 
-import type { LoopEntitySource, LoopFetchResult, LoopItem, LoopSourceDb } from '../types'
-import { firstImagePathFromMarkdown } from '../../markdown/renderContentMarkdown'
-import { normalizeRouteBase } from '../../templates/templateMatching'
-import { publicContentUserFromParts } from '../../content/publicContentUser'
+import type { LoopEntitySource, LoopFetchResult, LoopItem, LoopSourceDb } from '@core/loops/types'
+import { firstImagePathFromMarkdown } from '@core/content/renderMarkdown'
+import { normalizeRouteBase } from '@core/templates/templateMatching'
+import { publicContentUserFromParts } from '@core/content/publicContentUser'
 
 interface PublishedEntryRow {
   version_id: string

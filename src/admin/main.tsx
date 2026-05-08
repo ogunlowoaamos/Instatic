@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot, type ErrorInfo } from 'react-dom/client'
-import { Router } from './lib/router'
+import { Router } from './lib/routing'
 import { AdminRoutes } from './router'
 import { ErrorBoundary, flattenErrorChain, logErrorChain } from '@ui/components/ErrorBoundary'
 import { ToastProvider, pushToast } from '@ui/components/Toast'

@@ -1,18 +1,18 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import type { LeftSidebarPanelId } from '@core/editor-store/slices/uiSlice'
-import { AgentPanel } from '../AgentPanel'
-import { ColorsPanel } from '../ColorsPanel'
-import { DependenciesPanel } from '../DependenciesPanel'
-import { DomPanel } from '../DomPanel'
-import { MediaExplorerPanel } from '../MediaExplorerPanel'
-import { PanelRail } from '../PanelRail'
-import { SelectorsPanel } from '../SelectorsPanel'
-import { SiteExplorerPanel } from '../SiteExplorerPanel'
-import { TypographyPanel } from '../TypographyPanel'
-import { SpacingPanel } from '../SpacingPanel'
-import { FrameworkChangeConfirmProvider } from '../shared/FrameworkChangeConfirmDialog'
-import { SidebarResizeHandle } from '../shared/SidebarResizeHandle'
+import { useEditorStore } from '@site/store/store'
+import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
+import { AgentPanel } from '@site/panels/AgentPanel'
+import { ColorsPanel } from '@site/panels/ColorsPanel'
+import { DependenciesPanel } from '@site/panels/DependenciesPanel'
+import { DomPanel } from '@site/panels/DomPanel'
+import { MediaExplorerPanel } from '@site/panels/MediaExplorerPanel'
+import { PanelRail } from '@site/sidebars/PanelRail'
+import { SelectorsPanel } from '@site/panels/SelectorsPanel'
+import { SiteExplorerPanel } from '@site/panels/SiteExplorerPanel'
+import { TypographyPanel } from '@site/panels/TypographyPanel'
+import { SpacingPanel } from '@site/panels/SpacingPanel'
+import { FrameworkChangeConfirmProvider } from '@admin/shared/dialogs/FrameworkChangeConfirmDialog'
+import { SidebarResizeHandle } from '@admin/shared/SidebarResizeHandle'
 import styles from './LeftSidebar.module.css'
 
 function selectActiveLeftSidebarPanel(state: ReturnType<typeof useEditorStore.getState>): LeftSidebarPanelId | null {
@@ -75,13 +75,13 @@ export function LeftSidebar({ workspace = 'site', contentPanel, editable = true 
                 <SelectorsPanel variant="docked" />
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'colors'}>
-                <ColorsPanel variant="docked" />
+                <ColorsPanel />
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'typography'}>
-                <TypographyPanel variant="docked" />
+                <TypographyPanel />
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'spacing'}>
-                <SpacingPanel variant="docked" />
+                <SpacingPanel />
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'media'}>
                 <MediaExplorerPanel variant="docked" />

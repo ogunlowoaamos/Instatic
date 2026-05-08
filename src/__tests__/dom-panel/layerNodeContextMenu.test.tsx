@@ -14,15 +14,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { LayerNodeContextMenu } from '../../editor/components/DomPanel/LayerNodeContextMenu'
-import { useEditorStore } from '@core/editor-store/store'
+import { LayerNodeContextMenu } from '@site/panels/DomPanel/LayerNodeContextMenu'
+import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { VisualComponent } from '@core/visualComponents/schemas'
 import {
   ConfirmDeleteContext,
   type ConfirmDeleteRequest,
-} from '../../editor/components/shared/ConfirmDeleteDialog/confirmDeleteHook'
-import '../../modules/base/index'
+} from '@admin/shared/dialogs/ConfirmDeleteDialog/confirmDeleteHook'
+import '@modules/base/index'
 
 afterEach(cleanup)
 

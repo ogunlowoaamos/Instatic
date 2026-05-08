@@ -23,7 +23,7 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk'
 import { nanoid } from 'nanoid'
 import { Type, safeParseValue, formatValueErrors } from '@core/utils/typeboxHelpers'
-import { buildSystemPrompt } from '../../../src/core/agent/systemPrompt'
+import { buildSystemPrompt } from '@site/agent/systemPrompt'
 import { createPageBuilderMcpServer, type PageBuilderBridge } from './tools'
 import { jsonResponse } from '../../http'
 import { isStateChangingMethod, originAllowed } from '../../auth/security'
@@ -33,7 +33,7 @@ import type {
   AgentActionResult,
   AgentRequestBody,
   ServerStreamEvent,
-} from '../../../src/core/agent/types'
+} from '@site/agent/types'
 
 // ---------------------------------------------------------------------------
 // Bridge registry — maps bridgeId → in-flight tool resolvers
@@ -107,7 +107,7 @@ const AgentRequestBodySchema = Type.Object({
   prompt: Type.String({ minLength: 1 }),
   sessionId: Type.Optional(Type.String()),
   // pageContext stays loose at this boundary — its full schema lives in
-  // src/core/agent/types and the rest of the request flow is typed against it.
+  // src/admin/pages/site/agent/types and the rest of the request flow is typed against it.
   pageContext: Type.Unknown(),
 })
 

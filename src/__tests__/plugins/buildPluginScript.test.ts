@@ -1,5 +1,5 @@
 /**
- * End-to-end test for `scripts/build-plugin.ts`.
+ * End-to-end test for the SDK CLI's `build` pipeline.
  *
  * Builds the UI Kit plugin from its TypeScript source, then verifies:
  *   - the emitted plugin.json is parseable by the host manifest validator
@@ -16,7 +16,7 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildPlugin } from '../../../scripts/build-plugin'
+import { buildPlugin } from '@core/plugin-sdk/cli/build'
 import { parsePluginManifest } from '@core/plugins/manifest'
 import { readPluginPackage } from '../../../server/plugins/package'
 import { parsePluginPack } from '../../../server/plugins/pack'

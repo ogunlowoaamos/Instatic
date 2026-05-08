@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { Toolbar } from '../../editor/components/Toolbar'
-import { useEditorStore } from '@core/editor-store/store'
+import { Toolbar } from '@site/toolbar'
+import { useEditorStore } from '@site/store/store'
 import { makePage, makeSite } from '../fixtures'
 
 let originalFetch: typeof fetch

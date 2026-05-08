@@ -1,14 +1,14 @@
 /**
  * PreferencesSection — auto-renders every entry in the preference catalog,
  * grouped by category. Adding a new preference requires only a catalog edit
- * (see `editor/preferences/catalog.ts`).
+ * (see `admin/pages/site/preferences/catalog.ts`).
  *
  * The dispatcher in `PreferenceRow` switches on `pref.type` to pick the right
  * concrete row component. Each preference type has exactly one row component
  * — `BooleanPreferenceRow`, `SelectPreferenceRow` — and one runtime hook
  * (`useEditorPreference`, `useEditorSelectPreference`).
  */
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { Switch } from '@ui/components/Switch'
 import { Select } from '@ui/components/Select'
 import {
@@ -17,14 +17,14 @@ import {
   type CatalogPreferenceDef,
   type DynamicOptionsSource,
   type SelectCatalogDef,
-} from '@editor/preferences/catalog'
+} from '@site/preferences/catalog'
 import {
   setEditorPreference,
   setEditorSelectPreference,
   useEditorPreference,
   useEditorSelectPreference,
-} from '@editor/preferences/editorPreferences'
-import s from '../Settings.module.css'
+} from '@site/preferences/editorPreferences'
+import s from '../SettingsModal.module.css'
 
 export function PreferencesSection() {
   const groups = preferencesByCategory()

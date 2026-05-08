@@ -4,7 +4,7 @@ import {
   normalizeModuleDependencies,
   type NormalizedModuleDependency,
 } from './dependencies'
-import type { SitePackageJson } from '../site-dependencies/manifest'
+import type { SitePackageJson } from '@core/site-dependencies/manifest'
 
 const DEFAULT_ESM_CDN_ORIGIN = 'https://esm.sh'
 

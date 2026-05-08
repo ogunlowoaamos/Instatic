@@ -1,0 +1,11 @@
+/* Per-step preview rendered via the typography adapter's `renderPreview`
+ * callback. Inlined into the FrameworkScalePanel step rows. */
+.previewText {
+    display: inline-block;
+    color: var(--editor-text);
+    line-height: 1.05;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}

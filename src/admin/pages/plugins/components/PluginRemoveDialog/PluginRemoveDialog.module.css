@@ -1,0 +1,35 @@
+/**
+ * Body-only styling for PluginRemoveDialog. The backdrop, dialog chrome,
+ * header, and footer are owned by the shared <Dialog/> primitive in
+ * @ui/components/Dialog — do not duplicate that CSS here.
+ */
+
+.lead {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+}
+
+.checklist {
+    margin: 0 0 12px 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--editor-text-muted);
+}
+
+.checklist code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    padding: 1px 5px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    color: var(--editor-text);
+}
+
+.note {
+    margin: 0;
+    color: var(--editor-text-muted);
+    font-size: 12px;
+}

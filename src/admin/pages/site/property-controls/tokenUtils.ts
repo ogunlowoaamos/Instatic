@@ -18,7 +18,7 @@
  */
 
 import { useMemo } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import type {
   FrameworkSpacingGroup,
   FrameworkTypographyGroup,

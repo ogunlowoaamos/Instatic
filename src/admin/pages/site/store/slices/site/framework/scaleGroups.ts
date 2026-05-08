@@ -32,7 +32,7 @@ import type {
   SiteSliceHelpers,
   UpdateFrameworkSpacingGroupPatch,
   UpdateFrameworkTypographyGroupPatch,
-} from '../types'
+} from '@site/store/slices/site/types'
 
 // ---------------------------------------------------------------------------
 // Family parameterization

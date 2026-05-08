@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Tooltip } from '../../ui/components/Tooltip'
+import { Tooltip } from '@ui/components/Tooltip'
 
 afterEach(cleanup)
 

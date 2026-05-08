@@ -1,7 +1,7 @@
-import type { SiteDocument } from '../page-tree/schemas'
+import type { SiteDocument } from '@core/page-tree/schemas'
 import type { AnyModuleDefinition, IModuleRegistry, ModuleDependencies } from './types'
-import type { SitePackageJson } from '../site-dependencies/manifest'
-import { isSafePackageName } from '../site-dependencies/packageNames'
+import type { SitePackageJson } from '@core/site-dependencies/manifest'
+import { isSafePackageName } from '@core/site-dependencies/packageNames'
 
 export interface NormalizedModuleDependency {
   name: string

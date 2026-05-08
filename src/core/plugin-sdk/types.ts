@@ -1,7 +1,38 @@
 import type { EditorStore } from '@site/store/types'
 
+/**
+ * Current host plugin-API version. A plugin manifest declares the API version
+ * it was authored against; the host accepts any plugin whose `apiVersion` is
+ * within `[MIN_SUPPORTED_PLUGIN_API_VERSION, PLUGIN_API_VERSION]`.
+ *
+ * Bumping policy:
+ *  - `PLUGIN_API_VERSION` is bumped on any breaking change to the SDK shape
+ *    (lifecycle, capability set, types).
+ *  - `MIN_SUPPORTED_PLUGIN_API_VERSION` is bumped on a major host release
+ *    that drops support for older plugins. Set both to N if you want to
+ *    require every plugin to be re-released against version N.
+ *  - Always equal to the literal accepted at the manifest boundary; tests
+ *    enforce this so the schema doesn't drift from the type.
+ *
+ * Plugins SHOULD declare `apiVersion` explicitly; `definePlugin` defaults to
+ * the current host version when omitted.
+ */
 export const PLUGIN_API_VERSION = 1
-export type PluginApiVersion = typeof PLUGIN_API_VERSION
+export const MIN_SUPPORTED_PLUGIN_API_VERSION = 1
+export type PluginApiVersion = number
+
+/**
+ * Decide whether a manifest's `apiVersion` is compatible with this host. The
+ * manifest validator wires this in so the rejection happens at the ingress
+ * boundary (zip read / JSON install) before any side effect.
+ */
+export function isCompatiblePluginApiVersion(version: number): boolean {
+  return (
+    Number.isInteger(version) &&
+    version >= MIN_SUPPORTED_PLUGIN_API_VERSION &&
+    version <= PLUGIN_API_VERSION
+  )
+}
 
 export const PLUGIN_PERMISSION_VALUES = [
   // Admin / nav
@@ -31,14 +62,43 @@ export const PLUGIN_PERMISSION_VALUES = [
 
 export type PluginPermission = typeof PLUGIN_PERMISSION_VALUES[number]
 
-export type ServerPluginLifecycleHook = 'install' | 'activate' | 'deactivate' | 'uninstall'
+export type ServerPluginLifecycleHook =
+  | 'install'
+  | 'activate'
+  | 'deactivate'
+  | 'uninstall'
+  | 'migrate'
 
 export const SERVER_PLUGIN_LIFECYCLE_HOOKS: ServerPluginLifecycleHook[] = [
   'install',
   'activate',
   'deactivate',
   'uninstall',
+  'migrate',
 ]
+
+/**
+ * Context passed to the `migrate` hook. Plugins receive the previous
+ * version's manifest version string so they can write conditional migrations
+ * (e.g. "if fromVersion < 1.2.0, run X"). The new version's `migrate` is the
+ * one that runs — it knows the new schema and is responsible for transforming
+ * data stored under the old shape.
+ *
+ * Order during an upgrade:
+ *   1. Old version's `deactivate(api)` (if running)
+ *   2. New version's assets land on disk
+ *   3. New version's `migrate({ fromVersion }, api)` — this hook
+ *   4. New version's `activate(api)`
+ *
+ * If `migrate` throws, the host rolls back to the previous version's assets
+ * and re-activates the previous version. If `activate` throws after a
+ * successful migrate, ALSO rolls back — at that point migrate has typically
+ * mutated stored data, so plugins SHOULD treat their migrations as
+ * idempotent on the next attempt.
+ */
+export interface PluginMigrationContext {
+  fromVersion: string
+}
 
 export interface PluginPin {
   label: string
@@ -135,10 +195,22 @@ export interface PluginPackManifest {
   path: string
 }
 
+export interface PluginAuthorMetadata {
+  name: string
+  email?: string
+  url?: string
+}
+
 export interface PluginManifest {
   id: string
   name: string
   version: string
+  /**
+   * SDK version the plugin was authored against. Must fall in
+   * `[MIN_SUPPORTED_PLUGIN_API_VERSION, PLUGIN_API_VERSION]`. Validated by
+   * the manifest parser; the host rejects incompatible plugins at install
+   * time with a descriptive error.
+   */
   apiVersion: PluginApiVersion
   description?: string
   permissions: PluginPermission[]
@@ -149,6 +221,22 @@ export interface PluginManifest {
   adminPages: PluginAdminPage[]
   /** Optional Visual Component / template / class pack. */
   pack?: PluginPackManifest
+  /** Author / publisher metadata — surfaced on the Plugins admin card. */
+  author?: PluginAuthorMetadata
+  /** SPDX license identifier (e.g. `MIT`, `Apache-2.0`). */
+  license?: string
+  /** Marketing / docs URL. */
+  homepage?: string
+  /** Source repository URL. */
+  repository?: string
+  /** Discovery keywords. */
+  keywords?: string[]
+  /**
+   * Path inside the plugin zip to a small visual icon (.png / .svg /
+   * .webp / .jpg). Resolved at runtime against `assetBasePath` for
+   * display on the Plugins admin card.
+   */
+  icon?: string
   /**
    * Declarative settings — the host renders a form for them and persists
    * the user's values in `installed_plugins.settings_json`. Plugin reads
@@ -447,4 +535,12 @@ export interface ServerPluginModule {
   activate?: (api: ServerPluginApi) => void | Promise<void>
   deactivate?: (api: ServerPluginApi) => void | Promise<void>
   uninstall?: (api: ServerPluginApi) => void | Promise<void>
+  /**
+   * Called during an upgrade install — between the old version's
+   * `deactivate` and the new version's `activate`. Receives the previous
+   * version string in `ctx.fromVersion` and the new version's `ServerPluginApi`.
+   * If the hook throws, the host rolls back to the previous version's assets.
+   * Plugins SHOULD make migrations idempotent.
+   */
+  migrate?: (ctx: PluginMigrationContext, api: ServerPluginApi) => void | Promise<void>
 }

@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'bun:test'
 // ---------------------------------------------------------------------------
 // Store helpers
 // ---------------------------------------------------------------------------
-import { useEditorStore } from '../core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 function freshStore() {
   // Reset store to a clean state for each test
@@ -91,8 +91,8 @@ describe('J6 DomPanel — store layer', () => {
 // J6: flattenSubtree — tree traversal
 // ---------------------------------------------------------------------------
 
-import { flattenSubtree } from '../core/page-tree/selectors'
-import type { Page } from '../core/page-tree/schemas'
+import { flattenSubtree } from '@core/page-tree/selectors'
+import type { Page } from '@core/page-tree/schemas'
 
 describe('J6 DomPanel — flattenSubtree', () => {
   it('returns just the root when there are no children', () => {
@@ -129,7 +129,7 @@ describe('J6 DomPanel — flattenSubtree', () => {
 // J7+J8: PropertiesPanel — property condition evaluation
 // ---------------------------------------------------------------------------
 
-import { evaluateCondition } from '../core/page-tree/selectors'
+import { evaluateCondition } from '@core/page-tree/selectors'
 
 describe('J7+J8 PropertiesPanel — evaluateCondition', () => {
   const props = { type: 'button', visible: true, count: 3 }
@@ -201,8 +201,8 @@ describe('J7+J8 PropertiesPanel — evaluateCondition', () => {
 // J7+J8: PropertiesPanel — resolveProps with breakpoint override
 // ---------------------------------------------------------------------------
 
-import { resolveProps } from '../core/page-tree/selectors'
-import type { PageNode } from '../core/page-tree/schemas'
+import { resolveProps } from '@core/page-tree/selectors'
+import type { PageNode } from '@core/page-tree/schemas'
 
 describe('J7+J8 PropertiesPanel — resolveProps', () => {
   const node: PageNode = {

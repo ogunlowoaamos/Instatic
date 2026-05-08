@@ -12,11 +12,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { ModulePickerDropdown } from '../../editor/components/Toolbar/ModulePickerDropdown'
-import { useEditorStore } from '@core/editor-store/store'
+import { ModulePickerDropdown } from '@site/toolbar/ModulePickerDropdown'
+import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { VisualComponent } from '@core/visualComponents/schemas'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 afterEach(cleanup)
 

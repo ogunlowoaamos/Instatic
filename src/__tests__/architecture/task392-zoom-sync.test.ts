@@ -79,8 +79,8 @@
  * { passive: false } to ensure preventDefault is honoured.
  *
  * @see Task #392  — user bug reports (messages #1717, #1732)
- * @see src/editor/hooks/useCanvas.ts  — transformRef / applyTransformToDOM / wheel listener
- * @see src/editor/components/Canvas/CanvasRoot.tsx  — touch-action
+ * @see src/admin/pages/site/hooks/useCanvas.ts  — transformRef / applyTransformToDOM / wheel listener
+ * @see src/admin/pages/site/components/Canvas/CanvasRoot.tsx  — touch-action
  */
 
 import { describe, it, expect } from 'bun:test'
@@ -88,9 +88,9 @@ import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
 const PROJECT_ROOT = join(import.meta.dir, '../../../')
-const USE_CANVAS_PATH = join(PROJECT_ROOT, 'src/editor/hooks/useCanvas.ts')
-const CANVAS_ROOT_PATH = join(PROJECT_ROOT, 'src/editor/components/Canvas/CanvasRoot.tsx')
-const CANVAS_ROOT_CSS_PATH = join(PROJECT_ROOT, 'src/editor/components/Canvas/CanvasRoot.module.css')
+const USE_CANVAS_PATH = join(PROJECT_ROOT, 'src/admin/pages/site/hooks/useCanvas.ts')
+const CANVAS_ROOT_PATH = join(PROJECT_ROOT, 'src/admin/pages/site/canvas/CanvasRoot.tsx')
+const CANVAS_ROOT_CSS_PATH = join(PROJECT_ROOT, 'src/admin/pages/site/canvas/CanvasRoot.module.css')
 
 // ─── Gate 1: keyboard zoom handler must sync DOM after store action ────────────
 

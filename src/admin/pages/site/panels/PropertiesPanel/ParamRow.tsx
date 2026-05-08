@@ -24,8 +24,8 @@ import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import { ChevronUpIcon } from 'pixel-art-icons/icons/chevron-up'
 import { UndoIcon } from 'pixel-art-icons/icons/undo'
-import { MediaLibraryControl } from '../PropertyControls/MediaLibraryControl'
-import { RichTextEditor } from '../PropertyControls/RichTextEditor'
+import { MediaLibraryControl } from '@site/property-controls/MediaLibraryControl'
+import { RichTextEditor } from '@site/property-controls/RichTextEditor'
 import styles from './ParamRow.module.css'
 
 // ---------------------------------------------------------------------------

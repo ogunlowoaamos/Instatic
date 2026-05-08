@@ -21,7 +21,7 @@
  *   - Paragraphs (consecutive non-empty lines)
  */
 
-import { escapeHtml, isSafeUrl } from '../publisher/utils'
+import { escapeHtml, isSafeUrl } from '@core/publisher/utils'
 
 const HEADING_RE = /^(#{1,6})\s+(.+)$/
 const IMAGE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/

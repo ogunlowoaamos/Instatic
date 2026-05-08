@@ -20,7 +20,7 @@
  *   - `./site/framework/*`      — color / typography / spacing / preferences / preview / class reconciliation
  */
 
-import type { EditorStoreSliceCreator } from '../types'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 import { buildSiteHelpers } from './site/helpers'
 import { createUndoRedoActions } from './site/undoRedoActions'
 import { createLifecycleActions } from './site/lifecycleActions'
@@ -41,7 +41,7 @@ export type { SiteSlice } from './site/types'
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends SiteSlice {}
 }
 

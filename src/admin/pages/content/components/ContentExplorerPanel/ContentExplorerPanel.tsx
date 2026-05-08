@@ -13,16 +13,16 @@ import { MoveIcon } from 'pixel-art-icons/icons/move'
 import { Settings2Icon } from 'pixel-art-icons/icons/settings-2'
 import { UploadIcon } from 'pixel-art-icons/icons/upload'
 import type { ContentCollection, ContentEntry, UpdateContentCollectionInput } from '@core/content/schemas'
-import { ExplorerItemContextMenu, type ExplorerContextMenuItem } from '@editor/components/ExplorerPanelActions'
-import explorerStyles from '@editor/components/SiteExplorerPanel/SiteExplorerPanel.module.css'
-import { PanelHeader } from '@editor/components/shared/PanelHeader'
-import { ContentCollectionSettingsDialog } from '../ContentCollectionSettingsDialog/ContentCollectionSettingsDialog'
+import { ExplorerItemContextMenu, type ExplorerContextMenuItem } from '@site/explorer-actions'
+import explorerStyles from '../../../site/panels/SiteExplorerPanel/SiteExplorerPanel.module.css'
+import { PanelHeader } from '@admin/shared/PanelHeader'
+import { ContentCollectionSettingsDialog } from '@content/components/ContentCollectionSettingsDialog/ContentCollectionSettingsDialog'
 import {
   ContentItemRenameDialog,
   type ContentItemRenamePayload,
-} from '../ContentItemRenameDialog/ContentItemRenameDialog'
+} from '@content/components/ContentItemRenameDialog/ContentItemRenameDialog'
 import styles from '../../ContentPage.module.css'
-import { publicContentPath } from '../../utils/contentEntryUtils'
+import { publicContentPath } from '@content/utils/contentEntryUtils'
 
 type ContentExplorerContextTarget =
   | { kind: 'collection'; collection: ContentCollection }

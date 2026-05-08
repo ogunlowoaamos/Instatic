@@ -361,7 +361,7 @@ describe('canonical sanitiseCssValue — import verification', () => {
   // Verify escape.ts re-exports the SAME function (not a local reimplementation)
   it('escape.ts re-exports the same sanitiseCssValue as utils.ts', async () => {
     const utils = await import('@core/publisher/utils')
-    const escape = await import('../../modules/base/utils/escape')
+    const escape = await import('@modules/base/utils/escape')
     // Same function reference means escape.ts doesn't have its own copy
     expect(escape.sanitiseCssValue).toBe(utils.sanitiseCssValue)
   })
@@ -369,7 +369,7 @@ describe('canonical sanitiseCssValue — import verification', () => {
   it('buildStyle in escape.ts now blocks {} (was missing before Task #296)', () => {
     // This test catches the regression that prompted Task #296:
     // escape.ts's sanitiseCssValue did NOT block {} before consolidation
-    const { buildStyle } = require('../../modules/base/utils/escape')
+    const { buildStyle } = require('@modules/base/utils/escape')
     // A CSS value with } would previously pass through escape.ts but was blocked
     // by ClassStyleInjector.sanitiseValue — they were inconsistent.
     // After consolidation, both use the same canonical function → {} is blocked.

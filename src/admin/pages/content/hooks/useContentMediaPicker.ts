@@ -5,7 +5,7 @@ import {
 } from '@core/persistence'
 import { createMediaBlock } from '@core/content/markdown'
 import type { ContentBlock } from '@core/content/schemas'
-import { mediaTypeFromAsset } from '../utils/contentEntryUtils'
+import { mediaTypeFromAsset } from '@content/utils/contentEntryUtils'
 
 export type MediaPickerKind = 'media' | 'featured'
 

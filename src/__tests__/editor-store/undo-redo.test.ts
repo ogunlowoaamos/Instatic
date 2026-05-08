@@ -6,7 +6,7 @@
  * - undo then modify creates a new branch (future is cleared)
  */
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 // Helper: get fresh store state (Zustand is module-singleton — reset between tests)
 function getStore() {

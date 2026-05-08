@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ContextMenuSubmenu, ContextMenuItem } from '../../ui/components/ContextMenu/ContextMenu'
+import { ContextMenuSubmenu, ContextMenuItem } from '@ui/components/ContextMenu/ContextMenu'
 
 afterEach(cleanup)
 

@@ -12,17 +12,17 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 const ROOT = join(import.meta.dir, '../../../')
-const TREE_PRIMITIVE_TSX = join(ROOT, 'src/editor/ui/Tree/Tree.tsx')
-const TREE_PRIMITIVE_INDEX = join(ROOT, 'src/editor/ui/Tree/index.ts')
-const TREE_ROW_TSX = join(ROOT, 'src/editor/ui/Tree/TreeRow.tsx')
-const TREE_ROW_CSS = join(ROOT, 'src/editor/ui/Tree/TreeRow.module.css')
-const DOM_PANEL_TSX = join(ROOT, 'src/editor/components/DomPanel/DomPanel.tsx')
-const DOM_TREE_NODE_TSX = join(ROOT, 'src/editor/components/DomPanel/TreeNode.tsx')
-const PROJECT_EXPLORER_TSX = join(ROOT, 'src/editor/components/SiteExplorerPanel/SiteExplorerPanel.tsx')
-const PROJECT_CREATE_DIALOG_TSX = join(ROOT, 'src/editor/components/SiteCreateDialog/SiteCreateDialog.tsx')
-const UI_SLICE_TS = join(ROOT, 'src/core/editor-store/slices/uiSlice.ts')
-const LAYOUT_STORAGE_TS = join(ROOT, 'src/editor/layout/panelLayoutStorage.ts')
-const LAYOUT_PERSISTENCE_TS = join(ROOT, 'src/editor/hooks/useEditorLayoutPersistence.ts')
+const TREE_PRIMITIVE_TSX = join(ROOT, 'src/admin/pages/site/ui/Tree/Tree.tsx')
+const TREE_PRIMITIVE_INDEX = join(ROOT, 'src/admin/pages/site/ui/Tree/index.ts')
+const TREE_ROW_TSX = join(ROOT, 'src/admin/pages/site/ui/Tree/TreeRow.tsx')
+const TREE_ROW_CSS = join(ROOT, 'src/admin/pages/site/ui/Tree/TreeRow.module.css')
+const DOM_PANEL_TSX = join(ROOT, 'src/admin/pages/site/panels/DomPanel/DomPanel.tsx')
+const DOM_TREE_NODE_TSX = join(ROOT, 'src/admin/pages/site/panels/DomPanel/TreeNode.tsx')
+const PROJECT_EXPLORER_TSX = join(ROOT, 'src/admin/pages/site/panels/SiteExplorerPanel/SiteExplorerPanel.tsx')
+const PROJECT_CREATE_DIALOG_TSX = join(ROOT, 'src/admin/shared/dialogs/SiteCreateDialog/SiteCreateDialog.tsx')
+const UI_SLICE_TS = join(ROOT, 'src/admin/pages/site/store/slices/uiSlice.ts')
+const LAYOUT_STORAGE_TS = join(ROOT, 'src/admin/pages/site/layout/panelLayoutStorage.ts')
+const LAYOUT_PERSISTENCE_TS = join(ROOT, 'src/admin/pages/site/hooks/useEditorLayoutPersistence.ts')
 
 function src(path: string): string {
   return readFileSync(path, 'utf8')
@@ -66,7 +66,7 @@ describe('Tree primitive', () => {
 describe('DomPanel tree usage', () => {
   it('uses TreeContainer instead of owning a raw tree container', () => {
     const source = src(DOM_PANEL_TSX)
-    expect(source.includes("from '../../ui/Tree'") || source.includes('from "../../ui/Tree"')).toBe(true)
+    expect(source.includes("from '@site/ui/Tree'") || source.includes('from "@site/ui/Tree"')).toBe(true)
     expect(source.includes('<TreeContainer')).toBe(true)
     expect(/<div[^>]*role="tree"/.test(source)).toBe(false)
   })
@@ -84,13 +84,13 @@ describe('DomPanel tree usage', () => {
 
 describe('Site Explorer architecture', () => {
   it('replaces FilesPanel with a concept-oriented Site Explorer', () => {
-    expect(existsSync(join(ROOT, 'src/editor/components/FilesPanel/index.tsx'))).toBe(false)
+    expect(existsSync(join(ROOT, 'src/admin/pages/site/components/FilesPanel/index.tsx'))).toBe(false)
     expect(existsSync(PROJECT_EXPLORER_TSX)).toBe(true)
   })
 
   it('uses one simple site creation dialog and removes the old file modal', () => {
-    expect(existsSync(join(ROOT, 'src/editor/components/NewFileModal/NewFileModal.tsx'))).toBe(false)
-    expect(existsSync(join(ROOT, 'src/editor/components/NewFileModal/index.ts'))).toBe(false)
+    expect(existsSync(join(ROOT, 'src/admin/pages/site/components/NewFileModal/NewFileModal.tsx'))).toBe(false)
+    expect(existsSync(join(ROOT, 'src/admin/pages/site/components/NewFileModal/index.ts'))).toBe(false)
     expect(existsSync(join(ROOT, 'src/core/files/inference.ts'))).toBe(false)
     expect(existsSync(PROJECT_CREATE_DIALOG_TSX)).toBe(true)
   })
@@ -110,7 +110,7 @@ describe('Site Explorer architecture', () => {
 
   it('does not use the file-tree primitive for site concepts', () => {
     const source = src(PROJECT_EXPLORER_TSX)
-    expect(source.includes("from '../../ui/Tree'") || source.includes('from "../../ui/Tree"')).toBe(false)
+    expect(source.includes("from '@ui/Tree'") || source.includes('from "@ui/Tree"')).toBe(false)
     expect(source.includes('<Tree')).toBe(false)
     expect(source.includes('src/pages/')).toBe(false)
     expect(source.includes('src/components/')).toBe(false)

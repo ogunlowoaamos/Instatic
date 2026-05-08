@@ -15,8 +15,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ComponentParamsOverview } from '../../editor/components/PropertiesPanel/ComponentParamsOverview'
-import { useEditorStore } from '@core/editor-store/store'
+import { ComponentParamsOverview } from '@site/panels/PropertiesPanel/ComponentParamsOverview'
+import { useEditorStore } from '@site/store/store'
 import type { VisualComponent, VCNode, VCParam } from '@core/visualComponents/schemas'
 import { makeSite } from '../fixtures'
 

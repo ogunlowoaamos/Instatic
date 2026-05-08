@@ -32,10 +32,10 @@ const EDITOR_LAYOUT_PATH = join(SRC_ROOT, 'admin/AdminLayout.tsx')
 
 // Candidate paths for the usePropertiesPanelAutoOpen hook (Task #358 Deliverable 4)
 const AUTO_OPEN_HOOK_CANDIDATES = [
-  join(SRC_ROOT, 'editor/components/PropertiesPanel/usePropertiesPanelAutoOpen.ts'),
-  join(SRC_ROOT, 'editor/components/PropertiesPanel/usePropertiesPanelAutoOpen.tsx'),
-  join(SRC_ROOT, 'editor/hooks/usePropertiesPanelAutoOpen.ts'),
-  join(SRC_ROOT, 'editor/hooks/usePropertiesPanelAutoOpen.tsx'),
+  join(SRC_ROOT, 'admin/pages/site/panels/PropertiesPanel/usePropertiesPanelAutoOpen.ts'),
+  join(SRC_ROOT, 'admin/pages/site/panels/PropertiesPanel/usePropertiesPanelAutoOpen.tsx'),
+  join(SRC_ROOT, 'admin/pages/site/hooks/usePropertiesPanelAutoOpen.ts'),
+  join(SRC_ROOT, 'admin/pages/site/hooks/usePropertiesPanelAutoOpen.tsx'),
 ]
 
 // Task #358 is considered "landed" when the auto-open hook file exists.
@@ -50,10 +50,10 @@ const TASK358_LANDED = isTask358Landed()
 // Excludes: SettingsModal (Phase 6, governed by Guideline #225),
 //           AgentPanel (Phase D, separate density scope).
 const COMPACT_DENSITY_DIRS = [
-  join(SRC_ROOT, 'editor/components/Toolbar'),
-  join(SRC_ROOT, 'editor/components/DomPanel'),
-  join(SRC_ROOT, 'editor/components/PropertiesPanel'),
-  join(SRC_ROOT, 'editor/components/PropertyControls'),
+  join(SRC_ROOT, 'admin/pages/site/toolbar'),
+  join(SRC_ROOT, 'admin/pages/site/panels/DomPanel'),
+  join(SRC_ROOT, 'admin/pages/site/panels/PropertiesPanel'),
+  join(SRC_ROOT, 'admin/pages/site/property-controls'),
 ]
 
 // ---------------------------------------------------------------------------

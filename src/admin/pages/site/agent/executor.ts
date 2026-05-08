@@ -18,9 +18,9 @@
  */
 
 import { Type, type Static, parseValue } from '@core/utils/typeboxHelpers'
-import type { EditorStore } from '../editor-store/types'
-import { registry } from '../module-engine/registry'
-import { sanitizeRichtext, isRichtextPropKey } from '../sanitize'
+import type { EditorStore } from '@site/store/types'
+import { registry } from '@core/module-engine/registry'
+import { sanitizeRichtext, isRichtextPropKey } from '@core/sanitize'
 import { getAgentStoreApi } from './storeRef'
 import { captureAgentRenderSnapshot } from './renderEvidence'
 import type { AgentActionResult, InsertTreeNode } from './types'

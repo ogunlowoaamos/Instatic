@@ -19,10 +19,10 @@ import { describe, it, expect, afterEach } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { PropertyControlRenderer } from '../../editor/components/PropertyControls/PropertyControlRenderer'
+import { PropertyControlRenderer } from '@site/property-controls/PropertyControlRenderer'
 import type { PropertyControl } from '@core/module-engine/types'
 import type { CmsMediaAsset } from '@core/persistence/cmsMedia'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 afterEach(() => {
   cleanup()
@@ -102,7 +102,7 @@ describe('PropertyControlRenderer — wrapper (data-testid + minHeight)', () => 
     // Source-scan approach: verify min-height is defined in the CSS module.
     const { readFileSync } = await import('fs')
     const css = readFileSync(
-      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      new URL('../../admin/pages/site/property-controls/controls.module.css', import.meta.url),
       'utf-8',
     )
     // Accept: min-height: 28px OR min-height: 44px (OR-pattern for migration)
@@ -113,7 +113,7 @@ describe('PropertyControlRenderer — wrapper (data-testid + minHeight)', () => 
   it('keeps the renderer shell separate from the concrete control layout wrapper', async () => {
     const { readFileSync } = await import('fs')
     const src = readFileSync(
-      new URL('../../editor/components/PropertyControls/PropertyControlRenderer.tsx', import.meta.url),
+      new URL('../../admin/pages/site/property-controls/PropertyControlRenderer.tsx', import.meta.url),
       'utf-8',
     )
 
@@ -358,7 +358,7 @@ describe('PropertyControlRenderer — compact field sizing', () => {
 
     for (const fileName of controlFiles) {
       const src = readFileSync(
-        new URL(`../../editor/components/PropertyControls/${fileName}`, import.meta.url),
+        new URL(`../../admin/pages/site/property-controls/${fileName}`, import.meta.url),
         'utf-8',
       )
       expect(src).toContain('fieldSize="sm"')
@@ -450,7 +450,7 @@ describe('PropertyControlRenderer — numeric inputs', () => {
   it('does not import SliderControl in the properties renderer', async () => {
     const { readFileSync } = await import('fs')
     const src = readFileSync(
-      new URL('../../editor/components/PropertyControls/PropertyControlRenderer.tsx', import.meta.url),
+      new URL('../../admin/pages/site/property-controls/PropertyControlRenderer.tsx', import.meta.url),
       'utf-8'
     )
     expect(src).not.toContain('SliderControl')
@@ -609,7 +609,7 @@ describe('PropertyControlRenderer — layout variant', () => {
   it('CSS module exposes a stacked variant for the control wrapper', async () => {
     const { readFileSync } = await import('fs')
     const css = readFileSync(
-      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      new URL('../../admin/pages/site/property-controls/controls.module.css', import.meta.url),
       'utf-8',
     )
     expect(css).toMatch(/\.controlWrapperStacked\s*\{[^}]*grid-template-columns:\s*1fr/)

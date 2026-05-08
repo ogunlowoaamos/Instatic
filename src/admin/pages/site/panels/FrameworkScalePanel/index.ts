@@ -1,1 +1,2 @@
-export { FrameworkScalePanel, type ScaleAdapter } from './FrameworkScalePanel'
+export { FrameworkScalePanel } from './FrameworkScalePanel'
+export type { ScaleAdapter } from './adapter'

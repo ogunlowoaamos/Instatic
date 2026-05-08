@@ -37,9 +37,9 @@ export default defineConfig([
         destructuredArrayIgnorePattern: '^_',
       }],
       // The editor store uses TypeScript declaration merging: `EditorStore` is
-      // declared as an empty interface in `src/core/editor-store/types.ts` and
+      // declared as an empty interface in `src/admin/pages/site/store/types.ts` and
       // each slice file augments it via
-      //   declare module '@core/editor-store/types' {
+      //   declare module '@site/store/types' {
       //     interface EditorStore extends MySlice {}
       //   }
       // That requires both the original empty interface AND each per-slice

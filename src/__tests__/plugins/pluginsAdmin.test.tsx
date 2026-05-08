@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from '../../admin/lib/router'
-import { PluginsPage } from '../../admin/plugins/PluginsPage'
-import { useEditorStore } from '@core/editor-store/store'
+import { MemoryRouter } from '@admin/lib/routing'
+import { PluginsPage } from '@plugins/PluginsPage'
+import { useEditorStore } from '@site/store/store'
 import { makeSite } from '../fixtures'
 
 const originalFetch = globalThis.fetch
@@ -134,6 +134,13 @@ describe('PluginsPage', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /remove map studio/i }))
+
+    // Removal is gated by `<PluginRemoveDialog/>` — clicking Remove on the
+    // card opens the confirm dialog; the actual DELETE only fires after
+    // the user confirms inside the dialog.
+    const confirm = await screen.findByRole('button', { name: 'Remove plugin' })
+    fireEvent.click(confirm)
+
     await waitFor(() => {
       expect(calls.some((call) =>
         String(call.input) === '/admin/api/cms/plugins/local.map' &&

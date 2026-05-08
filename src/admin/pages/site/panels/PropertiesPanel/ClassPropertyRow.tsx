@@ -14,16 +14,16 @@
 
 import { useCallback } from 'react'
 import type { CSSPropertyBag } from '@core/page-tree/schemas'
-import { TextControl } from '../PropertyControls/TextControl'
-import { ColorControl } from '../PropertyControls/ColorControl'
-import { SelectControl } from '../PropertyControls/SelectControl'
-import { ControlRow } from '../PropertyControls/ControlRow'
-import { TokenAwareInput } from '../PropertyControls/TokenAwareInput'
+import { TextControl } from '@site/property-controls/TextControl'
+import { ColorControl } from '@site/property-controls/ColorControl'
+import { SelectControl } from '@site/property-controls/SelectControl'
+import { ControlRow } from '@site/property-controls/ControlRow'
+import { TokenAwareInput } from '@site/property-controls/TokenAwareInput'
 import {
   useSpacingTokens,
   useTypographyTokens,
   type Token,
-} from '../PropertyControls/tokenUtils'
+} from '@site/property-controls/tokenUtils'
 import { Button } from '@ui/components/Button'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { cn } from '@ui/cn'

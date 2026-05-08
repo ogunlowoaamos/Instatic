@@ -144,7 +144,10 @@ function PluginReactSubtree({
   render: PluginAdminAppRenderFn
   page: AppPluginPageRoute
 }): ReactElement {
-  const api = useMemo(() => createAdminPluginApi(page.pluginId), [page.pluginId])
+  const api = useMemo(
+    () => createAdminPluginApi(page.pluginId, { settingsSnapshot: page.pluginSettings }),
+    [page.pluginId, page.pluginSettings],
+  )
   return render({
     page,
     api,

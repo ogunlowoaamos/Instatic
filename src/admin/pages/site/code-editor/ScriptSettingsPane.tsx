@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import type { SiteFile } from '@core/files/schemas'
 import {
   analyzeRuntimeScriptImports,

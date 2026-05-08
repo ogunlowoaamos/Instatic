@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { subscribeWithSelector } from 'zustand/middleware'
-import type { Page, PageNode } from '../page-tree/schemas'
-import type { VisualComponent } from '../visualComponents/schemas'
+import type { Page, PageNode } from '@core/page-tree/schemas'
+import type { VisualComponent } from '@core/visualComponents/schemas'
 import type { EditorStore } from './types'
 import { createSiteSlice } from './slices/siteSlice'
 import { createSelectionSlice } from './slices/selectionSlice'
@@ -12,10 +12,10 @@ import { createClassSlice } from './slices/classSlice'
 import { createFilesSlice } from './slices/filesSlice'
 import { createVisualComponentsSlice } from './slices/visualComponentsSlice'
 import { createSettingsSlice } from './slices/settingsSlice'
-import { createAgentSlice } from '../agent/agentSlice'
+import { createAgentSlice } from '@site/agent/agentSlice'
 import { createSitePanelSlice } from './slices/sitePanelSlice'
 import { createClipboardSlice } from './slices/clipboardSlice'
-import { setAgentStoreApi } from '../agent/storeRef'
+import { setAgentStoreApi } from '@site/agent/storeRef'
 
 /**
  * EditorStore — the central Zustand store for the page builder editor.

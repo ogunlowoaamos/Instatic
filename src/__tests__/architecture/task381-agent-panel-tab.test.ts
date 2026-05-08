@@ -42,8 +42,8 @@ import { join } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
 
-const PROPERTIES_PANEL_PATH = join(SRC_ROOT, 'editor/components/PropertiesPanel/PropertiesPanel.tsx')
-const AGENT_PANEL_PATH      = join(SRC_ROOT, 'editor/components/AgentPanel/AgentPanel.tsx')
+const PROPERTIES_PANEL_PATH = join(SRC_ROOT, 'admin/pages/site/panels/PropertiesPanel/PropertiesPanel.tsx')
+const AGENT_PANEL_PATH      = join(SRC_ROOT, 'admin/pages/site/panels/AgentPanel/AgentPanel.tsx')
 
 // ---------------------------------------------------------------------------
 // Gate 1 [STABLE] — PropertiesPanel must NOT import AgentPanel
@@ -61,7 +61,7 @@ describe('[STABLE] Task #381 Gate 1 — PropertiesPanel does NOT import AgentPan
     if (!existsSync(PROPERTIES_PANEL_PATH)) {
       throw new Error(
         '[Task #381 Gate 1] PropertiesPanel.tsx not found.\n' +
-        'Expected at: src/editor/components/PropertiesPanel/PropertiesPanel.tsx\n\n' +
+        'Expected at: src/admin/pages/site/components/PropertiesPanel/PropertiesPanel.tsx\n\n' +
         'PropertiesPanel must exist as an independent floating inspector per Guideline #410.'
       )
     }
@@ -126,7 +126,7 @@ describe('[STABLE] Task #381 Gate 1 — PropertiesPanel does NOT import AgentPan
 // of AgentPanel into PropertiesPanel.
 //
 // The component must:
-//   - Exist at src/editor/components/AgentPanel/AgentPanel.tsx
+//   - Exist at src/admin/pages/site/components/AgentPanel/AgentPanel.tsx
 //   - Support the panel shell used by the left-sidebar architecture
 //   - Use <PanelHeader> from shared/ (Task #426 architecture)
 // ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ describe('[STABLE] Task #381 Gate 2 — AgentPanel exists as independent compone
     if (!existsSync(AGENT_PANEL_PATH)) {
       throw new Error(
         '[Task #381 Gate 2] AgentPanel.tsx not found.\n' +
-        'Expected at: src/editor/components/AgentPanel/AgentPanel.tsx\n\n' +
+        'Expected at: src/admin/pages/site/components/AgentPanel/AgentPanel.tsx\n\n' +
         'Per Guideline #410, AgentPanel is a self-contained independent panel.\n' +
         'It must not be deleted or merged into PropertiesPanel.\n\n' +
         'See Guideline #410, Task #424 (Contribution #584).'

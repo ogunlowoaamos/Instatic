@@ -58,15 +58,30 @@ function makeFakeDb() {
     if (normalized.includes('insert into audit_events')) {
       return { rows: [], rowCount: 1 }
     }
+    // getInstalledPlugin — single-row lookup by id
+    if (normalized.includes('select id, name, version, enabled') && normalized.includes('where id =')) {
+      const row = plugins.find((plugin) => plugin.id === values[0])
+      return { rows: row ? [row as Row] : [], rowCount: row ? 1 : 0 }
+    }
     // listInstalledPlugins — no values
     if (normalized.includes('select id, name, version, enabled')) {
       return { rows: [...plugins] as Row[], rowCount: plugins.length }
     }
-    // installPlugin — values[0..4]=id, name, version, manifestJson, permsJson
+    // setPluginSettings — values[0]=settings_json, values[1]=id
+    if (normalized.includes('update installed_plugins') && normalized.includes('set settings_json')) {
+      const row = plugins.find((plugin) => plugin.id === values[1])
+      if (!row) return { rows: [], rowCount: 0 }
+      row.settings_json = values[0]
+      row.updated_at = new Date('2026-05-01T10:07:00.000Z').toISOString()
+      return { rows: [row as Row], rowCount: 1 }
+    }
+    // installPlugin — values[0..5]=id, name, version, manifestJson, permsJson, settingsJson
     if (normalized.includes('insert into installed_plugins')) {
       const now = new Date('2026-05-01T10:00:00.000Z').toISOString()
+      const id = values[0]
+      const previous = plugins.find((p) => p.id === id)
       const row = {
-        id: values[0],
+        id,
         name: values[1],
         version: values[2],
         enabled: true,
@@ -74,10 +89,14 @@ function makeFakeDb() {
         last_error: null,
         manifest_json: values[3],
         granted_permissions_json: values[4] ?? [],
-        installed_at: now,
+        // Upsert preserves stored settings + installed_at across re-installs
+        // (matches the real `on conflict do update` clause that doesn't SET
+        // those columns).
+        settings_json: previous?.settings_json ?? values[5] ?? '{}',
+        installed_at: previous?.installed_at ?? now,
         updated_at: now,
       }
-      const index = plugins.findIndex((plugin) => plugin.id === row.id)
+      const index = plugins.findIndex((plugin) => plugin.id === id)
       if (index >= 0) plugins[index] = row
       else plugins.push(row)
       return { rows: [row as Row], rowCount: 1 }
@@ -640,5 +659,248 @@ describe('CMS plugin handlers', () => {
     } finally {
       await rm(uploadsDir, { recursive: true, force: true })
     }
+  })
+
+  // ─── Upgrade flow ────────────────────────────────────────────────────────
+  //
+  // The upgrade path detects an already-installed plugin id, runs the new
+  // version's `migrate({ fromVersion }, api)` between the old version's
+  // deactivate and the new version's activate, preserves settings + installed_at,
+  // drops the old version's asset dir on success, and rolls back to the prior
+  // version on activate failure.
+
+  it('routes a same-id newer-version upload through the upgrade flow with migrate', async () => {
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-upgrade-'))
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const baseManifest = (version: string) => ({
+      id: 'acme.upgrade',
+      name: 'Upgrade Demo',
+      version,
+      apiVersion: 1,
+      permissions: ['cms.routes'],
+      entrypoints: { server: 'server/index.js' },
+      resources: [],
+      adminPages: [],
+    })
+
+    try {
+      ;(globalThis as typeof globalThis & { __upgradeCalls?: string[] }).__upgradeCalls = []
+      // Old version: just records its own activate/deactivate.
+      const v1 = `
+        export function activate(api) {
+          (globalThis.__upgradeCalls ??= []).push('v1.activate')
+        }
+        export function deactivate() {
+          (globalThis.__upgradeCalls ??= []).push('v1.deactivate')
+        }
+      `
+      // New version: declares a migrate hook + activate. Migrate must run
+      // between old.deactivate and new.activate.
+      const v2 = `
+        export function migrate(ctx) {
+          (globalThis.__upgradeCalls ??= []).push('v2.migrate:' + ctx.fromVersion)
+        }
+        export function activate() {
+          (globalThis.__upgradeCalls ??= []).push('v2.activate')
+        }
+      `
+
+      // Fresh install of v1.
+      const v1FormData = new FormData()
+      v1FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('1.0.0')),
+        'server/index.js': v1,
+      }))
+      v1FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const installV1 = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v1FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(installV1.status).toBe(201)
+
+      // Capture installed_at so we can verify it's preserved on upgrade.
+      const installedAtBefore = db.plugins[0].installed_at
+
+      // Upload v2 of the same plugin id.
+      const v2FormData = new FormData()
+      v2FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('1.1.0')),
+        'server/index.js': v2,
+      }))
+      v2FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const upgrade = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v2FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(upgrade.status).toBe(200)
+      const upgradeBody = await upgrade.json() as {
+        plugin: { version: string; lifecycleStatus: string }
+        upgrade?: { fromVersion: string; toVersion: string }
+      }
+      expect(upgradeBody.plugin.version).toBe('1.1.0')
+      expect(upgradeBody.plugin.lifecycleStatus).toBe('active')
+      expect(upgradeBody.upgrade).toEqual({ fromVersion: '1.0.0', toVersion: '1.1.0' })
+
+      // Lifecycle ordering: v1.deactivate → v2.migrate(fromVersion=1.0.0) → v2.activate
+      expect((globalThis as typeof globalThis & { __upgradeCalls?: string[] }).__upgradeCalls)
+        .toEqual([
+          'v1.activate',
+          'v1.deactivate',
+          'v2.migrate:1.0.0',
+          'v2.activate',
+        ])
+
+      // installed_at preserved across the upgrade.
+      expect(db.plugins[0].installed_at).toBe(installedAtBefore)
+
+      // Old version's asset dir was deleted; new version's is on disk.
+      await expect(readFile(
+        join(uploadsDir, 'plugins/acme.upgrade/1.1.0/server/index.js'),
+        'utf-8',
+      )).resolves.toContain('migrate')
+      const { existsSync } = await import('node:fs')
+      expect(existsSync(join(uploadsDir, 'plugins/acme.upgrade/1.0.0'))).toBe(false)
+    } finally {
+      await rm(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rolls back to the prior version when the new version\'s activate hook throws', async () => {
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-rollback-'))
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const baseManifest = (version: string) => ({
+      id: 'acme.rollback',
+      name: 'Rollback Demo',
+      version,
+      apiVersion: 1,
+      permissions: ['cms.routes'],
+      entrypoints: { server: 'server/index.js' },
+      resources: [],
+      adminPages: [],
+    })
+
+    try {
+      const v1 = `export function activate() {}`
+      // v2 throws on activate to force rollback.
+      const v2 = `export function activate() { throw new Error('v2 activate exploded') }`
+
+      const v1FormData = new FormData()
+      v1FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('1.0.0')),
+        'server/index.js': v1,
+      }))
+      v1FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const installV1 = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v1FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(installV1.status).toBe(201)
+
+      const v2FormData = new FormData()
+      v2FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('1.1.0')),
+        'server/index.js': v2,
+      }))
+      v2FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const upgrade = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v2FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(upgrade.status).toBe(400)
+      const body = await upgrade.json() as { error: string; plugins: { id: string; version: string; lifecycleStatus: string }[] }
+      expect(body.error).toMatch(/Upgrade failed/)
+      expect(body.error).toMatch(/Rolled back to version 1\.0\.0/)
+
+      // DB row reflects the prior version.
+      expect(db.plugins[0].version).toBe('1.0.0')
+
+      // Old version's asset dir is still on disk; new version's was deleted.
+      const { existsSync } = await import('node:fs')
+      expect(existsSync(join(uploadsDir, 'plugins/acme.rollback/1.0.0'))).toBe(true)
+      expect(existsSync(join(uploadsDir, 'plugins/acme.rollback/1.1.0'))).toBe(false)
+    } finally {
+      await rm(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to downgrade to an older version', async () => {
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-downgrade-'))
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const baseManifest = (version: string) => ({
+      id: 'acme.downgrade',
+      name: 'Downgrade Demo',
+      version,
+      apiVersion: 1,
+      permissions: ['cms.routes'],
+      entrypoints: { server: 'server/index.js' },
+      resources: [],
+      adminPages: [],
+    })
+
+    try {
+      const v2FormData = new FormData()
+      v2FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('2.0.0')),
+        'server/index.js': 'export function activate() {}',
+      }))
+      v2FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const installV2 = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v2FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(installV2.status).toBe(201)
+
+      const v1FormData = new FormData()
+      v1FormData.set('file', pluginZip({
+        'plugin.json': JSON.stringify(baseManifest('1.0.0')),
+        'server/index.js': 'export function activate() {}',
+      }))
+      v1FormData.set('grantedPermissions', JSON.stringify(['cms.routes']))
+      const downgrade = await handleCmsRequest(
+        cmsFormRequest('http://localhost/admin/api/cms/plugins/package', v1FormData, { cookie }),
+        db,
+        { uploadsDir },
+      )
+      expect(downgrade.status).toBe(400)
+      const body = await downgrade.json() as { error: string }
+      expect(body.error).toMatch(/refusing to downgrade/)
+      // DB row unchanged.
+      expect(db.plugins[0].version).toBe('2.0.0')
+    } finally {
+      await rm(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects manifests targeting an unsupported apiVersion at the boundary', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+
+    const futureManifest = {
+      ...mapManifest,
+      id: 'acme.future',
+      apiVersion: 99,
+    }
+    const res = await handleCmsRequest(
+      cmsRequest('http://localhost/admin/api/cms/plugins', {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          manifest: futureManifest,
+          grantedPermissions: ['admin.navigation'],
+        }),
+      }),
+      db,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json() as { error: string }).error).toMatch(/apiVersion 99/)
+    expect(db.plugins).toHaveLength(0)
   })
 })

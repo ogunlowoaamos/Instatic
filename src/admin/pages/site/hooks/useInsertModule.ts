@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { selectActiveCanvasPage, useEditorStore } from '@core/editor-store/store'
+import { selectActiveCanvasPage, useEditorStore } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import { getMissingModuleDependencies } from '@core/module-engine/dependencies'
 import type { AnyModuleDefinition } from '@core/module-engine/types'

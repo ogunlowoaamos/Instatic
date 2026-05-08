@@ -16,17 +16,17 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { pluginRuntime } from '@core/plugins/runtime'
 import type { RegisteredPluginToolbarButton } from '@core/plugin-sdk'
 import { ZoomControls } from './ZoomControls'
 import { PublishButton } from './PublishButton'
 import { SettingsButton } from './SettingsButton'
-import { PreviewOverlay } from '../Preview/PreviewOverlay'
+import { PreviewOverlay } from '@site/preview/PreviewOverlay'
 import VCBreadcrumb from './VCBreadcrumb'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
-import type { PersistenceSaveStatus } from '@editor/hooks/usePersistence'
+import type { PersistenceSaveStatus } from '@site/hooks/usePersistence'
 import type { AdminWorkspace } from '@admin/workspace'
 import styles from './Toolbar.module.css'
 

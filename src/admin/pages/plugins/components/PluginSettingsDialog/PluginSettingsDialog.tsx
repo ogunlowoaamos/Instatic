@@ -1,8 +1,7 @@
 /**
  * Plugin settings dialog — renders a plugin's `definePlugin({ settings })`
- * schema as a form using the shared `pluginAdminUi` primitives. The same
- * components plugin admin apps render with, so settings UIs and plugin
- * admin pages look identical out of the box.
+ * schema as a form using the shared `pluginAdminUi` primitives. Built on
+ * the shared `<Dialog/>` primitive; only the body content lives here.
  *
  * Flow:
  *   1. Open dialog → fetch latest settings + schema from
@@ -14,10 +13,8 @@
  *   4. Dialog re-renders with the masked response and closes on success
  */
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Button } from '@ui/components/Button'
-import { useDialogEscape } from '@ui/lib/useDialogEscape'
-import { CloseIcon } from 'pixel-art-icons/icons/close'
+import { Dialog } from '@ui/components/Dialog'
 import type { PluginManifest } from '@core/plugin-sdk'
 import { pluginAdminUi } from '../PluginAdminUi'
 import styles from './PluginSettingsDialog.module.css'
@@ -45,18 +42,13 @@ export function PluginSettingsDialog({
   onClose,
   onSaved,
 }: PluginSettingsDialogProps) {
-  // pluginId is the load-key — when it changes we want to discard the old
-  // load. State is keyed by pluginId; the current view falls back to
-  // "loading" whenever the key doesn't match the latest payload, so we can
-  // omit the synchronous setLoading(true) from inside useEffect.
+  // pluginId is the load-key — when it changes we discard the old load.
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [schema, setSchema] = useState<SettingsSchema | null>(null)
   const [values, setValues] = useState<SettingsRecord>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const loading = loadedFor !== pluginId
-
-  useDialogEscape(onClose)
 
   useEffect(() => {
     let cancelled = false
@@ -106,47 +98,15 @@ export function PluginSettingsDialog({
     }
   }
 
-  return createPortal(
-    <div className={styles.backdrop} role="dialog" aria-modal="true" aria-labelledby="plugin-settings-title">
-      <div className={styles.dialog}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Plugin settings</p>
-            <h2 id="plugin-settings-title" className={styles.title}>{pluginName}</h2>
-          </div>
-          <Button
-            variant="ghost"
-            size="xs"
-            iconOnly
-            type="button"
-            onClick={onClose}
-            aria-label="Close settings"
-          >
-            <CloseIcon size={14} />
-          </Button>
-        </header>
-
-        <div className={styles.body}>
-          {loading && <p className={styles.empty}>Loading settings...</p>}
-          {error && (
-            <pluginAdminUi.Alert tone="danger" title="Could not load settings">
-              {error}
-            </pluginAdminUi.Alert>
-          )}
-          {!loading && schema && schema.length === 0 && (
-            <pluginAdminUi.EmptyState
-              title="No settings declared"
-              body="This plugin does not expose any user-configurable settings."
-            />
-          )}
-          {!loading && schema && schema.length > 0 && (
-            <pluginAdminUi.Stack gap={14}>
-              {schema.map((field) => renderField(field, values, setValue))}
-            </pluginAdminUi.Stack>
-          )}
-        </div>
-
-        <footer className={styles.footer}>
+  return (
+    <Dialog
+      open
+      onClose={saving ? () => {} : onClose}
+      eyebrow="Plugin settings"
+      title={pluginName}
+      size="lg"
+      footer={
+        <>
           <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
@@ -159,10 +119,27 @@ export function PluginSettingsDialog({
           >
             {saving ? 'Saving...' : 'Save settings'}
           </Button>
-        </footer>
-      </div>
-    </div>,
-    document.body,
+        </>
+      }
+    >
+      {loading && <p className={styles.empty}>Loading settings...</p>}
+      {error && (
+        <pluginAdminUi.Alert tone="danger" title="Could not load settings">
+          {error}
+        </pluginAdminUi.Alert>
+      )}
+      {!loading && schema && schema.length === 0 && (
+        <pluginAdminUi.EmptyState
+          title="No settings declared"
+          body="This plugin does not expose any user-configurable settings."
+        />
+      )}
+      {!loading && schema && schema.length > 0 && (
+        <pluginAdminUi.Stack gap={14}>
+          {schema.map((field) => renderField(field, values, setValue))}
+        </pluginAdminUi.Stack>
+      )}
+    </Dialog>
   )
 }
 

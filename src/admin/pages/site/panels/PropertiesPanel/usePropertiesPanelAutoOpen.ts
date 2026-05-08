@@ -11,7 +11,7 @@
  * @see Task #358 Deliverable 4 — Properties Panel auto-open behavior
  */
 import { useEffect } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 export function usePropertiesPanelAutoOpen() {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId)

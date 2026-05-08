@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test'
 import React, { useRef } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Select } from '../../ui/components/Select'
+import { Select } from '@ui/components/Select'
 
 afterEach(cleanup)
 

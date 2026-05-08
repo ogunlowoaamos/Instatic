@@ -24,13 +24,13 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { NodeWrapper } from '../../editor/components/Canvas/NodeRenderer'
+import { NodeWrapper } from '@site/canvas/NodeRenderer'
 
 afterEach(cleanup)
 
-const NODE_RENDERER_CSS_PATH = 'src/editor/components/Canvas/NodeRenderer.module.css'
+const NODE_RENDERER_CSS_PATH = 'src/admin/pages/site/canvas/NodeRenderer.module.css'
 const SELECTION_OVERLAY_CSS_PATH =
-  'src/editor/components/Canvas/BreakpointSelectionOverlay.module.css'
+  'src/admin/pages/site/canvas/BreakpointSelectionOverlay.module.css'
 const GLOBALS_CSS_PATH = 'src/styles/globals.css'
 
 function extractCssCustomProperty(source: string, propertyName: string): string {

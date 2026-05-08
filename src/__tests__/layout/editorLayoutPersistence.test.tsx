@@ -9,12 +9,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import AdminLayout from '../../admin/AdminLayout'
-import { AdminSessionProvider } from '../../admin/session'
-import { useEditorStore } from '@core/editor-store/store'
+import AdminLayout from '@admin/AdminLayout'
+import { AdminSessionProvider } from '@admin/session'
+import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { CmsCurrentUser } from '@core/persistence'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 const LAYOUT_STORAGE_KEY = 'pb-editor-layout-v1'
 

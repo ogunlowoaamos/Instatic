@@ -37,12 +37,12 @@ import {
   ContextMenuSeparator,
   ContextMenuSubmenu,
 } from '@ui/components/ContextMenu'
-import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
+import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { useShallow } from 'zustand/react/shallow'
 import { registry } from '@core/module-engine/registry'
-import { useInsertModule } from '../../hooks/useInsertModule'
-import { ModulePicker } from '../ModulePicker'
-import { useConfirmDelete } from '../shared/ConfirmDeleteDialog'
+import { useInsertModule } from '@site/hooks/useInsertModule'
+import { ModulePicker } from '@site/module-picker'
+import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
 import { EditIcon } from 'pixel-art-icons/icons/edit'
 import { CopyIcon } from 'pixel-art-icons/icons/copy'

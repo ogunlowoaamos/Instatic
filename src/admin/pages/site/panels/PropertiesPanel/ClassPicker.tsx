@@ -31,8 +31,8 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
-import { useEditorPreference } from '../../preferences/editorPreferences'
+import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { Button } from '@ui/components/Button'
 import { useDialogEscape } from '@ui/lib/useDialogEscape'
 import {
@@ -53,10 +53,10 @@ import {
   isUserVisibleClass,
 } from '@core/page-tree/classUtils'
 import { pillAccent } from '@ui/pillAccent'
-import { recordClassUsage } from '../../preferences/classUsage'
+import { recordClassUsage } from '@site/preferences/classUsage'
 import { useClassPickerSuggestions } from './useClassPickerSuggestions'
 import type { CSSClass } from '@core/page-tree/schemas'
-import dialogStyles from '../SiteCreateDialog/SiteCreateDialog.module.css'
+import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import styles from './ClassPicker.module.css'
 
 interface ClassContextMenuState {

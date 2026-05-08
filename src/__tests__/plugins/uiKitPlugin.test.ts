@@ -1,56 +1,82 @@
 /**
- * Smoke test for the UI Kit example plugin.
+ * Smoke test for the UI Kit example plugin (TypeScript-first migration).
  *
- * The kit ships only declarative content (canvas modules + a Visual
- * Component / page / class pack). It must:
- *   - Validate against the canonical manifest schema.
- *   - Have a pack file the host can parse without lifecycle errors.
- *   - Use namespaced ids for every Visual Component, page, module, and
- *     class so install is idempotent and conflict-free.
+ * The plugin source is `examples/plugins/ui-kit/pb-plugin.config.ts` —
+ * one TypeScript entry that returns a `PluginDefinition`. This test
+ * imports it directly (Bun transpiles), so we verify the SDK output
+ * shape without running the build script.
+ *
+ * The runtime zip is produced by `scripts/build-plugin.ts` from the same
+ * source. There's a separate end-to-end test for that path.
  */
 import { describe, expect, it } from 'bun:test'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { parsePluginManifest } from '@core/plugins/manifest'
-import { parsePluginPack } from '../../../server/plugins/pack'
 
-const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
-const root = join(repoRoot, 'examples', 'plugins', 'ui-kit')
+describe('UI Kit plugin (TypeScript source)', () => {
+  it('definePlugin produces a valid PluginManifest with namespaced modules', async () => {
+    const { default: definition } = await import(
+      '../../../examples/plugins/ui-kit/pb-plugin.config'
+    ) as { default: import('@core/plugin-sdk').PluginDefinition }
 
-describe('UI Kit plugin', () => {
-  it('parses against the canonical manifest schema', async () => {
-    const raw = JSON.parse(await readFile(join(root, 'plugin.json'), 'utf-8'))
-    const manifest = parsePluginManifest(raw)
-    expect(manifest.id).toBe('acme.ui-kit')
-    expect(manifest.permissions.sort()).toEqual(['modules.register', 'visualComponents.register'].sort())
-    expect(manifest.entrypoints?.modules).toBe('modules/index.js')
-    expect(manifest.pack?.path).toBe('pack/site.json')
-    expect(manifest.adminPages).toEqual([])
-    expect(manifest.resources).toEqual([])
+    expect(definition.manifest.id).toBe('acme.ui-kit')
+    expect(definition.manifest.name).toBe('Modern UI Kit')
+    expect(definition.manifest.permissions.sort()).toEqual([
+      'modules.register',
+      'visualComponents.register',
+    ].sort())
+
+    const moduleIds = definition.modules.map((m) => m.id)
+    expect(moduleIds.sort()).toEqual([
+      'acme.ui-kit.callout',
+      'acme.ui-kit.feature-card',
+      'acme.ui-kit.pricing-tier',
+      'acme.ui-kit.stat',
+      'acme.ui-kit.testimonial',
+    ].sort())
   })
 
-  it('parses its pack file successfully and uses namespaced ids', async () => {
-    const raw = JSON.parse(await readFile(join(root, 'pack/site.json'), 'utf-8'))
-    const pack = parsePluginPack('acme.ui-kit', raw)
-    expect(pack.visualComponents.length).toBeGreaterThanOrEqual(3)
-    expect(pack.classes.length).toBeGreaterThanOrEqual(8)
-    expect(pack.pages.length).toBeGreaterThanOrEqual(1)
+  it('every canvas module renders pure, escaped HTML when given its defaults', async () => {
+    const { default: definition } = await import(
+      '../../../examples/plugins/ui-kit/pb-plugin.config'
+    ) as { default: import('@core/plugin-sdk').PluginDefinition }
 
+    for (const mod of definition.modules) {
+      const out = mod.render(mod.defaults, [])
+      expect(typeof out.html).toBe('string')
+      expect(out.html.length).toBeGreaterThan(0)
+      // No raw `javascript:` URLs slipped through (the safeUrl wrapper).
+      expect(out.html).not.toMatch(/href="javascript:/i)
+      // Pricing tier interpolates user-provided strings; ensure escaping.
+      // Render with a hostile-looking value and check.
+      const hostile = mod.render({ ...mod.defaults, title: '<script>alert(1)</script>' }, [])
+      expect(hostile.html).not.toMatch(/<script>alert\(1\)<\/script>/)
+    }
+  })
+
+  it('pack imports namespaced classes with valid CSS class names', async () => {
+    const { default: definition } = await import(
+      '../../../examples/plugins/ui-kit/pb-plugin.config'
+    ) as { default: import('@core/plugin-sdk').PluginDefinition }
+    const pack = definition.pack
+    if (!pack) throw new Error('Pack missing')
+
+    expect(pack.classes.length).toBeGreaterThanOrEqual(8)
+    for (const cls of pack.classes) {
+      expect(cls.id.startsWith('acme.ui-kit/')).toBe(true)
+      expect(/^[A-Za-z_][A-Za-z0-9_-]*$/.test(cls.name)).toBe(true)
+    }
+  })
+
+  it('pack ships at least three Visual Components and one landing page', async () => {
+    const { default: definition } = await import(
+      '../../../examples/plugins/ui-kit/pb-plugin.config'
+    ) as { default: import('@core/plugin-sdk').PluginDefinition }
+    const pack = definition.pack
+    if (!pack) throw new Error('Pack missing')
+
+    expect(pack.visualComponents.length).toBeGreaterThanOrEqual(3)
+    expect(pack.pages.length).toBe(1)
     for (const vc of pack.visualComponents) {
       expect(vc.id.startsWith('acme.ui-kit/')).toBe(true)
     }
-    for (const cls of pack.classes) {
-      expect(cls.id.startsWith('acme.ui-kit/')).toBe(true)
-    }
-  })
-
-  it('module pack default-exports modules with namespaced ids', async () => {
-    const text = await readFile(join(root, 'modules/index.js'), 'utf-8')
-    expect(text).toMatch(/export default/)
-    expect(text).toContain('feature-card')
-    expect(text).toContain('pricing-tier')
-    expect(text).toContain('testimonial')
-    expect(text).toContain('stat')
   })
 })

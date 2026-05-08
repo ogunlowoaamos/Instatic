@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { cleanup, render, screen } from '@testing-library/react'
-import { AppLoadingScreen } from '../../admin/AppLoadingScreen'
+import { AppLoadingScreen } from '@admin/AppLoadingScreen'
 
 afterEach(cleanup)
 

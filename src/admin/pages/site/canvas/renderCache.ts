@@ -30,7 +30,7 @@
  */
 
 import { LRUCache } from 'lru-cache'
-import type { RenderOutput } from '../module-engine/types'
+import type { RenderOutput } from '@core/module-engine/types'
 
 const CACHE_MAX = 500
 

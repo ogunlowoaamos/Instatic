@@ -5,7 +5,7 @@ import { cn } from '@ui/cn'
 import { Settings2Icon } from 'pixel-art-icons/icons/settings-2'
 import { VideoIcon } from 'pixel-art-icons/icons/video'
 import type { CmsMediaAsset } from '@core/persistence'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { contentCollectionHasField } from '@core/content/fields'
 import type {
   ContentCollection,
@@ -13,8 +13,8 @@ import type {
   ContentEntryStatus,
   ContentUserReference,
 } from '@core/content/schemas'
-import propertiesStyles from '@editor/components/PropertiesPanel/PropertiesPanel.module.css'
-import { PanelHeader } from '@editor/components/shared/PanelHeader'
+import propertiesStyles from '../../../site/panels/PropertiesPanel/PropertiesPanel.module.css'
+import { PanelHeader } from '@admin/shared/PanelHeader'
 import styles from '../../ContentPage.module.css'
 
 interface ContentSettingsPanelProps {

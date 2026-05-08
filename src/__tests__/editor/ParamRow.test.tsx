@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ParamRow } from '../../editor/components/PropertiesPanel/ParamRow'
+import { ParamRow } from '@site/panels/PropertiesPanel/ParamRow'
 
 afterEach(cleanup)
 

@@ -1,17 +1,17 @@
 import { useEffect } from 'react'
-import { useEditorStore, type EditorStore } from '@core/editor-store/store'
+import { useEditorStore, type EditorStore } from '@site/store/store'
 import {
   readEditorLayout,
   writeEditorLayout,
   type FloatingPanelId,
   type StoredEditorLayout,
   type StoredPanelLayout,
-} from '../layout/panelLayoutStorage'
+} from '@site/layout/panelLayoutStorage'
 import {
   clampSidebarWidth,
   LEFT_SIDEBAR_DEFAULT_WIDTH,
   type PropertiesPanelMode,
-} from '@core/editor-store/slices/uiSlice'
+} from '@site/store/slices/uiSlice'
 
 type LayoutSelection = readonly [
   domOpen: boolean,

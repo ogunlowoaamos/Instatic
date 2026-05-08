@@ -28,14 +28,14 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
-import { getCSSPropertyDefaultValue } from '../../editor/components/PropertiesPanel/cssControlTypes'
-import { useEditorStore } from '@core/editor-store/store'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
+import { getCSSPropertyDefaultValue } from '@site/panels/PropertiesPanel/cssControlTypes'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage, makeNode } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const PP_DIR = join(SRC_ROOT, 'editor/components/PropertiesPanel')
+const PP_DIR = join(SRC_ROOT, 'admin/pages/site/panels/PropertiesPanel')
 
 afterEach(cleanup)
 
@@ -1260,25 +1260,25 @@ describe('PP-17 — No textarea element in ClassComposer (Phase 3)', () => {
 // ---------------------------------------------------------------------------
 
 describe('PP-18 — ClassPropertyRow uses same PropertyControl components as module rows', () => {
-  it('ClassPropertyRow.tsx imports TextControl from PropertyControls', () => {
+  it('ClassPropertyRow.tsx imports TextControl from property-controls', () => {
     const src = readFileSync(join(PP_DIR, 'ClassPropertyRow.tsx'), 'utf-8')
-    expect(src).toMatch(/import.*TextControl.*from.*PropertyControls/)
+    expect(src).toMatch(/import.*TextControl.*from.*property-controls/)
   })
 
-  it('ClassPropertyRow.tsx does not import NumberControl or SliderControl from PropertyControls', () => {
+  it('ClassPropertyRow.tsx does not import NumberControl or SliderControl from property-controls', () => {
     const src = readFileSync(join(PP_DIR, 'ClassPropertyRow.tsx'), 'utf-8')
-    expect(src).not.toMatch(/import.*NumberControl.*from.*PropertyControls/)
-    expect(src).not.toMatch(/import.*SliderControl.*from.*PropertyControls/)
+    expect(src).not.toMatch(/import.*NumberControl.*from.*property-controls/)
+    expect(src).not.toMatch(/import.*SliderControl.*from.*property-controls/)
   })
 
-  it('ClassPropertyRow.tsx imports ColorControl from PropertyControls', () => {
+  it('ClassPropertyRow.tsx imports ColorControl from property-controls', () => {
     const src = readFileSync(join(PP_DIR, 'ClassPropertyRow.tsx'), 'utf-8')
-    expect(src).toMatch(/import.*ColorControl.*from.*PropertyControls/)
+    expect(src).toMatch(/import.*ColorControl.*from.*property-controls/)
   })
 
-  it('ClassPropertyRow.tsx imports SelectControl from PropertyControls', () => {
+  it('ClassPropertyRow.tsx imports SelectControl from property-controls', () => {
     const src = readFileSync(join(PP_DIR, 'ClassPropertyRow.tsx'), 'utf-8')
-    expect(src).toMatch(/import.*SelectControl.*from.*PropertyControls/)
+    expect(src).toMatch(/import.*SelectControl.*from.*property-controls/)
   })
 })
 

@@ -1,6 +1,6 @@
 import { Button } from '@ui/components/Button'
 import type { CmsMediaAsset } from '@core/persistence'
-import type { MediaPickerState } from '../../hooks/useContentMediaPicker'
+import type { MediaPickerState } from '@content/hooks/useContentMediaPicker'
 import styles from '../../ContentPage.module.css'
 
 interface MediaPickerDialogProps {

@@ -7,7 +7,7 @@
 import type { ModuleDefinition } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import { LinkIcon } from 'pixel-art-icons/icons/link'
-import { safeUrl } from '../utils/escape'
+import { safeUrl } from '@modules/base/utils/escape'
 import { LinkEditor } from './LinkEditor'
 
 interface LinkProps extends Record<string, unknown> {

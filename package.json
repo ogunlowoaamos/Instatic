@@ -18,7 +18,7 @@
     "fallow:health": "bun run test:coverage && npx fallow health --coverage .coverage/coverage-final.json",
     "icons:sync": "bun run scripts/sync-icons.ts",
     "icons:check": "bun run scripts/sync-icons.ts --check",
-    "plugin:build": "bun run scripts/build-plugin.ts"
+    "pb-plugin": "bun run src/core/plugin-sdk/cli/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.126",

@@ -15,7 +15,7 @@
  * @see Contribution #512 — Phase E+ Site Panel UX Spec §4
  */
 import { useState, useRef, useCallback, useMemo } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { SearchBar } from '@ui/components/SearchBar'

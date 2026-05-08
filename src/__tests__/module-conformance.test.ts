@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'bun:test'
 import './matchers'  // Register toBeCleanHTML and other custom matchers
 
-import type { AnyModuleDefinition } from '../core/module-engine/types'
+import type { AnyModuleDefinition } from '@core/module-engine/types'
 import {
   makeModule,
   makeContainerModule,

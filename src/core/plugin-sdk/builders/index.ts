@@ -17,6 +17,18 @@
 
 export { definePlugin } from './definePlugin'
 export type { DefinePluginConfig, PluginDefinition } from './definePlugin'
+export {
+  pluginSettingsDefaults,
+  validatePluginSettingsRecord,
+  validatePluginSettingsDefinitions,
+  maskSecretSettings,
+  stripSecretSettings,
+} from './settings'
+export type {
+  PluginSettingDefinition,
+  PluginSettingValue,
+  PluginSettingsValues,
+} from './settings'
 export { defineModule } from './defineModule'
 export { defineComponent, vc, h } from './tree'
 export { definePack } from './definePack'

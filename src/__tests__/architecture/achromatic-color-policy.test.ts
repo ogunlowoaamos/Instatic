@@ -71,8 +71,8 @@ function assertNoTintedClasses(label: string, dir: string) {
 }
 
 describe('Achromatic color policy', () => {
-  it('does not use tinted Tailwind color classes in src/editor/**', () => {
-    assertNoTintedClasses('src/editor/', EDITOR_DIR)
+  it('does not use tinted Tailwind color classes in src/admin/pages/site/**', () => {
+    assertNoTintedClasses('src/admin/pages/site/', EDITOR_DIR)
   })
 
   it('does not use tinted Tailwind color classes in src/admin/**', () => {

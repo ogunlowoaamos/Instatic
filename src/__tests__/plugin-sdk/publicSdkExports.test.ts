@@ -35,6 +35,11 @@ describe('public plugin SDK exports', () => {
       'activate',
       'deactivate',
       'uninstall',
+      // 'migrate' runs between an old version's deactivate and the new
+      // version's activate during an upgrade. Listed last because the array
+      // documents EXECUTION order — and migrate is only reachable along the
+      // upgrade path, not the install/disable/uninstall path.
+      'migrate',
     ])
   })
 

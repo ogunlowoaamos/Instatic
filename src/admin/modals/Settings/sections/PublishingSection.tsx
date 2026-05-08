@@ -1,10 +1,10 @@
 /**
  * PublishingSection — self-hosted CMS publishing details.
  */
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { resolveFrameworkPreferences } from '@core/framework/preferences'
 import { Switch } from '@ui/components/Switch'
-import s from '../Settings.module.css'
+import s from '../SettingsModal.module.css'
 
 export function PublishingSection() {
   const site = useEditorStore((state) => state.site)

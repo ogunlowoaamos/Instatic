@@ -17,11 +17,11 @@ import { describe, it, expect } from 'bun:test'
 import { publishPage, renderNode, type RenderContext } from '@core/publisher/render'
 import type { VisualComponent, VCParam, VCNode } from '@core/visualComponents/schemas'
 import { makeModule, makeRegistry, makePage, makeSite } from './helpers'
-import { ContainerModule } from '../../modules/base/container'
-import { TextModule } from '../../modules/base/text'
-import { VisualComponentRefModule } from '../../modules/base/visualComponentRef'
-import { SlotOutletModule } from '../../modules/base/slotOutlet'
-import { ContentModule } from '../../modules/base/content'
+import { ContainerModule } from '@modules/base/container'
+import { TextModule } from '@modules/base/text'
+import { VisualComponentRefModule } from '@modules/base/visualComponentRef'
+import { SlotOutletModule } from '@modules/base/slotOutlet'
+import { ContentModule } from '@modules/base/content'
 
 // ---------------------------------------------------------------------------
 // Shared registry including all modules used by VCs under test

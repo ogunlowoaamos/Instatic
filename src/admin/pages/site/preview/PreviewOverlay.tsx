@@ -17,10 +17,10 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react'
-import { useEditorStore, selectActivePage } from '@core/editor-store/store'
+import { useEditorStore, selectActivePage } from '@site/store/store'
 import { publishPage } from '@core/publisher/render'
 import { registry } from '@core/module-engine/registry'
-import { useTemplatePreviewContext } from '../../hooks/useTemplatePreviewContext'
+import { useTemplatePreviewContext } from '@site/hooks/useTemplatePreviewContext'
 import { EyeIcon } from 'pixel-art-icons/icons/eye'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { Button } from '@ui/components/Button'

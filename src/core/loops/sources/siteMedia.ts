@@ -9,7 +9,7 @@
  *   - filename  — alphabetical
  */
 
-import type { LoopEntitySource, LoopFetchResult, LoopItem, LoopSourceDb } from '../types'
+import type { LoopEntitySource, LoopFetchResult, LoopItem, LoopSourceDb } from '@core/loops/types'
 
 interface MediaRow {
   id: string

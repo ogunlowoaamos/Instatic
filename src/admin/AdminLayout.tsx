@@ -30,31 +30,31 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { CanvasRoot, CANVAS_ROOT_DROPPABLE_ID } from '@editor/components/Canvas'
-import { PropertiesPanel } from '@editor/components/PropertiesPanel'
-import { CodeEditorPanel } from '@editor/components/CodeEditor'
-import { Toolbar } from '@editor/components/Toolbar'
-import { LeftSidebar } from '@editor/components/LeftSidebar'
-import { RightSidebar } from '@editor/components/RightSidebar'
-import { SettingsModal } from '@editor/components/Settings'
-import { ConfirmDeleteProvider } from '@editor/components/shared/ConfirmDeleteDialog'
-import { useEditorSelectPreference } from '@editor/preferences/editorPreferences'
-import { usePersistence } from '@editor/hooks/usePersistence'
-import { useEditorLayoutPersistence } from '@editor/hooks/useEditorLayoutPersistence'
-import { selectActiveCanvasPage, selectRightSidebarExpanded, useEditorStore } from '@core/editor-store/store'
+import { CanvasRoot, CANVAS_ROOT_DROPPABLE_ID } from './pages/site/canvas'
+import { PropertiesPanel } from './pages/site/panels/PropertiesPanel'
+import { CodeEditorPanel } from './pages/site/code-editor'
+import { Toolbar } from './pages/site/toolbar'
+import { LeftSidebar } from './pages/site/sidebars/LeftSidebar'
+import { RightSidebar } from './pages/site/sidebars/RightSidebar'
+import { SettingsModal } from './modals/Settings'
+import { ConfirmDeleteProvider } from './shared/dialogs/ConfirmDeleteDialog'
+import { useEditorSelectPreference } from './pages/site/preferences/editorPreferences'
+import { usePersistence } from './pages/site/hooks/usePersistence'
+import { useEditorLayoutPersistence } from './pages/site/hooks/useEditorLayoutPersistence'
+import { selectActiveCanvasPage, selectRightSidebarExpanded, useEditorStore } from './pages/site/store/store'
 import { cmsAdapter } from '@core/persistence'
 import { listCmsPlugins } from '@core/persistence/cmsPlugins'
 import type { PluginAdminPageRoute } from '@core/plugin-sdk'
 import { cn } from '@ui/cn'
-import { useInstalledEditorPlugins } from './plugins/hooks/useInstalledEditorPlugins'
-import { CMS_PLUGINS_CHANGED_EVENT } from './plugins/utils/pluginEvents'
+import { useInstalledEditorPlugins } from './pages/plugins/hooks/useInstalledEditorPlugins'
+import { CMS_PLUGINS_CHANGED_EVENT } from './pages/plugins/utils/pluginEvents'
 import { AppLoadingScreen } from './AppLoadingScreen'
 import styles from './AdminLayout.module.css'
 import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { Link } from './lib/router'
-import { useInRouterContext, useLocation, useNavigate } from './lib/routerHooks'
-import toolbarStyles from '@editor/components/Toolbar/Toolbar.module.css'
+import { Link } from './lib/routing'
+import { useInRouterContext, useLocation, useNavigate } from './lib/routing'
+import toolbarStyles from './pages/site/toolbar/Toolbar.module.css'
 import type { AdminWorkspace } from './workspace'
 import { useCurrentAdminUser } from './sessionContext'
 import { canAccessWorkspace, hasAllCapabilities, hasCapability } from './access'
@@ -188,10 +188,12 @@ export default function AdminLayout({
         context is isolated; nested DndContexts are fully supported by dnd-kit.
       */}
       <DndContext sensors={canvasDndSensors} onDragEnd={handleCanvasDragEnd}>
-      {/* ConfirmDeleteProvider wraps the entire editor body so any descendant
-          (CanvasRoot Delete-key handler, Layers panel context menu, future
-          panel actions) can call useConfirmDelete() to gate destructive
-          operations on the confirmBeforeDelete preference. */}
+      {/* `ConfirmDeleteProvider` wraps the editor body so the canvas
+          Delete-key handler, Layers panel context menu, and other
+          descendant destructive actions can call `useConfirmDelete()`
+          and gate on the `confirmBeforeDelete` editor preference.
+          Plugin uninstall is intentionally *not* gated on that preference
+          and uses its own dedicated `PluginRemoveDialog` instead. */}
       <ConfirmDeleteProvider>
       <div className={styles.editorBody}>
         {workspace === 'site' ? (

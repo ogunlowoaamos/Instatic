@@ -21,13 +21,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
-import { useEditorStore } from '@core/editor-store/store'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
+import { useEditorStore } from '@site/store/store'
 import type { VisualComponent, VCNode } from '@core/visualComponents/schemas'
 import { makeSite, makePage, makeNode } from '../fixtures'
 
 // Register base modules so registry.get() resolves module definitions in-test
-import '../../modules/base/index'
+import '@modules/base/index'
 
 afterEach(cleanup)
 

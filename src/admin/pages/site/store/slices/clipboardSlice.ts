@@ -45,8 +45,8 @@ import {
   clearClipboardPayload,
   readClipboardPayload,
   writeClipboardPayload,
-} from '../clipboard/clipboardStorage'
-import type { EditorStoreSliceCreator } from '../types'
+} from '@site/store/clipboard/clipboardStorage'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 
 /**
  * In-memory snapshot of the latest copy/cut. Mirrors the persisted payload
@@ -93,7 +93,7 @@ export interface ClipboardSlice {
   clearClipboard: () => void
 }
 
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   // Surface this slice's fields on the combined EditorStore type.
   interface EditorStore extends ClipboardSlice {}
 }

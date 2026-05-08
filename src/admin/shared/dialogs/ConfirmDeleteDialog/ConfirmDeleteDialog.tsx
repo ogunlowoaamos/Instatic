@@ -2,20 +2,19 @@
  * ConfirmDeleteDialog — generic two-button "are you sure?" prompt for
  * destructive actions in the editor.
  *
- * Driven by the `confirmBeforeDelete` editor preference: callers don't render
- * this directly — they call `useConfirmDelete()` and the provider renders the
- * dialog only when the preference is on. When off, the action runs
- * immediately. See `ConfirmDeleteContext.tsx` for the wiring.
+ * Driven by the `confirmBeforeDelete` editor preference: callers don't
+ * render this directly — they call `useConfirmDelete()` and the provider
+ * renders the dialog only when the preference is on. When off, the action
+ * runs immediately. See `ConfirmDeleteContext.tsx` for the wiring.
  *
- * Visual style mirrors FrameworkChangeConfirmDialog so the editor has one
- * consistent confirmation look.
+ * Built on the shared `<Dialog>` primitive — the chrome (backdrop, header,
+ * footer, focus + Esc handling, portal mount) lives there. This module
+ * only owns the two-button confirmation contract.
  */
 
 import { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { Button } from '@ui/components/Button'
-import { CloseIcon } from 'pixel-art-icons/icons/close'
-import styles from './ConfirmDeleteDialog.module.css'
+import { Dialog } from '@ui/components/Dialog'
 
 export interface ConfirmDeleteDialogProps {
   /** Short, action-style title. e.g. "Delete layer?" */
@@ -40,15 +39,11 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null)
 
-  // Close on Escape — listening at document level so the dialog wins over
-  // any editor keybindings (canvas Delete-key handler, etc.).
+  // Enter activates the focused (Confirm) button natively, but we add a
+  // document-level handler too so callers don't lose Enter even when focus
+  // moves to a different element inside the dialog body.
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopPropagation()
-        onCancel()
-      }
       if (event.key === 'Enter') {
         event.preventDefault()
         event.stopPropagation()
@@ -57,53 +52,18 @@ export function ConfirmDeleteDialog({
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onCancel, onConfirm])
+  }, [onConfirm])
 
-  // Auto-focus the confirm button so keyboard users can confirm with Enter
-  // without tabbing. Pressing Escape still cancels (handled above).
-  useEffect(() => {
-    requestAnimationFrame(() => confirmRef.current?.focus())
-  }, [])
-
-  return createPortal(
-    <div
-      className={styles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-delete-title"
-        aria-describedby={description ? 'confirm-delete-desc' : undefined}
-        className={styles.dialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.header}>
-          <h2 id="confirm-delete-title" className={styles.title}>
-            {title}
-          </h2>
-          <Button
-            variant="ghost"
-            size="xs"
-            iconOnly
-            aria-label="Close dialog"
-            onClick={onCancel}
-          >
-            <CloseIcon size={12} aria-hidden="true" />
-          </Button>
-        </div>
-
-        {description && (
-          <div className={styles.body}>
-            <p id="confirm-delete-desc" className={styles.description}>
-              {description}
-            </p>
-          </div>
-        )}
-
-        <div className={styles.actions}>
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      tone="danger"
+      title={title}
+      size="sm"
+      initialFocusRef={confirmRef}
+      footer={
+        <>
           <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
             {cancelLabel}
           </Button>
@@ -116,9 +76,10 @@ export function ConfirmDeleteDialog({
           >
             {confirmLabel}
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </>
+      }
+    >
+      {description && <p>{description}</p>}
+    </Dialog>
   )
 }

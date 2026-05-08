@@ -24,12 +24,20 @@
     /* Path aliases */
     "paths": {
       "@core/*": ["./src/core/*"],
-      "@editor/*": ["./src/editor/*"],
       "@modules/*": ["./src/modules/*"],
       "@ui/*": ["./src/ui/*"],
-      "@admin/*": ["./src/admin/*"]
+      "@admin/*": ["./src/admin/*"],
+      "@site/*": ["./src/admin/pages/site/*"],
+      "@content/*": ["./src/admin/pages/content/*"],
+      "@plugins/*": ["./src/admin/pages/plugins/*"],
+      "@users/*": ["./src/admin/pages/users/*"]
     }
   },
   "include": ["src"],
-  "exclude": ["src/__tests__", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": [
+    "src/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/core/plugin-sdk/cli"
+  ]
 }

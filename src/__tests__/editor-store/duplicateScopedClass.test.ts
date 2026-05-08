@@ -10,8 +10,8 @@
  */
 
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
-import '../../modules/base/index'
+import { useEditorStore } from '@site/store/store'
+import '@modules/base/index'
 
 function freshStore() {
   useEditorStore.setState({

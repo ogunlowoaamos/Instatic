@@ -21,14 +21,14 @@
 
 import { useRef, useEffect, useCallback } from 'react'
 import { useGesture } from '@use-gesture/react'
-import { useEditorStore, type EditorStore } from '@core/editor-store/store'
+import { useEditorStore, type EditorStore } from '@site/store/store'
 import {
   applyZoom,
   applyPan,
   zoomFromWheelDelta,
   clampZoom,
   incrementalScaleFromPinchMovement,
-} from '../components/Canvas/math'
+} from '@site/canvas/math'
 
 interface Transform {
   zoom: number

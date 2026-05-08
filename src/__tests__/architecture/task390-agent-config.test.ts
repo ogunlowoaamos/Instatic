@@ -11,18 +11,18 @@
  * named constant so refactors propagate cleanly, not found by string-searching.
  *
  * ─── Gate 1 — agentConfig.ts exports AGENT_API_PATH (Adaptive-skip) ──────────
- * When `src/core/agent/agentConfig.ts` is created, verifies that it exports a
+ * When `src/admin/pages/site/agent/agentConfig.ts` is created, verifies that it exports a
  * const named `AGENT_API_PATH`. This constant is the single source of truth for
  * the `/api/agent` Vite-proxy path.
  *
- * Activation signal: `src/core/agent/agentConfig.ts` exists on disk.
+ * Activation signal: `src/admin/pages/site/agent/agentConfig.ts` exists on disk.
  *
  * ─── Gate 2 — agentSlice.ts must not contain the hardcoded route (Adaptive-skip)
- * When `src/core/agent/agentConfig.ts` exists, verifies that `agentSlice.ts`
+ * When `src/admin/pages/site/agent/agentConfig.ts` exists, verifies that `agentSlice.ts`
  * no longer contains `'/api/agent'` or `"/api/agent"` as a raw string literal —
  * meaning the slice has been updated to import from `agentConfig.ts`.
  *
- * Activation signal: `src/core/agent/agentConfig.ts` exists on disk.
+ * Activation signal: `src/admin/pages/site/agent/agentConfig.ts` exists on disk.
  *
  * Both gates are pre-registered (adaptive-skip). They pass as no-ops today and
  * activate only when FSE lands the fix. The suite stays green throughout.
@@ -37,8 +37,8 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const AGENT_CONFIG_PATH = join(SRC_ROOT, 'core/agent/agentConfig.ts')
-const AGENT_SLICE_PATH = join(SRC_ROOT, 'core/agent/agentSlice.ts')
+const AGENT_CONFIG_PATH = join(SRC_ROOT, 'admin/pages/site/agent/agentConfig.ts')
+const AGENT_SLICE_PATH = join(SRC_ROOT, 'admin/pages/site/agent/agentSlice.ts')
 
 // ---------------------------------------------------------------------------
 // Gate 1 — agentConfig.ts must export AGENT_API_PATH (Adaptive-skip)

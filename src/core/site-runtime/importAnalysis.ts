@@ -1,6 +1,6 @@
-import type { SiteFile } from '../files/schemas'
-import type { SitePackageJson } from '../site-dependencies/manifest'
-import { isSafePackageName } from '../site-dependencies/packageNames'
+import type { SiteFile } from '@core/files/schemas'
+import type { SitePackageJson } from '@core/site-dependencies/manifest'
+import { isSafePackageName } from '@core/site-dependencies/packageNames'
 import type {
   RuntimeImportKind,
   RuntimeImportSpecifier,

@@ -24,14 +24,14 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import React from 'react'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
-import { DomPanel } from '../../editor/components/DomPanel/DomPanel'
-import { useEditorStore } from '@core/editor-store/store'
+import { DomPanel } from '@site/panels/DomPanel/DomPanel'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage, makeNode } from '../fixtures'
 
-const TREE_ROW_CSS_PATH = join(import.meta.dir, '../../editor/ui/Tree/TreeRow.module.css')
-const TREE_NODE_CSS_PATH = join(import.meta.dir, '../../editor/components/DomPanel/TreeNode.module.css')
-const TREE_NODE_SOURCE_PATH = join(import.meta.dir, '../../editor/components/DomPanel/TreeNode.tsx')
-const DOM_PANEL_SOURCE_PATH = join(import.meta.dir, '../../editor/components/DomPanel/DomPanel.tsx')
+const TREE_ROW_CSS_PATH = join(import.meta.dir, '../../admin/pages/site/ui/Tree/TreeRow.module.css')
+const TREE_NODE_CSS_PATH = join(import.meta.dir, '../../admin/pages/site/panels/DomPanel/TreeNode.module.css')
+const TREE_NODE_SOURCE_PATH = join(import.meta.dir, '../../admin/pages/site/panels/DomPanel/TreeNode.tsx')
+const DOM_PANEL_SOURCE_PATH = join(import.meta.dir, '../../admin/pages/site/panels/DomPanel/DomPanel.tsx')
 
 afterEach(cleanup)
 

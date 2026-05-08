@@ -3,13 +3,13 @@ import React from 'react'
 import { DndContext } from '@dnd-kit/core'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'fs'
-import { SiteExplorerPanel } from '../../editor/components/SiteExplorerPanel'
-import { MediaExplorerPanel } from '../../editor/components/MediaExplorerPanel'
-import { CodeEditorPanel } from '../../editor/components/CodeEditor'
-import { useEditorStore } from '@core/editor-store/store'
+import { SiteExplorerPanel } from '@site/panels/SiteExplorerPanel'
+import { MediaExplorerPanel } from '@site/panels/MediaExplorerPanel'
+import { CodeEditorPanel } from '@site/code-editor'
+import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { VisualComponent } from '@core/visualComponents/schemas'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 afterEach(cleanup)
 
@@ -137,7 +137,7 @@ beforeEach(resetStore)
 describe('SiteExplorerPanel', () => {
   it('uses the shared site creation dialog instead of native prompts', () => {
     const source = readFileSync(
-      new URL('../../editor/components/SiteExplorerPanel/SiteExplorerPanel.tsx', import.meta.url),
+      new URL('../../admin/pages/site/panels/SiteExplorerPanel/SiteExplorerPanel.tsx', import.meta.url),
       'utf-8',
     )
 
@@ -168,7 +168,7 @@ describe('SiteExplorerPanel', () => {
 
   it('Media Explorer uses CMS media instead of base64 site files', () => {
     const source = readFileSync(
-      new URL('../../editor/components/MediaExplorerPanel/MediaExplorerPanel.tsx', import.meta.url),
+      new URL('../../admin/pages/site/panels/MediaExplorerPanel/MediaExplorerPanel.tsx', import.meta.url),
       'utf-8',
     )
 
@@ -449,15 +449,15 @@ describe('SiteExplorerPanel', () => {
     expect(codeEditorMountIndex).toBeGreaterThan(rightSidebarMountIndex)
 
     const editorPanelCss = readFileSync(
-      new URL('../../editor/components/CodeEditor/CodeEditorPanel.module.css', import.meta.url),
+      new URL('../../admin/pages/site/code-editor/CodeEditorPanel.module.css', import.meta.url),
       'utf-8',
     )
     const leftSidebarCss = readFileSync(
-      new URL('../../editor/components/LeftSidebar/LeftSidebar.module.css', import.meta.url),
+      new URL('../../admin/pages/site/sidebars/LeftSidebar/LeftSidebar.module.css', import.meta.url),
       'utf-8',
     )
     const rightSidebarCss = readFileSync(
-      new URL('../../editor/components/RightSidebar/RightSidebar.module.css', import.meta.url),
+      new URL('../../admin/pages/site/sidebars/RightSidebar/RightSidebar.module.css', import.meta.url),
       'utf-8',
     )
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { selectSelectedNode, useEditorStore } from '@core/editor-store/store'
+import { selectSelectedNode, useEditorStore } from '@site/store/store'
 import { cssClassSelector } from '@core/page-tree/classNames'
 import { generatedClassKindLabel, isGeneratedClass, isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import type { CSSClass } from '@core/page-tree/schemas'
@@ -15,8 +15,8 @@ import { DeleteIcon } from 'pixel-art-icons/icons/delete'
 import { EditIcon } from 'pixel-art-icons/icons/edit'
 import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
 import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
-import { PanelHeader } from '../shared/PanelHeader'
-import dialogStyles from '../SiteCreateDialog/SiteCreateDialog.module.css'
+import { PanelHeader } from '@admin/shared/PanelHeader'
+import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import {
   formatSelectorUsage,
   getReusableClasses,

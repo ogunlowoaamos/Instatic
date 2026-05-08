@@ -8,7 +8,7 @@
 import type { ModuleDefinition } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import { CursorClickIcon } from 'pixel-art-icons/icons/cursor-click'
-import { safeUrl } from '../utils/escape'
+import { safeUrl } from '@modules/base/utils/escape'
 import { ButtonEditor } from './ButtonEditor'
 
 interface ButtonProps extends Record<string, unknown> {

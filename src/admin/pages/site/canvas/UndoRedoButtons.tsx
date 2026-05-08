@@ -11,7 +11,7 @@
  * - aria-keyshortcuts documents the keyboard shortcut for screen readers.
  */
 import { useEffect } from 'react'
-import { useCanUndo, useCanRedo, useUndo, useRedo } from '@core/editor-store/store'
+import { useCanUndo, useCanRedo, useUndo, useRedo } from '@site/store/store'
 import { UndoIcon } from 'pixel-art-icons/icons/undo'
 import { RedoIcon } from 'pixel-art-icons/icons/redo'
 import { Button } from '@ui/components/Button'

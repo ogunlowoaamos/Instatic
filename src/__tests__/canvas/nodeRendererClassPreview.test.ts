@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { getCanvasNodeClassName } from '../../editor/components/Canvas/canvasNodeClassName'
+import { getCanvasNodeClassName } from '@site/canvas/canvasNodeClassName'
 import type { CSSClass } from '@core/page-tree/schemas'
 
 function makeClass(id: string, name: string): CSSClass {

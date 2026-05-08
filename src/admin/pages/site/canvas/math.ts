@@ -5,7 +5,7 @@
  * → a point at canvas coords (cx, cy) appears at screen coords (cx*zoom + panX, cy*zoom + panY)
  *
  * Exported as named exports so performance regression tests can time them directly.
- * See Contribution #311 (perf regression suite) — imports from '@editor/components/Canvas/math'.
+ * See Contribution #311 (perf regression suite) — imports from './math'.
  */
 
 export const MIN_ZOOM = 0.1

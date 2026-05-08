@@ -22,9 +22,9 @@
  * the source needing to pre-render every variant.
  */
 
-import type { DynamicPropBinding } from '../page-tree'
-import type { LoopItem } from '../loops/types'
-import { renderContentMarkdownToHtml } from '../markdown/renderContentMarkdown'
+import type { DynamicPropBinding } from '@core/page-tree'
+import type { LoopItem } from '@core/loops/types'
+import { renderContentMarkdownToHtml } from '@core/content/renderMarkdown'
 
 /**
  * Render-time context handed to the publisher.

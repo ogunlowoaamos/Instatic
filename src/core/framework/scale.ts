@@ -209,3 +209,53 @@ export function manualSizeVariableName(rawName: string): string {
   const safe = convertSafeCssName(rawName)
   return safe || 'size'
 }
+
+// ─── Step-list mutation helpers ─────────────────────────────────────────────
+//
+// `group.steps` is a comma-separated string ("xs,s,m,l,xl"). The editor's UI
+// for adding / removing steps shares one ring of canonical step names so each
+// add/remove walks deterministically along the t-shirt-size sequence rather
+// than concatenating arbitrary `m+`-style suffixes. These helpers are pure
+// data functions — no UI dependency — and live next to the rest of the scale
+// math so the publisher (or any other consumer that needs to extend a scale)
+// can reuse them.
+
+/**
+ * Canonical t-shirt-size ring used to walk forward / backward when the user
+ * presses the "+" / "−" buttons in the step list. Indexed pivot is the small
+ * cluster around `m`; either end fans out to `25xs` / `25xl`.
+ */
+export const SIZE_RING: ReadonlyArray<string> = [
+  '25xs', '24xs', '23xs', '22xs', '21xs', '20xs', '19xs', '18xs', '17xs', '16xs',
+  '15xs', '14xs', '13xs', '12xs', '11xs', '10xs', '9xs', '8xs', '7xs', '6xs',
+  '5xs', '4xs', '3xs', '2xs', 'xs', 's', 'm', 'l', 'xl', '2xl', '3xl', '4xl',
+  '5xl', '6xl', '7xl', '8xl', '9xl', '10xl', '11xl', '12xl', '13xl', '14xl',
+  '15xl', '16xl', '17xl', '18xl', '19xl', '20xl', '21xl', '22xl', '23xl',
+  '24xl', '25xl',
+]
+
+/** Next ring entry after `label`, clamped to the last entry. */
+export function nextSizeAfter(label: string): string {
+  const idx = SIZE_RING.indexOf(label)
+  return SIZE_RING[Math.min(idx + 1, SIZE_RING.length - 1)] ?? `${label}+`
+}
+
+/** Previous ring entry before `label`, clamped to the first entry. */
+export function nextSizeBefore(label: string): string {
+  const idx = SIZE_RING.indexOf(label)
+  return SIZE_RING[Math.max(idx - 1, 0)] ?? `pre-${label}`
+}
+
+/** Append a fresh step to the end of a comma-separated step list. */
+export function appendStep(steps: string): string {
+  const arr = steps.split(',').filter(Boolean)
+  const last = arr[arr.length - 1] ?? 'm'
+  return [...arr, nextSizeAfter(last)].join(',')
+}
+
+/** Prepend a fresh step to the start of a comma-separated step list. */
+export function prependStep(steps: string): string {
+  const arr = steps.split(',').filter(Boolean)
+  const first = arr[0] ?? 'm'
+  return [nextSizeBefore(first), ...arr].join(',')
+}

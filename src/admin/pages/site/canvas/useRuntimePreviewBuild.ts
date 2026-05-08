@@ -35,7 +35,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Page, SiteDocument } from '@core/page-tree/schemas'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { buildCmsRuntimePreview } from '@core/persistence/cmsRuntime'
 import type { SiteRuntimeDiagnostic } from '@core/site-runtime'
 import { materializeRuntimePreviewDocument } from './runtimePreviewDocument'

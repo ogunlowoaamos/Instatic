@@ -1,6 +1,24 @@
 # Plugin Authoring
 
-Plugins are zip packages that contain a `plugin.json` manifest and optional JavaScript entrypoints. The current SDK lives in this repo at `src/core/plugin-sdk/`; the contract is structured as the future `@cms/plugin-sdk` package, with TypeScript declarations in `examples/plugins/plugin-sdk.d.ts`.
+Plugins are TypeScript projects that ship as zip packages. The Plugin SDK lives in this repo at `src/core/plugin-sdk/` and is invoked via the **`pb-plugin` CLI**:
+
+```bash
+bun pb-plugin init my-plugin   # scaffold a new plugin
+bun pb-plugin build             # produce dist/ + .plugin.zip
+bun pb-plugin dev               # watch + sync into a running CMS
+```
+
+`pb-plugin dev` writes built files **directly** into the host's `uploads/plugins/<id>/<version>/` folder. The host's server module loader cache-busts each `import()` with `?v=Date.now()`, so server-side hooks pick up changes on the next request automatically. No login, no API tokens, no env-mode flag — the filesystem is the gate.
+
+When running inside the page-builder monorepo the CLI auto-detects the host's `uploads/` directory by walking up the tree. When running from a separate plugin repo, point at it explicitly:
+
+```bash
+PB_UPLOADS_DIR=../page-builder/uploads bun pb-plugin dev
+# or
+bun pb-plugin dev --uploads ../page-builder/uploads
+```
+
+The first install still goes through the admin UI (`/admin/plugins` → Upload Plugin) so the user approves permissions. After that, every `pb-plugin dev` rebuild flows in without another upload.
 
 ## Package Shape
 

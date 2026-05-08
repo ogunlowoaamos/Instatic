@@ -18,12 +18,12 @@ import { NodeTreeSchema } from './treeSchema'
 import {
   FrameworkSettingsSchema,
   GeneratedClassMetadataSchema,
-} from '../framework/schemas'
-import { SiteFileSchema, type SiteFile, type SiteFileType } from '../files/schemas'
-import { parseVisualComponent, VisualComponentSchema } from '../visualComponents/schemas'
-import { SiteRuntimeConfigSchema, type SiteRuntimeConfig } from '../site-runtime/schemas'
-import { SitePackageJsonSchema, type SitePackageJson } from '../site-dependencies/manifest'
-import { SiteFontsSettingsSchema, parseSiteFontsSettings } from '../fonts/schemas'
+} from '@core/framework/schemas'
+import { SiteFileSchema, type SiteFile, type SiteFileType } from '@core/files/schemas'
+import { parseVisualComponent, VisualComponentSchema } from '@core/visualComponents/schemas'
+import { SiteRuntimeConfigSchema, type SiteRuntimeConfig } from '@core/site-runtime/schemas'
+import { SitePackageJsonSchema, type SitePackageJson } from '@core/site-dependencies/manifest'
+import { SiteFontsSettingsSchema, parseSiteFontsSettings } from '@core/fonts/schemas'
 
 // ---------------------------------------------------------------------------
 // Breakpoint

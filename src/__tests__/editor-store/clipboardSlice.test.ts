@@ -16,12 +16,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import {
   CLIPBOARD_STORAGE_KEY,
   readClipboardPayload,
-} from '@core/editor-store/clipboard/clipboardStorage'
-import '../../modules/base/index'
+} from '@site/store/clipboard/clipboardStorage'
+import '@modules/base/index'
 
 function freshStore() {
   localStorage.clear()

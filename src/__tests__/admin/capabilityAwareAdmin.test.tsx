@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from '../../admin/lib/router'
-import { AdminSectionNavigation } from '../../admin/AdminLayout'
-import { AdminSessionProvider } from '../../admin/session'
-import { ContentPage } from '../../admin/content/ContentPage'
+import { MemoryRouter, Route, Routes } from '@admin/lib/routing'
+import { AdminSectionNavigation } from '@admin/AdminLayout'
+import { AdminSessionProvider } from '@admin/session'
+import { ContentPage } from '@content/ContentPage'
 import type { CmsCurrentUser } from '@core/persistence'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { makeSite } from '../fixtures'
 
 const originalFetch = globalThis.fetch

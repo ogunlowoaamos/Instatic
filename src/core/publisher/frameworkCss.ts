@@ -17,14 +17,14 @@
  * removal note.
  */
 
-import type { SiteDocument } from '../page-tree/schemas'
-import type { CSSClass } from '../page-tree/schemas'
+import type { SiteDocument } from '@core/page-tree/schemas'
+import type { CSSClass } from '@core/page-tree/schemas'
 import {
   generateFrameworkRootCss,
   generateFrameworkUtilityClasses,
-} from '../framework/generate'
-import { resolveFrameworkPreferences } from '../framework/preferences'
-import { generateFontsCss } from '../fonts/css'
+} from '@core/framework/generate'
+import { resolveFrameworkPreferences } from '@core/framework/preferences'
+import { generateFontsCss } from '@core/fonts/css'
 import { generateClassCSS } from './classCss'
 
 export function buildSiteFrameworkCss(site: SiteDocument): string {

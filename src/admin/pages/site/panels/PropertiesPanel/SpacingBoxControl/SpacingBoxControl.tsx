@@ -55,7 +55,7 @@ import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
 import { LinkIcon } from 'pixel-art-icons/icons/link'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { cn } from '@ui/cn'
-import { useEditorPreference } from '@editor/preferences/editorPreferences'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import {
   displayTokenValue,
   isLivePreviewable,
@@ -63,7 +63,7 @@ import {
   resolveTokenValue,
   useSpacingTokens,
   type Token,
-} from '@editor/components/PropertyControls/tokenUtils'
+} from '@site/property-controls/tokenUtils'
 import styles from './SpacingBoxControl.module.css'
 
 // ---------------------------------------------------------------------------

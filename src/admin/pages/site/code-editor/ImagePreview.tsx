@@ -17,7 +17,7 @@
  */
 
 import type { SiteFile } from '@core/files/schemas'
-import type { MediaAssetPreview } from '@core/editor-store/slices/uiSlice'
+import type { MediaAssetPreview } from '@site/store/slices/uiSlice'
 import styles from './imagePreview.module.css'
 
 // ---------------------------------------------------------------------------

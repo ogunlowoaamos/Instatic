@@ -17,8 +17,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
-import { useEditorStore } from '@core/editor-store/store'
-import VCBreadcrumb from '../../editor/components/Toolbar/VCBreadcrumb'
+import { useEditorStore } from '@site/store/store'
+import VCBreadcrumb from '@site/toolbar/VCBreadcrumb'
 
 // ---------------------------------------------------------------------------
 // Store reset helper
@@ -327,7 +327,7 @@ describe('VCBreadcrumb — inline name editing', () => {
 describe('VCBreadcrumb — structural source checks', () => {
   it('source does not use autoFocus', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/VCBreadcrumb.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/VCBreadcrumb.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).not.toContain('autoFocus')
@@ -335,7 +335,7 @@ describe('VCBreadcrumb — structural source checks', () => {
 
   it('source uses role="alert" for validation errors', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/VCBreadcrumb.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/VCBreadcrumb.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('role="alert"')
@@ -343,7 +343,7 @@ describe('VCBreadcrumb — structural source checks', () => {
 
   it('source uses exitVisualComponentMode from the store', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/VCBreadcrumb.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/VCBreadcrumb.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('exitVisualComponentMode')
@@ -351,7 +351,7 @@ describe('VCBreadcrumb — structural source checks', () => {
 
   it('source uses renameVisualComponent from the store', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/VCBreadcrumb.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/VCBreadcrumb.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('renameVisualComponent')
@@ -359,7 +359,7 @@ describe('VCBreadcrumb — structural source checks', () => {
 
   it('source uses validateComponentName for validation', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/VCBreadcrumb.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/VCBreadcrumb.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('validateComponentName')
@@ -367,7 +367,7 @@ describe('VCBreadcrumb — structural source checks', () => {
 
   it('Toolbar.tsx imports and renders VCBreadcrumb', () => {
     const src = require('fs').readFileSync(
-      new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('VCBreadcrumb')

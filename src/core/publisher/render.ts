@@ -10,21 +10,21 @@
  * Decision #308: CSS dedup keyed by moduleId reduces published CSS by ~60–80% on typical pages.
  */
 
-import type { Page, PageNode, SiteDocument } from '../page-tree/schemas'
-import type { IModuleRegistry } from '../module-engine/types'
-import { resolveProps } from '../page-tree/selectors'
-import { resolveDynamicProps, type TemplateRenderDataContext } from '../templates/dynamicBindings'
-import { classNamesForClassIds } from '../page-tree/classNames'
+import type { Page, PageNode, SiteDocument } from '@core/page-tree/schemas'
+import type { IModuleRegistry } from '@core/module-engine/types'
+import { resolveProps } from '@core/page-tree/selectors'
+import { resolveDynamicProps, type TemplateRenderDataContext } from '@core/templates/dynamicBindings'
+import { classNamesForClassIds } from '@core/page-tree/classNames'
 import { sanitizeModuleCSS, collectClassCSS } from './cssCollector'
 import { PUBLISHER_RESET_CSS } from './reset'
 import { buildSiteFrameworkCss } from './frameworkCss'
 import type { SiteCssBundle } from './siteCssBundle'
 import { escapeHtml, isSafeUrl } from './utils'
-import type { PublishedPageRuntimeAssets } from '../site-runtime/schemas'
-import { hasPublishedRuntimeScripts, scriptTagsForRuntimeAssets } from '../site-runtime'
-import { sanitizeRichtext } from '../sanitize'
-import { instantiateVCAtRef, type InstantiatedVCNode } from '../visualComponents/instantiate'
-import type { LoopFetchResult, LoopItem } from '../loops/types'
+import type { PublishedPageRuntimeAssets } from '@core/site-runtime/schemas'
+import { hasPublishedRuntimeScripts, scriptTagsForRuntimeAssets } from '@core/site-runtime'
+import { sanitizeRichtext } from '@core/sanitize'
+import { instantiateVCAtRef, type InstantiatedVCNode } from '@core/visualComponents/instantiate'
+import type { LoopFetchResult, LoopItem } from '@core/loops/types'
 
 // Re-export canonical utilities so existing imports from this file keep working
 // (render.test.ts imports escapeHtml / isSafeUrl from here)

@@ -19,16 +19,16 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { produce } from 'immer'
 import type { SiteDocument, PageNode, CSSClass } from '@core/page-tree/schemas'
 import type { VisualComponent } from '@core/visualComponents/schemas'
-import { VisualComponentNameError } from '@core/editor-store/slices/visualComponentsSlice'
+import { VisualComponentNameError } from '@site/store/slices/visualComponentsSlice'
 // Side-effect import: registers base modules in the registry so
 // `registry.get('base.text')`, `'base.container'`, etc. resolve at runtime.
 // Required for the auto-wrap behavior in convertNodeToComponent (which checks
 // `def.canHaveChildren` on the cloned root) to work in this test file.
-import '../../modules/base/index'
+import '@modules/base/index'
 
 // ---------------------------------------------------------------------------
 // Helpers

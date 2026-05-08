@@ -13,8 +13,8 @@
  */
 
 import { useState, useRef } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import { VisualComponentNameError } from '@core/editor-store/slices/visualComponentsSlice'
+import { useEditorStore } from '@site/store/store'
+import { VisualComponentNameError } from '@site/store/slices/visualComponentsSlice'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import styles from './ConvertToComponentButton.module.css'

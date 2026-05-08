@@ -1,4 +1,4 @@
-import type { SiteDocument } from '../page-tree/schemas'
+import type { SiteDocument } from '@core/page-tree/schemas'
 
 /**
  * IPersistenceAdapter — the interface the CMS draft storage backend satisfies.

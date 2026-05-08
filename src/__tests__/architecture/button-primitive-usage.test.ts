@@ -1,7 +1,7 @@
 /**
  * BTN-3 — Button Primitive Usage Gate (Task #462)
  *
- * Every interactive button in src/admin/ and src/editor/ MUST use the shared Button primitive
+ * Every interactive button in src/admin/ and src/admin/pages/site/ MUST use the shared Button primitive
  * (src/ui/components/Button/Button.tsx).  Raw <button JSX elements are
  * banned except in the §8 allowlist below.
  *
@@ -68,57 +68,61 @@ const ALLOWLIST = new Set([
   // ── §8.1 Settings nav buttons ────────────────────────────────────────────
   // Full-width left-sidebar navigation links styled as nav items.
   // Using Button would break the nav-item layout (full-width, icon+text, active state).
-  'editor/components/Settings/SettingsModal.tsx',
+  'admin/modals/Settings/SettingsModal.tsx',
 
   // ── §8.2 Full-width disclosure toggles ──────────────────────────────────
   // These are collapsible section headers that span the full panel width.
   // Button's inline-flex sizing and padding do not fit a full-width disclosure pattern.
-  'editor/components/PropertiesPanel/Section.tsx',
-  'editor/components/DependenciesPanel/DepsSection.tsx',
-  'editor/components/PropertyControls/PropertyControlRenderer.tsx',
+  'admin/pages/site/panels/PropertiesPanel/Section.tsx',
+  'admin/pages/site/panels/DependenciesPanel/DepsSection.tsx',
+  'admin/pages/site/property-controls/PropertyControlRenderer.tsx',
 
   // ── §8.4 Toggle switch hit areas ────────────────────────────────────────
   // role="switch" toggle controls need a 44×44 WCAG 2.5.5 transparent hit area
   // wrapped around the visual pill.  This is a custom <button layout that does
   // not fit Button's token-driven size system.
-  'editor/components/PropertyControls/ToggleControl.tsx',
-  'editor/components/Settings/sections/PreferencesSection.tsx',
+  'admin/pages/site/property-controls/ToggleControl.tsx',
+  'admin/modals/Settings/sections/PreferencesSection.tsx',
 
   // ── §8.5 Content workspace structured rows and editor canvas controls ───
   // Content explorer rows and media tiles reuse full-surface row/tile patterns
   // that Button's inline-flex sizing would distort. RichMarkdownEditor is a
   // custom contenteditable editing surface and is intentionally deferred from
   // this admin shell refactor.
-  'admin/content/components/ContentExplorerPanel/ContentExplorerPanel.tsx',
-  'admin/content/components/MediaPickerDialog/MediaPickerDialog.tsx',
-  'admin/content/RichMarkdownEditor.tsx',
+  'admin/pages/content/components/ContentExplorerPanel/ContentExplorerPanel.tsx',
+  'admin/pages/content/components/MediaPickerDialog/MediaPickerDialog.tsx',
+  'admin/pages/content/RichMarkdownEditor.tsx',
 
   // ── §8.3 Sub-micro pill controls inside a status badge ──────────────────
   // The runtime-preview Refresh control lives inside a 22px status pill in
   // the canvas preview chrome. It is a 16px-high pill — smaller than the
   // Button "micro" size (18px) — sized to read as inline status chrome
   // rather than a primary action. Button's token sizes can't go that small.
-  'editor/components/Canvas/CanvasPreviewSurface.tsx',
+  'admin/pages/site/canvas/CanvasPreviewSurface.tsx',
 
   // ── §8.6 ARIA tablist tabs ──────────────────────────────────────────────
   // role="tab" buttons inside role="tablist" need a custom tab layout
   // (icon + label, aria-selected, no border, mode-specific active state).
   // Button's token-driven sizing would distort the segmented-toggle look.
-  'editor/components/Canvas/CanvasModeToggle.tsx',
+  'admin/pages/site/canvas/CanvasModeToggle.tsx',
 
   // ── §8.7 Full-width row disclosure / listbox option custom layouts ──────
-  // ColorsPanel row toggles are full-width structured rows (title, meta,
-  // summary, expand caret) — same pattern as §8.2 disclosures but on a
-  // multi-cell row. TokenizedColorField renders role="option" items inside
-  // a role="listbox" with a swatch + token name + variant meta — Button's
-  // inline-flex layout cannot represent the option grid.
+  // ColorTokenCard row toggle is a full-width structured row (title + meta,
+  // expand caret pattern) — same pattern as §8.2 disclosures but on a
+  // multi-cell row layout that Button's inline-flex sizing cannot represent.
+  // CategoryComboBox renders role="option" items inside a role="listbox"
+  // dropdown — Button's inline-flex layout cannot represent the option grid.
+  // TokenizedColorField renders role="option" items inside a role="listbox"
+  // with a swatch + token name + variant meta — Button's inline-flex layout
+  // cannot represent the option grid.
   // AddGoogleFontDialog renders role="option" tiles inside a 2-column grid
   // with stacked content (large family-rendered preview on top, category
   // label below) — Button's fixed-height inline-flex row layout cannot
   // represent the card-style grid the font picker needs.
-  'editor/components/ColorsPanel/ColorsPanel.tsx',
-  'editor/components/PropertyControls/TokenizedColorField.tsx',
-  'editor/components/FontsSection/AddGoogleFontDialog.tsx',
+  'admin/pages/site/panels/ColorsPanel/ColorTokenCard.tsx',
+  'admin/pages/site/panels/ColorsPanel/CategoryComboBox.tsx',
+  'admin/pages/site/property-controls/TokenizedColorField.tsx',
+  'admin/pages/site/panels/TypographyPanel/FontsSection/AddGoogleFontDialog.tsx',
 ])
 
 // ---------------------------------------------------------------------------
@@ -126,7 +130,7 @@ const ALLOWLIST = new Set([
 // ---------------------------------------------------------------------------
 
 describe('BTN-3 — Button primitive usage gate', () => {
-  it('all <button elements in src/admin and src/editor are either the Button primitive or an §8 exception', () => {
+  it('all <button elements in src/admin and src/admin/pages/site are either the Button primitive or an §8 exception', () => {
     const files = SCAN_ROOTS.flatMap(({ root }) => collectTSXFiles(root))
     const violations: string[] = []
 

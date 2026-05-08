@@ -11,8 +11,8 @@ function readSource(path: string): string {
 describe('Canvas Fast Refresh boundaries', () => {
   it('keeps component modules free of Fast Refresh suppression comments', () => {
     const files = [
-      'editor/components/Canvas/ModuleSandboxFrame.tsx',
-      'editor/components/Canvas/NodeRenderer.tsx',
+      'admin/pages/site/canvas/ModuleSandboxFrame.tsx',
+      'admin/pages/site/canvas/NodeRenderer.tsx',
     ]
 
     for (const file of files) {
@@ -21,7 +21,7 @@ describe('Canvas Fast Refresh boundaries', () => {
   })
 
   it('keeps NodeRenderer exports limited to React components', () => {
-    const source = readSource('editor/components/Canvas/NodeRenderer.tsx')
+    const source = readSource('admin/pages/site/canvas/NodeRenderer.tsx')
 
     expect(source).not.toContain('export const CanvasSelectionContext')
     expect(source).not.toContain('export const CanvasBreakpointContext')
@@ -30,7 +30,7 @@ describe('Canvas Fast Refresh boundaries', () => {
   })
 
   it('keeps ModuleSandboxFrame exports limited to React components', () => {
-    const source = readSource('editor/components/Canvas/ModuleSandboxFrame.tsx')
+    const source = readSource('admin/pages/site/canvas/ModuleSandboxFrame.tsx')
 
     expect(source).not.toContain('export function createSandboxSrcDoc')
   })

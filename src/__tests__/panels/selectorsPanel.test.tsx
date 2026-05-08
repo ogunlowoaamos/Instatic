@@ -3,18 +3,18 @@ import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { SelectorsPanel } from '../../editor/components/SelectorsPanel'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
+import { SelectorsPanel } from '@site/panels/SelectorsPanel'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
 import {
   formatSelectorUsage,
   getReusableClasses,
   getSelectorStyleSummary,
   getSelectorUsage,
-} from '../../editor/components/SelectorsPanel/selectorUsage'
-import { useEditorStore } from '@core/editor-store/store'
+} from '@site/panels/SelectorsPanel/selectorUsage'
+import { useEditorStore } from '@site/store/store'
 import type { CSSClass } from '@core/page-tree/schemas'
 import { makeNode, makePage, makeSite } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
 
@@ -429,8 +429,8 @@ describe('SelectorsPanel', () => {
 
 describe('SelectorsPanel architecture', () => {
   it('wires selectors into the panel rail and left sidebar', () => {
-    const railSource = readFileSync(join(SRC_ROOT, 'editor/components/PanelRail/PanelRail.tsx'), 'utf-8')
-    const sidebarSource = readFileSync(join(SRC_ROOT, 'editor/components/LeftSidebar/LeftSidebar.tsx'), 'utf-8')
+    const railSource = readFileSync(join(SRC_ROOT, 'admin/pages/site/sidebars/PanelRail/PanelRail.tsx'), 'utf-8')
+    const sidebarSource = readFileSync(join(SRC_ROOT, 'admin/pages/site/sidebars/LeftSidebar/LeftSidebar.tsx'), 'utf-8')
 
     expect(railSource).toContain("id: 'selectors'")
     expect(sidebarSource).toContain('SelectorsPanel')
@@ -438,8 +438,8 @@ describe('SelectorsPanel architecture', () => {
 
   it('new selectors panel files avoid inline styles Tailwind and important flags', () => {
     const files = [
-      'editor/components/SelectorsPanel/SelectorsPanel.tsx',
-      'editor/components/SelectorsPanel/SelectorsPanel.module.css',
+      'admin/pages/site/panels/SelectorsPanel/SelectorsPanel.tsx',
+      'admin/pages/site/panels/SelectorsPanel/SelectorsPanel.module.css',
     ]
 
     for (const file of files) {

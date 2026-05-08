@@ -15,7 +15,7 @@
  * previewed device without leaving the canvas chrome.
  */
 import { useCallback, type SyntheticEvent } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import type { Breakpoint } from '@core/page-tree/schemas'
 import { CursorMinimalIcon } from 'pixel-art-icons/icons/cursor-minimal'
 import { EyeIcon } from 'pixel-art-icons/icons/eye'

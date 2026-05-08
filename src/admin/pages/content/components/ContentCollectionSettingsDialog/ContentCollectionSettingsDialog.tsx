@@ -7,7 +7,7 @@ import { Checkbox } from '@ui/components/Checkbox'
 import { Input } from '@ui/components/Input'
 import { useDialogEscape } from '@ui/lib/useDialogEscape'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
-import dialogStyles from '@editor/components/SiteCreateDialog/SiteCreateDialog.module.css'
+import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import styles from '../../ContentPage.module.css'
 import { slugFromTitle } from '@core/utils/slug'
 

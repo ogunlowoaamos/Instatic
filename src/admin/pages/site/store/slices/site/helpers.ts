@@ -19,7 +19,7 @@ import type {
   SiteDocument,
 } from '@core/page-tree'
 import { syncSlotInstances, applySlotSyncResult } from '@core/visualComponents/slotSync'
-import type { EditorStore } from '../../types'
+import type { EditorStore } from '@site/store/types'
 import { MAX_HISTORY } from './defaults'
 import type { SiteSliceHelpers, SiteSliceImmerRecipe } from './types'
 

@@ -5,7 +5,7 @@
  *   - The engine layer (src/core/framework/typography.ts, .../spacing.ts,
  *     .../scale.ts, .../preferences.ts) MUST stay React-free so the publisher
  *     and any future server-side code can import it.
- *   - The editor panels MUST live under src/editor/components/<Family>Panel/
+ *   - The editor panels MUST live under src/admin/pages/site/components/<Family>Panel/
  *     and consume only the page-builder design tokens (no raw hex, no Tailwind).
  *   - The new icons (`type`, `ruler-dimension`) MUST be on the panel rail and
  *     reachable through the catalog import path the icon gate already enforces.
@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { join } from 'path'
 
 const ROOT = join(import.meta.dir, '../..')
@@ -26,6 +26,25 @@ function readSource(relative: string): string {
     throw new Error(`[arch] expected file does not exist: ${relative}`)
   }
   return readFileSync(path, 'utf8')
+}
+
+/** Recursively concatenate every `.module.css` in a folder (for token-usage gates). */
+function readAllModuleCss(relativeDir: string): string {
+  const root = join(ROOT, relativeDir)
+  if (!existsSync(root)) {
+    throw new Error(`[arch] expected directory does not exist: ${relativeDir}`)
+  }
+  let combined = ''
+  function walk(dir: string) {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      const st = statSync(full)
+      if (st.isDirectory()) walk(full)
+      else if (entry.endsWith('.module.css')) combined += readFileSync(full, 'utf8') + '\n'
+    }
+  }
+  walk(root)
+  return combined
 }
 
 describe('architecture — framework typography & spacing engine', () => {
@@ -60,19 +79,22 @@ describe('architecture — framework typography & spacing engine', () => {
 
 describe('architecture — typography / spacing panels', () => {
   it('TypographyPanel and SpacingPanel exist at the expected paths', () => {
-    expect(existsSync(join(ROOT, 'editor/components/TypographyPanel/TypographyPanel.tsx'))).toBe(
+    expect(existsSync(join(ROOT, 'admin/pages/site/panels/TypographyPanel/TypographyPanel.tsx'))).toBe(
       true,
     )
-    expect(existsSync(join(ROOT, 'editor/components/SpacingPanel/SpacingPanel.tsx'))).toBe(true)
+    expect(existsSync(join(ROOT, 'admin/pages/site/panels/SpacingPanel/SpacingPanel.tsx'))).toBe(true)
     expect(
-      existsSync(join(ROOT, 'editor/components/shared/FrameworkScalePanel/FrameworkScalePanel.tsx')),
+      existsSync(join(ROOT, 'admin/pages/site/panels/FrameworkScalePanel/FrameworkScalePanel.tsx')),
     ).toBe(true)
   })
 
-  it('panel CSS module uses only design tokens, never raw hex colors', () => {
-    const css = readSource(
-      'editor/components/shared/FrameworkScalePanel/FrameworkScalePanel.module.css',
-    )
+  it('panel CSS modules use only design tokens, never raw hex colors', () => {
+    // The panel was decomposed in 2026-05 into per-component .module.css files
+    // (FrameworkScalePanel, StepList, BaseSettings, ManualEditor, etc.). The
+    // gate's intent — every class in the panel reads from a design token, not
+    // a raw colour — is preserved by walking the folder and concatenating all
+    // module CSS files instead of binding to a single filename.
+    const css = readAllModuleCss('admin/pages/site/panels/FrameworkScalePanel')
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     // Must reference the canonical token names so a refactor of globals.css
     // does not silently break the panel.
@@ -83,9 +105,9 @@ describe('architecture — typography / spacing panels', () => {
   it('panels do NOT pull tinted Tailwind color classes', () => {
     const TINTED = /\b(zinc|slate|blue|indigo|violet)-\d{2,3}\b/
     for (const file of [
-      'editor/components/TypographyPanel/TypographyPanel.tsx',
-      'editor/components/SpacingPanel/SpacingPanel.tsx',
-      'editor/components/shared/FrameworkScalePanel/FrameworkScalePanel.tsx',
+      'admin/pages/site/panels/TypographyPanel/TypographyPanel.tsx',
+      'admin/pages/site/panels/SpacingPanel/SpacingPanel.tsx',
+      'admin/pages/site/panels/FrameworkScalePanel/FrameworkScalePanel.tsx',
     ]) {
       expect(TINTED.test(readSource(file))).toBe(false)
     }
@@ -93,7 +115,7 @@ describe('architecture — typography / spacing panels', () => {
 })
 
 describe('architecture — panel rail', () => {
-  const railSource = readSource('editor/components/PanelRail/PanelRail.tsx')
+  const railSource = readSource('admin/pages/site/sidebars/PanelRail/PanelRail.tsx')
 
   it('rail wires both new panels via the catalog icon imports', () => {
     expect(railSource).toContain("from 'pixel-art-icons/icons/text-start-t'")
@@ -107,10 +129,10 @@ describe('architecture — panel rail', () => {
 })
 
 describe('architecture — left sidebar', () => {
-  const layoutSource = readSource('editor/components/LeftSidebar/LeftSidebar.tsx')
+  const layoutSource = readSource('admin/pages/site/sidebars/LeftSidebar/LeftSidebar.tsx')
 
-  it('mounts TypographyPanel and SpacingPanel as docked variants', () => {
-    expect(layoutSource).toContain('<TypographyPanel variant="docked" />')
-    expect(layoutSource).toContain('<SpacingPanel variant="docked" />')
+  it('mounts TypographyPanel and SpacingPanel', () => {
+    expect(layoutSource).toContain('<TypographyPanel />')
+    expect(layoutSource).toContain('<SpacingPanel />')
   })
 })

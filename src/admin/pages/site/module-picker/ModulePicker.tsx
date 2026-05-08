@@ -23,7 +23,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
 import type { VisualComponent } from '@core/visualComponents/schemas'
@@ -33,7 +33,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@ui/components/ContextMenu'
-import { ModuleIcon } from '../../ui/ModuleIcon'
+import { ModuleIcon } from '@site/ui/ModuleIcon'
 import styles from './ModulePicker.module.css'
 
 const EMPTY_VCS: VisualComponent[] = []

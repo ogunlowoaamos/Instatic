@@ -21,11 +21,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'fs'
-import { PagesSection } from '../../editor/components/Settings/sections/PagesSection'
-import { BreakpointsSection } from '../../editor/components/Settings/sections/BreakpointsSection'
-import { PreferencesSection } from '../../editor/components/Settings/sections/PreferencesSection'
-import { PublishingSection } from '../../editor/components/Settings/sections/PublishingSection'
-import { useEditorStore } from '@core/editor-store/store'
+import { PagesSection } from '@admin/modals/Settings/sections/PagesSection'
+import { BreakpointsSection } from '@admin/modals/Settings/sections/BreakpointsSection'
+import { PreferencesSection } from '@admin/modals/Settings/sections/PreferencesSection'
+import { PublishingSection } from '@admin/modals/Settings/sections/PublishingSection'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage } from '../fixtures'
 
 // ---------------------------------------------------------------------------
@@ -276,11 +276,11 @@ describe('BreakpointsSection — inline remove confirmation flow', () => {
 
 describe('Settings Sections — aria-disabled source enforcement (Guideline #224)', () => {
   const pagesSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/PagesSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/PagesSection.tsx', import.meta.url),
     'utf-8',
   )
   const breakpointsSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/BreakpointsSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/BreakpointsSection.tsx', import.meta.url),
     'utf-8',
   )
 
@@ -318,11 +318,11 @@ describe('Settings Sections — aria-disabled source enforcement (Guideline #224
 
 describe('Settings Sections — no window.confirm() (Task #244)', () => {
   const pagesSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/PagesSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/PagesSection.tsx', import.meta.url),
     'utf-8',
   )
   const breakpointsSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/BreakpointsSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/BreakpointsSection.tsx', import.meta.url),
     'utf-8',
   )
 
@@ -420,7 +420,7 @@ describe('PreferencesSection — catalog-driven rendering', () => {
   it('auto-renders one switch per boolean catalog entry and excludes retired keys', () => {
     render(<PreferencesSection />)
 
-    // Boolean preferences currently declared in `editor/preferences/catalog.ts`:
+    // Boolean preferences currently declared in `admin/pages/site/preferences/catalog.ts`:
     //   autoSave, hoverPreview, confirmBeforeDelete,
     //   layersShowIcon, layersShowTag, layersShowClasses,
     //   layersAutoExpandSelected, layersSmoothScroll,
@@ -590,11 +590,11 @@ describe('BreakpointsSection — inline confirm focus management (Task #256)', (
 
 describe('Settings Sections — focus management source enforcement (Task #256 / Guideline #258)', () => {
   const pagesSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/PagesSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/PagesSection.tsx', import.meta.url),
     'utf-8',
   )
   const breakpointsSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/BreakpointsSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/BreakpointsSection.tsx', import.meta.url),
     'utf-8',
   )
 

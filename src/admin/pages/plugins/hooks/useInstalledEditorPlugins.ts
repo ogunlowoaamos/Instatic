@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { activateInstalledEditorPlugins } from '@core/plugins/editorPluginLoader'
 import { editorPluginModuleComponentFactory } from '@site/canvas/pluginModuleComponentFactory'
 import { CMS_PLUGINS_CHANGED_EVENT } from '@plugins/utils/pluginEvents'
+import { setEditorActivationFailures } from './editorPluginActivationErrors'
 
 export function useInstalledEditorPlugins(): void {
   useEffect(() => {
@@ -11,7 +12,13 @@ export function useInstalledEditorPlugins(): void {
       const result = await activateInstalledEditorPlugins({
         componentFactory: editorPluginModuleComponentFactory,
       })
-      if (!cancelled && result.failed.length > 0) {
+      if (cancelled) return
+      // Fan failures out to the activation-errors store so the Plugins admin
+      // page can render them inline next to server-side `lastError`. The
+      // store is replaced wholesale on every pass — successful re-activation
+      // clears stale entries automatically.
+      setEditorActivationFailures(result.failed)
+      if (result.failed.length > 0) {
         console.error('Some editor plugins failed to activate', result.failed)
       }
     }

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { useRef } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useEditorStore } from '@core/editor-store/store'
-import { DEFAULT_ZOOM } from '@core/editor-store/slices/canvasSlice'
-import { useCanvas } from '../../editor/hooks/useCanvas'
+import { useEditorStore } from '@site/store/store'
+import { DEFAULT_ZOOM } from '@site/store/slices/canvasSlice'
+import { useCanvas } from '@site/hooks/useCanvas'
 
 function TestCanvas() {
   const canvasRootRef = useRef<HTMLDivElement>(null)

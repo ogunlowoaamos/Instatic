@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox'
-import type { PropertiesPanelMode } from '@core/editor-store/slices/uiSlice'
+import type { PropertiesPanelMode } from '@site/store/slices/uiSlice'
 import { safeParseJson } from '@core/utils/jsonValidate'
 
 export const EDITOR_LAYOUT_STORAGE_KEY = 'pb-editor-layout-v1'

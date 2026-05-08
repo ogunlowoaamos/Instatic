@@ -17,7 +17,7 @@
  */
 
 import { marked } from 'marked'
-import { sanitizeRichtext } from '../sanitize'
+import { sanitizeRichtext } from '@core/sanitize'
 
 // Configure once at module load. `breaks: true` turns single newlines into
 // <br> (chat rendering — feels more like the source); `gfm: true` enables

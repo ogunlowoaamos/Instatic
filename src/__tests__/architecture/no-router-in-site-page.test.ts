@@ -1,8 +1,9 @@
 /**
  * Architecture Source-Scan — Constraint #275
  *
- * No file in `src/editor/` or `src/core/` may import from a router — neither
- * `react-router-dom` (legacy) nor the in-house `src/admin/lib/router`.
+ * No file under the visual editor (`src/admin/pages/site/`) or `src/core/` may
+ * import from a router — neither `react-router-dom` (legacy) nor the in-house
+ * `@admin/lib/routing` (under `src/admin/lib/routing/`).
  *
  * WHY THIS MATTERS
  * ----------------
@@ -11,9 +12,10 @@
  * router. The editor MUST NOT import or depend on routing internally — it would
  * conflict with the host app's router and break nested routing.
  *
- * In the current standalone app, routing lives in `src/admin/` (the shell).
- * The editor itself (`src/editor/`) and core logic (`src/core/`) must be
- * completely router-agnostic.
+ * In the current standalone app, routing lives in the admin shell
+ * (`src/admin/{router,AdminEntry,lib/routing}.tsx`). The site page itself
+ * (`src/admin/pages/site/`) and core logic (`src/core/`) must be completely
+ * router-agnostic.
  *
  * @see Constraint #275 — Editor components must not import a router
  * @see Task #274 — Phase F: Embeddable Editor npm Package
@@ -49,21 +51,20 @@ function collectFiles(dir: string, exts = ['.ts', '.tsx']): string[] {
 // Constraint #275 — no react-router-dom in editor/ or core/
 // ---------------------------------------------------------------------------
 
-describe('Constraint #275 — routers must not be imported in editor/, core/, or modules/', () => {
-  // Catches both the legacy `react-router-dom` import and any path-based or
-  // alias-based import of the in-house admin router (`src/admin/lib/router`,
-  // `src/admin/lib/routerHooks`, `@admin/lib/router(Hooks)?`).
-  const ROUTER_IMPORT_RE = /from\s+['"](?:react-router-dom|(?:[./]+|@admin\/)admin\/lib\/router(?:Hooks)?|[./]+lib\/router(?:Hooks)?)['"]/
+describe('Constraint #275 — routers must not be imported in site page/, core/, or modules/', () => {
+  // Catches both the legacy `react-router-dom` import and any alias-based
+  // import of the in-house admin router (`@admin/lib/routing`).
+  const ROUTER_IMPORT_RE = /from\s+['"](?:react-router-dom|@admin\/lib\/routing|(?:[./]+)admin\/lib\/routing)['"]/
 
-  it('no file in src/editor/ imports a router', () => {
-    const editorFiles = collectFiles(join(SRC_ROOT, 'editor'))
+  it('no file in src/admin/pages/site/ imports a router', () => {
+    const editorFiles = collectFiles(join(SRC_ROOT, 'admin/pages/site'))
     const violations = editorFiles.filter((f) =>
       ROUTER_IMPORT_RE.test(readFileSync(f, 'utf8'))
     )
     if (violations.length > 0) {
       const rel = violations.map((f) => f.replace(SRC_ROOT, 'src/'))
       throw new Error(
-        `[Constraint #275] router import found in editor/ — move routing to src/admin/:\n` +
+        `[Constraint #275] router import found in site page/ — keep routing in the admin shell:\n` +
         rel.map((f) => `  ${f}`).join('\n')
       )
     }
@@ -106,7 +107,7 @@ describe('Constraint #271 — astro-publisher isolation (Phase E gate)', () => {
     const astroPubDir = join(SRC_ROOT, 'core/astro-publisher')
     if (existsSync(astroPubDir)) {
       // Phase E has started — enforce isolation
-      const FORBIDDEN_IMPORT_RE = /from\s+['"][^'"]*(?:core\/publisher|src\/editor|src\/app)/
+      const FORBIDDEN_IMPORT_RE = /from\s+['"][^'"]*(?:core\/publisher|src\/admin\/pages\/site|src\/app)/
       const files = collectFiles(astroPubDir)
       const violations = files.filter((f) =>
         FORBIDDEN_IMPORT_RE.test(readFileSync(f, 'utf8'))

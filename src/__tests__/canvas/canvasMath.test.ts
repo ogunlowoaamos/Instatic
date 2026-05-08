@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import * as canvasMath from '../../editor/components/Canvas/math'
+import * as canvasMath from '@site/canvas/math'
 import {
   MIN_ZOOM,
   MAX_ZOOM,
@@ -33,7 +33,7 @@ import {
   applyZoom,
   applyPan,
   zoomFromWheelDelta,
-} from '../../editor/components/Canvas/math'
+} from '@site/canvas/math'
 
 // ---------------------------------------------------------------------------
 // Constants

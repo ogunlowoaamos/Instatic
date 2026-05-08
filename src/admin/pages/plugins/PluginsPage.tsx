@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEvent } from "react";
 import { Link } from "@admin/lib/routing";
 import { Button } from "@ui/components/Button";
@@ -6,6 +6,10 @@ import { PowerIcon } from "pixel-art-icons/icons/power";
 import { PowerOffIcon } from "pixel-art-icons/icons/power-off";
 import { DeleteIcon } from "pixel-art-icons/icons/delete";
 import { UploadIcon } from "pixel-art-icons/icons/upload";
+import {
+  getEditorActivationErrors,
+  subscribeEditorActivationErrors,
+} from "./hooks/editorPluginActivationErrors";
 import type {
   CmsPluginsPayload,
   InstalledPlugin,
@@ -16,7 +20,8 @@ import {
   parsePluginManifest,
   permissionLabel,
 } from "@core/plugins/manifest";
-import { permissionDescription } from "@core/plugin-sdk";
+import { permissionDescription, safeUrl } from "@core/plugin-sdk";
+import { PluginRemoveDialog } from "./components/PluginRemoveDialog/PluginRemoveDialog";
 import {
   inspectCmsPluginPackage,
   installCmsPluginPackage,
@@ -42,6 +47,15 @@ const emptyPayload: CmsPluginsPayload = { plugins: [], adminPages: [] };
 interface PendingInstall {
   manifest: PluginManifest;
   file?: File;
+  /**
+   * If set, this upload upgrades an already-installed plugin from the given
+   * version to `manifest.version`. The dialog renders upgrade-aware copy
+   * ("Update X from 1.0.0 to 1.1.0") and the confirm button reflects the
+   * verb. The host detects upgrades server-side independently — this flag
+   * exists purely so the UI can show the delta before the user clicks
+   * confirm.
+   */
+  upgradeFromVersion?: string;
 }
 
 function updatePlugin(
@@ -85,6 +99,16 @@ export function PluginsPage() {
     null,
   );
   const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<InstalledPlugin | null>(null);
+
+  // Editor-side activation failures (per pluginId → error message). Populated
+  // by `useInstalledEditorPlugins` after each refresh; surfaced on the plugin
+  // card alongside the server-side `lastError`.
+  const editorActivationErrors = useSyncExternalStore(
+    subscribeEditorActivationErrors,
+    getEditorActivationErrors,
+    getEditorActivationErrors,
+  );
 
   async function loadPlugins() {
     setLoading(true);
@@ -117,10 +141,24 @@ export function PluginsPage() {
         ? await inspectCmsPluginPackage(file)
         : parsePluginManifest(JSON.parse(await file.text()));
 
-      if (manifest.permissions.length > 0) {
+      // Detect upgrade vs. fresh install client-side so we can render the
+      // right copy in the confirmation dialog. The server detects upgrades
+      // independently — this is purely a UX hint (and a way to force the
+      // dialog to show even when no new permissions are being requested).
+      const existing = payload.plugins.find((p) => p.id === manifest.id);
+      const upgradeFromVersion =
+        existing && existing.version !== manifest.version
+          ? existing.version
+          : undefined;
+
+      // Always show the dialog for upgrades, even with zero new permissions.
+      // The site owner deserves to see a "yes, upgrade 1.0.0 → 1.1.0"
+      // confirmation before we replace a working plugin.
+      if (manifest.permissions.length > 0 || upgradeFromVersion) {
         setPendingInstall({
           manifest,
           file: file.name.toLowerCase().endsWith(".zip") ? file : undefined,
+          upgradeFromVersion,
         });
       } else {
         await installPendingPlugin(
@@ -224,7 +262,7 @@ export function PluginsPage() {
     }
   }
 
-  async function removePlugin(plugin: InstalledPlugin) {
+  async function executeRemovePlugin(plugin: InstalledPlugin) {
     setBusyPluginId(plugin.id);
     setError(null);
     try {
@@ -239,7 +277,14 @@ export function PluginsPage() {
       }));
       notifyCmsPluginsChanged();
     } catch (err) {
+      // The host's DELETE handler runs the plugin's `uninstall` lifecycle
+      // hook, removes runtime registrations, drops the DB row, and deletes
+      // the on-disk asset folder. If that flow returns an error we'd land
+      // in a confusing state where the plugin row may have been deleted
+      // server-side but the UI still shows it. Re-fetch the canonical list
+      // so the card reflects reality regardless of the failure mode.
       setError(err instanceof Error ? err.message : "Could not remove plugin");
+      await loadPlugins();
     } finally {
       setBusyPluginId(null);
     }
@@ -315,21 +360,26 @@ export function PluginsPage() {
               >
                 <div>
                   <h2 id="plugin-permissions-title">
-                    Approve Plugin Permissions
+                    {pendingInstall.upgradeFromVersion
+                      ? `Update ${pendingInstall.manifest.name}`
+                      : "Approve Plugin Permissions"}
                   </h2>
                   <p>
-                    {pendingInstall.manifest.name} requests access before
-                    activation.
+                    {pendingInstall.upgradeFromVersion
+                      ? `Updating from ${pendingInstall.upgradeFromVersion} to ${pendingInstall.manifest.version}. Existing settings and stored data are preserved; the plugin runs its migrate hook before re-activating.`
+                      : `${pendingInstall.manifest.name} requests access before activation.`}
                   </p>
                 </div>
-                <ul>
-                  {pendingInstall.manifest.permissions.map((permission) => (
-                    <li key={permission}>
-                      <strong>{permissionLabel(permission)}</strong>
-                      <span>{permissionDescription(permission)}</span>
-                    </li>
-                  ))}
-                </ul>
+                {pendingInstall.manifest.permissions.length > 0 && (
+                  <ul>
+                    {pendingInstall.manifest.permissions.map((permission) => (
+                      <li key={permission}>
+                        <strong>{permissionLabel(permission)}</strong>
+                        <span>{permissionDescription(permission)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div className={styles.permissionActions}>
                   <Button
                     variant="secondary"
@@ -345,7 +395,13 @@ export function PluginsPage() {
                     onClick={() => void installPendingPlugin(pendingInstall)}
                   >
                     <span>
-                      {uploading ? "Installing" : "Approve and Install"}
+                      {uploading
+                        ? pendingInstall.upgradeFromVersion
+                          ? "Updating"
+                          : "Installing"
+                        : pendingInstall.upgradeFromVersion
+                          ? `Update to ${pendingInstall.manifest.version}`
+                          : "Approve and Install"}
                     </span>
                   </Button>
                 </div>
@@ -360,10 +416,29 @@ export function PluginsPage() {
               ) : (
                 payload.plugins.map((plugin) => {
                   const status = pluginStatus(plugin);
+                  const iconSrc =
+                    plugin.manifest.icon && plugin.manifest.assetBasePath
+                      ? `${plugin.manifest.assetBasePath.replace(/\/+$/, "")}/${plugin.manifest.icon}`
+                      : null;
+                  const author = plugin.manifest.author;
+                  const homepage = plugin.manifest.homepage;
+                  const repository = plugin.manifest.repository;
+                  const license = plugin.manifest.license;
+                  const keywords = plugin.manifest.keywords ?? [];
                   return (
                     <article key={plugin.id} className={styles.pluginCard}>
                       <div className={styles.pluginMeta}>
                         <div className={styles.pluginNameRow}>
+                          {iconSrc && (
+                            <img
+                              src={iconSrc}
+                              alt=""
+                              className={styles.pluginIcon}
+                              width={36}
+                              height={36}
+                              loading="lazy"
+                            />
+                          )}
                           <h2>{plugin.name}</h2>
                           <span data-status={status.status}>
                             {status.label}
@@ -373,9 +448,68 @@ export function PluginsPage() {
                           {plugin.manifest.description ??
                             `${plugin.id} v${plugin.version}`}
                         </p>
+                        {(author || homepage || repository || license) && (
+                          <p className={styles.pluginAttribution}>
+                            {author && (
+                              <span className={styles.pluginAttributionItem}>
+                                by{" "}
+                                {author.url ? (
+                                  <a
+                                    href={safeUrl(author.url)}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {author.name}
+                                  </a>
+                                ) : (
+                                  author.name
+                                )}
+                              </span>
+                            )}
+                            {license && (
+                              <span className={styles.pluginAttributionItem}>
+                                <span className={styles.pluginLicenseBadge}>
+                                  {license}
+                                </span>
+                              </span>
+                            )}
+                            {homepage && (
+                              <a
+                                className={styles.pluginAttributionItem}
+                                href={safeUrl(homepage)}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                Homepage
+                              </a>
+                            )}
+                            {repository && (
+                              <a
+                                className={styles.pluginAttributionItem}
+                                href={safeUrl(repository)}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                Source
+                              </a>
+                            )}
+                          </p>
+                        )}
+                        {keywords.length > 0 && (
+                          <ul className={styles.pluginKeywords} aria-label="Keywords">
+                            {keywords.map((keyword) => (
+                              <li key={keyword}>{keyword}</li>
+                            ))}
+                          </ul>
+                        )}
                         {plugin.lastError && (
                           <p className={styles.pluginError}>
                             {plugin.lastError}
+                          </p>
+                        )}
+                        {editorActivationErrors[plugin.id] && (
+                          <p className={styles.pluginError}>
+                            Editor: {editorActivationErrors[plugin.id]}
                           </p>
                         )}
                         {plugin.manifest.pack &&
@@ -444,7 +578,7 @@ export function PluginsPage() {
                           variant="destructive"
                           size="sm"
                           disabled={busyPluginId === plugin.id}
-                          onClick={() => void removePlugin(plugin)}
+                          onClick={() => setPendingRemove(plugin)}
                           aria-label={`Remove ${plugin.name}`}
                         >
                           <DeleteIcon size={14} aria-hidden="true" />
@@ -468,6 +602,19 @@ export function PluginsPage() {
                 onSaved={() => {
                   notifyCmsPluginsChanged();
                   void loadPlugins();
+                }}
+              />
+            )}
+
+            {pendingRemove && (
+              <PluginRemoveDialog
+                plugin={pendingRemove}
+                busy={busyPluginId === pendingRemove.id}
+                onClose={() => setPendingRemove(null)}
+                onConfirm={async () => {
+                  const target = pendingRemove;
+                  setPendingRemove(null);
+                  await executeRemovePlugin(target);
                 }}
               />
             )}

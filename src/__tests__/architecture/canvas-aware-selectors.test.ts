@@ -55,7 +55,7 @@ function relPath(full: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// GATE 1 — `selectActivePage` must not be imported in src/editor/
+// GATE 1 — `selectActivePage` must not be imported in src/admin/pages/site/
 //
 // §-style ALLOWLIST — files that are page-mode-only by design and are
 // legitimately allowed to import `selectActivePage`.
@@ -72,30 +72,30 @@ function relPath(full: string): string {
 const SELECT_ACTIVE_PAGE_ALLOWLIST = new Set<string>([
   // §A.1 — settings pages section: manages the site's page list, not canvas nodes.
   //   Renders a list of all site pages for add/rename/delete — never reads node data.
-  'editor/components/Settings/sections/PagesSection.tsx',
+  'admin/modals/Settings/sections/PagesSection.tsx',
 
   // §A.2 — module insertion hook: insertNode calls mutatePage which is page-only.
   //   VC node insertion requires a separate addNodeToVc code path. useInsertModule
   //   is intentionally page-mode-only; callers handle VC mode explicitly.
-  'editor/hooks/useInsertModule.ts',
+  'admin/pages/site/hooks/useInsertModule.ts',
 
   // §A.3 — module picker toolbar dropdown: uses `page` only in the explicit
   //   page-mode branch of handleInsertVc. VC insertion is handled by a separate
   //   activeDocument?.kind === 'visualComponent' branch directly above.
-  'editor/components/Toolbar/ModulePickerDropdown.tsx',
+  'admin/pages/site/toolbar/ModulePickerDropdown.tsx',
 
   // §A.4 — page preview overlay: publishes the active page via publishPage() to
   //   render it in a sandboxed iframe. VCs are not publishable pages and have no
   //   slug; the preview concept is inherently page-mode-only.
-  'editor/components/Preview/PreviewOverlay.tsx',
+  'admin/pages/site/preview/PreviewOverlay.tsx',
 
   // §A.5 — publish button: publishes the active page. Purely page-mode — publishing
   //   a standalone VC is not a supported workflow (VCs are embedded in pages).
-  'editor/components/Toolbar/PublishButton.tsx',
+  'admin/pages/site/toolbar/PublishButton.tsx',
 ])
 
 describe('Canvas-aware selector gate — selectActivePage not imported in editor panels', () => {
-  it('no src/editor/ file imports selectActivePage unless allowlisted', () => {
+  it('no src/admin/pages/site/ file imports selectActivePage unless allowlisted', () => {
     if (!existsSync(EDITOR_ROOT)) {
       expect(true).toBe(true)
       return

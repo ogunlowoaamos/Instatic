@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { loopSourceRegistry } from '@core/loops/registry'
 import type { LoopEntitySource } from '@core/loops/types'
 import type { PropertyControl, PropertySchema } from '@core/module-engine/types'
@@ -22,7 +22,7 @@ import {
   listCmsContentCollections,
   listCmsContentEntries,
 } from '@core/persistence/cmsContent'
-import { PropertyControlRenderer } from '../PropertyControls/PropertyControlRenderer'
+import { PropertyControlRenderer } from '@site/property-controls/PropertyControlRenderer'
 
 interface LoopPropertiesViewProps {
   nodeId: string

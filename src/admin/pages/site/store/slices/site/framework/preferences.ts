@@ -3,7 +3,7 @@
  */
 
 import { DEFAULT_FRAMEWORK_PREFERENCES } from '@core/framework/preferences'
-import type { SiteSlice, SiteSliceHelpers } from '../types'
+import type { SiteSlice, SiteSliceHelpers } from '@site/store/slices/site/types'
 
 export type FrameworkPreferencesActions = Pick<SiteSlice, 'updateFrameworkPreferences'>
 

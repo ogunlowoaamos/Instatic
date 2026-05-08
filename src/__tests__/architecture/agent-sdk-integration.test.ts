@@ -38,7 +38,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const AGENT_SLICE_PATH = join(SRC_ROOT, 'core/agent/agentSlice.ts')
+const AGENT_SLICE_PATH = join(SRC_ROOT, 'admin/pages/site/agent/agentSlice.ts')
 
 // ---------------------------------------------------------------------------
 // Gate 1 — agentSlice.ts must NOT reference VITE_AGENT_ENDPOINT

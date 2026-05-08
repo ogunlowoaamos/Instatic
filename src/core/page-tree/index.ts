@@ -9,7 +9,7 @@ export type {
   DynamicPropBinding,
 } from './schemas'
 
-export type { FontEntry } from '../fonts/schemas'
+export type { FontEntry } from '@core/fonts/schemas'
 
 export type { BaseNode } from './baseNode'
 
@@ -25,7 +25,7 @@ export type {
   FrameworkSpacingGroup,
   FrameworkTypographyClassGenerator,
   FrameworkTypographyGroup,
-} from '../framework/schemas'
+} from '@core/framework/schemas'
 
 export {
   DEFAULT_BREAKPOINTS,

@@ -20,8 +20,8 @@
  * `loop-source-id-format.test.ts`.
  */
 
-import type { PropertySchema } from '../module-engine/types'
-import type { SiteDocument } from '../page-tree/schemas'
+import type { PropertySchema } from '@core/module-engine/types'
+import type { SiteDocument } from '@core/page-tree/schemas'
 
 // ---------------------------------------------------------------------------
 // Field metadata

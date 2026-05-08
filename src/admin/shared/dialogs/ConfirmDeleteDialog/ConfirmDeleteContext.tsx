@@ -22,7 +22,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { useEditorPreference } from '@editor/preferences/editorPreferences'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog'
 import {
   ConfirmDeleteContext,

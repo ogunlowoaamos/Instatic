@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 // ---------------------------------------------------------------------------
 // Test helpers

@@ -10,9 +10,9 @@ import {
   PublishActionGroup,
   type PublishActionMenuItem,
   type PublishActionStatusTone,
-} from '@editor/components/Toolbar/PublishActionGroup'
-import { SettingsButton } from '@editor/components/Toolbar/SettingsButton'
-import type { SaveMessage } from '../../hooks/useContentEntryDraft'
+} from '@site/toolbar/PublishActionGroup'
+import { SettingsButton } from '@site/toolbar/SettingsButton'
+import type { SaveMessage } from '@content/hooks/useContentEntryDraft'
 
 interface ContentToolbarProps {
   contentLoading: boolean

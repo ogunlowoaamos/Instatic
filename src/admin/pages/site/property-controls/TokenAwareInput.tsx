@@ -32,7 +32,7 @@ import {
 import { createPortal } from 'react-dom'
 import { Input } from '@ui/components/Input'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
-import { useEditorPreference } from '@editor/preferences/editorPreferences'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { cn } from '@ui/cn'
 import {
   type Token,

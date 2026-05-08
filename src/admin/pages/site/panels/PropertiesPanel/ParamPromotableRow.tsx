@@ -15,13 +15,13 @@
  */
 
 import { useCallback, useState } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import { selectActiveCanvasPage } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
+import { selectActiveCanvasPage } from '@site/store/store'
 import { validateParamName } from '@core/visualComponents/nameValidation'
 import { registry } from '@core/module-engine/registry'
 import type { PropertyControl } from '@core/module-engine/types'
-import { PropertyControlRenderer } from '../PropertyControls/PropertyControlRenderer'
-import { paramTypeForControl, paramTypesCompatibleWithControl } from '../PropertyControls/paramTypeCompat'
+import { PropertyControlRenderer } from '@site/property-controls/PropertyControlRenderer'
+import { paramTypeForControl, paramTypesCompatibleWithControl } from '@site/property-controls/paramTypeCompat'
 import { ParamRow } from './ParamRow'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'

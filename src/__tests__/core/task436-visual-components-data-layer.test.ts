@@ -45,7 +45,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { validateSite } from '@core/persistence/validate'
 import type { SiteDocument } from '@core/page-tree/schemas'
 import { safeParseValue } from '@core/utils/typeboxHelpers'
@@ -59,7 +59,7 @@ const ROOT = join(import.meta.dir, '../../../')
 const VC_SCHEMAS_TS    = join(ROOT, 'src/core/visualComponents/schemas.ts')
 const NAME_VALIDATION  = join(ROOT, 'src/core/visualComponents/nameValidation.ts')
 const RECURSION_GUARD  = join(ROOT, 'src/core/visualComponents/recursionGuard.ts')
-const VC_SLICE_TS      = join(ROOT, 'src/core/editor-store/slices/visualComponentsSlice.ts')
+const VC_SLICE_TS      = join(ROOT, 'src/admin/pages/site/store/slices/visualComponentsSlice.ts')
 const PAGE_TREE_SCHEMAS = join(ROOT, 'src/core/page-tree/schemas.ts')
 
 // ---------------------------------------------------------------------------

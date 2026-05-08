@@ -1,5 +1,4 @@
 import { memo, useEffect, useRef, useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
 import type { Page } from '@core/page-tree/schemas'
 import {
   createUniquePageSlug,
@@ -8,9 +7,8 @@ import {
   pageSlugError,
 } from '@core/page-tree/slugs'
 import { Button } from '@ui/components/Button'
+import { Dialog } from '@ui/components/Dialog'
 import { Input } from '@ui/components/Input'
-import { useDialogEscape } from '@ui/lib/useDialogEscape'
-import { CloseIcon } from 'pixel-art-icons/icons/close'
 import type { SiteCreateKind } from './siteItemNames'
 import styles from './SiteCreateDialog.module.css'
 
@@ -35,6 +33,8 @@ const COPY: Record<SiteCreateKind, { title: string; placeholder: string }> = {
   script: { title: 'New script', placeholder: 'analytics' },
 }
 
+const FORM_ID = 'site-create-form'
+
 export const SiteCreateDialog = memo(function SiteCreateDialog({
   kind,
   pages = [],
@@ -54,11 +54,11 @@ export const SiteCreateDialog = memo(function SiteCreateDialog({
     ? pageSlugError(pageSlug) || pageSlugDuplicateError(pageSlug, pages)
     : null
 
+  // Focus the name field on mount. Dialog's first-focusable would otherwise
+  // pick the close (X) button in the header.
   useEffect(() => {
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [])
-
-  useDialogEscape(onCancel)
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -67,86 +67,71 @@ export const SiteCreateDialog = memo(function SiteCreateDialog({
     onCreate(isPage ? { name: trimmedName, slug: pageSlug } : { name: trimmedName })
   }
 
-  return createPortal(
-    <div
-      className={styles.backdrop}
-      data-testid="site-create-dialog-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="site-create-dialog-title"
-        className={styles.dialog}
-        data-testid="site-create-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.header}>
-          <h2 id="site-create-dialog-title" className={styles.title}>
-            {copy.title}
-          </h2>
-          <Button
-            variant="ghost"
-            size="xs"
-            iconOnly
-            aria-label="Close dialog"
-            onClick={onCancel}
-          >
-            <CloseIcon size={12} color="currentColor" aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title={copy.title}
+      size="sm"
+      initialFocusRef={inputRef}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
-        </div>
+          {/* `form` attribute associates this submit button with the form
+              that lives in the dialog body. Standard HTML — works across the
+              portal boundary, no extra plumbing needed. */}
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={FORM_ID}
+            disabled={!trimmedName || Boolean(slugError)}
+          >
+            Create
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} className={styles.form} onSubmit={handleSubmit}>
+        <label className={styles.field}>
+          <span className={styles.label}>Name</span>
+          <Input
+            ref={inputRef}
+            fieldSize="sm"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={copy.placeholder}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
+        {isPage && (
           <label className={styles.field}>
-            <span className={styles.label}>Name</span>
+            <span className={styles.label}>Slug</span>
             <Input
-              ref={inputRef}
               fieldSize="sm"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={copy.placeholder}
+              value={pageSlug}
+              onChange={(event) => {
+                setSlugTouched(true)
+                setSlug(normalizePageSlug(event.target.value))
+              }}
+              placeholder="about"
               autoComplete="off"
               spellCheck={false}
+              invalid={Boolean(slugError)}
+              aria-describedby={slugError ? 'site-create-slug-error' : undefined}
             />
+            {slugError && (
+              <p id="site-create-slug-error" role="alert" className={styles.errorText}>
+                {slugError}
+              </p>
+            )}
           </label>
-
-          {isPage && (
-            <label className={styles.field}>
-              <span className={styles.label}>Slug</span>
-              <Input
-                fieldSize="sm"
-                value={pageSlug}
-                onChange={(event) => {
-                  setSlugTouched(true)
-                  setSlug(normalizePageSlug(event.target.value))
-                }}
-                placeholder="about"
-                autoComplete="off"
-                spellCheck={false}
-                invalid={Boolean(slugError)}
-                aria-describedby={slugError ? 'site-create-slug-error' : undefined}
-              />
-              {slugError && (
-                <p id="site-create-slug-error" role="alert" className={styles.errorText}>
-                  {slugError}
-                </p>
-              )}
-            </label>
-          )}
-
-          <div className={styles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" disabled={!trimmedName || Boolean(slugError)}>
-              Create
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        )}
+      </form>
+    </Dialog>
   )
 })

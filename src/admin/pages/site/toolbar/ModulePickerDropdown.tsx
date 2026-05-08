@@ -17,13 +17,13 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import { useEditorStore, selectActivePage } from '@core/editor-store/store'
+import { useEditorStore, selectActivePage } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { Button } from '@ui/components/Button'
-import { ModulePickerMenu } from '../ModulePicker'
-import { useInsertModule } from '../../hooks/useInsertModule'
+import { ModulePickerMenu } from '@site/module-picker'
+import { useInsertModule } from '@site/hooks/useInsertModule'
 
 interface ModulePickerDropdownProps {
   triggerClassName?: string

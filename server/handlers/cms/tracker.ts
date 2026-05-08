@@ -15,15 +15,33 @@
  *   - Body capped at 32 KiB (decline larger payloads).
  *   - Field strings normalized + length-bound; payload limited in depth.
  *   - eventName matched against a safe allowlist regex.
+ *   - Per-(client-ip, pluginId) sliding-window rate limit so a malicious
+ *     published-page tracker can't flood the host with a tight loop.
  */
 import type { DbClient } from '../../db/client'
 import { jsonResponse, methodNotAllowed } from '../../http'
 import { hookBus } from '@core/plugins/hookBus'
+import { RateLimiter } from '../../auth/rateLimit'
+import { clientIp } from '../../auth/security'
 
 const PUBLIC_TRACKER_PATH = '/_pb/tracker'
 const MAX_TRACKER_BODY_BYTES = 32 * 1024
 const MAX_STRING_FIELD_LEN = 512
 const SAFE_EVENT_NAME = /^[a-zA-Z0-9._:-]{1,64}$/
+
+/**
+ * 120 events per (ip, pluginId) per minute. Generous enough for legitimate
+ * page-view + interaction streams from a tabbed-out browser, tight enough
+ * that a runaway script-tag tracker hits 429 within a second of misbehaving.
+ *
+ * Keying on `(ip, pluginId)` (instead of just ip) means a real visitor
+ * navigating around a site that has multiple analytics plugins still gets
+ * full quota per plugin — a single noisy plugin can't starve the others.
+ */
+const trackerRateLimit = new RateLimiter({
+  limit: 120,
+  windowMs: 60 * 1000,
+})
 
 function pickString(input: Record<string, unknown>, key: string, max = MAX_STRING_FIELD_LEN): string | undefined {
   const value = input[key]
@@ -68,6 +86,23 @@ export async function handlePublicTrackerRequest(
   }
 
   const pluginId = pickString(body, 'pluginId', 96) ?? '__implicit__'
+
+  // Rate limit AFTER cheap shape validation but BEFORE hookBus fan-out — a
+  // 429'd visitor shouldn't have caused any plugin listener to run yet, but
+  // we still want to reject malformed payloads with a 400 (more useful
+  // signal for plugin authors than a generic 429).
+  const rateLimitKey = `${clientIp(req) ?? 'unknown'}|${pluginId}`
+  const decision = trackerRateLimit.consume(rateLimitKey)
+  if (!decision.ok) {
+    return jsonResponse(
+      { error: 'Tracker rate limit exceeded.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(decision.retryAfterMs / 1000)) },
+      },
+    )
+  }
+
   const payload = body.payload && typeof body.payload === 'object' && !Array.isArray(body.payload)
     ? sanitizePayload(body.payload as Record<string, unknown>)
     : {}

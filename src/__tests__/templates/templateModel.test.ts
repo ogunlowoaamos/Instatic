@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { makeSite } from '../fixtures'
 import { validateSite } from '@core/persistence/validate'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 
 describe('dynamic template model', () => {
   it('validates and preserves page template metadata and node dynamic bindings', () => {

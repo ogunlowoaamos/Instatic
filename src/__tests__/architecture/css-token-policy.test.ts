@@ -3,7 +3,7 @@
  *
  * Editor chrome and admin shell CSS modules must source every color from a
  * design token in `src/styles/globals.css`. Raw hex colors in `.module.css`
- * files inside `src/admin/`, `src/editor/`, and `src/ui/` are banned.
+ * files inside `src/admin/`, `src/admin/pages/site/`, and `src/ui/` are banned.
  *
  * Module CSS in `src/modules/` is intentionally exempt — those styles ship to
  * the published page output (no editor tokens available there).
@@ -49,7 +49,7 @@ function stripComments(source: string): string {
 }
 
 describe('CSS token policy — no raw hex in editor/admin/ui CSS modules', () => {
-  it('every color in src/admin, src/editor, and src/ui CSS modules comes from a token', () => {
+  it('every color in src/admin, src/admin/pages/site, and src/ui CSS modules comes from a token', () => {
     const offenders: string[] = []
 
     for (const root of SCAN_ROOTS) {

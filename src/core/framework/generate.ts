@@ -1,4 +1,4 @@
-import type { CSSClass } from '../page-tree/schemas'
+import type { CSSClass } from '@core/page-tree/schemas'
 import type {
   FrameworkColorSettings,
   FrameworkPreferencesSettings,

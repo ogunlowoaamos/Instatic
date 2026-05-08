@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
-import { captureAgentRenderSnapshot } from '@core/agent/renderEvidence'
+import { captureAgentRenderSnapshot } from '@site/agent/renderEvidence'
 
 beforeEach(() => {
   document.body.innerHTML = ''

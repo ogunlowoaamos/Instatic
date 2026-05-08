@@ -8,13 +8,44 @@
  * `createGroup`).
  */
 
+import type { SiteDocument } from '@core/page-tree'
+import type { FrameworkTypographyGroup } from '@core/framework/schemas'
 import {
   buildDefaultTypographyGroup,
   makeFreshTypographyGroup,
   nextTypographyTabValues,
 } from '@core/framework/defaults'
 import { createScaleGroupActions } from './scaleGroups'
-import type { SiteSlice, SiteSliceHelpers } from '../types'
+import type { SiteSlice, SiteSliceHelpers } from '@site/store/slices/site/types'
+
+/**
+ * Mirror the field-level effect of `applyFrameworkTypographyGroupPatch`
+ * (in siteSlice) on a draft site for the *preview* path. Only fields
+ * that influence which utility classes get generated need to be applied
+ * — `name` etc. don't affect class IDs or class names so they're
+ * intentionally skipped.
+ */
+export function applyTypographyGroupPatchPreview(
+  draft: SiteDocument,
+  groupId: string,
+  patch: Record<string, unknown>,
+): void {
+  const tg = draft.settings.framework?.typography
+  if (!tg) return
+  const group = tg.groups.find((g) => g.id === groupId)
+  if (!group) return
+  if (typeof patch.namingConvention === 'string') {
+    group.namingConvention = patch.namingConvention
+  }
+  if (typeof patch.steps === 'string') group.steps = patch.steps
+  if (typeof patch.mode === 'string') {
+    group.mode = patch.mode as FrameworkTypographyGroup['mode']
+  }
+  if (typeof patch.isDisabled === 'boolean') group.isDisabled = patch.isDisabled
+  if (Array.isArray(patch.manualSizes)) {
+    group.manualSizes = patch.manualSizes as FrameworkTypographyGroup['manualSizes']
+  }
+}
 
 export type FrameworkTypographyActions = Pick<
   SiteSlice,

@@ -19,8 +19,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
-import type { SettingsSection } from '@core/editor-store/slices/settingsSlice'
+import { useEditorStore } from '@site/store/store'
+import type { SettingsSection } from '@site/store/slices/settingsSlice'
 
 // ---------------------------------------------------------------------------
 // Store reset helper

@@ -39,10 +39,10 @@ interface BoundaryPlacement {
 const REQUIRED_BOUNDARIES: BoundaryPlacement[] = [
   { file: 'admin/main.tsx', location: 'admin-shell' },
   { file: 'admin/router.tsx', location: 'admin-route' },
-  { file: 'editor/components/Canvas/CanvasRoot.tsx', location: 'canvas' },
-  { file: 'editor/components/Canvas/NodeRenderer.tsx', location: 'node-renderer' },
+  { file: 'admin/pages/site/canvas/CanvasRoot.tsx', location: 'canvas' },
+  { file: 'admin/pages/site/canvas/NodeRenderer.tsx', location: 'node-renderer' },
   {
-    file: 'admin/plugins/components/PluginPageRenderer/PluginPageRenderer.tsx',
+    file: 'admin/pages/plugins/components/PluginPageRenderer/PluginPageRenderer.tsx',
     location: 'plugin-page',
   },
 ]
@@ -124,7 +124,7 @@ describe('Error boundary coverage gate', () => {
   })
 
   it('the ErrorBoundary primitive lives in src/ui/components/ErrorBoundary/', () => {
-    // If someone tries to fork the boundary (e.g. drop a copy in src/editor/)
+    // If someone tries to fork the boundary (e.g. drop a copy in src/admin/pages/site/)
     // the architecture reviewer should catch it — but enforce the canonical
     // location explicitly.
     const indexSource = read('ui/components/ErrorBoundary/index.ts')

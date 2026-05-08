@@ -5,7 +5,7 @@ import {
   inspectPageNode,
   searchPageNodes,
 } from '../../../server/handlers/agent/tools'
-import type { PageContext } from '@core/agent/types'
+import type { PageContext } from '@site/agent/types'
 
 function makeContext(): PageContext {
   return {

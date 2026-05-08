@@ -41,7 +41,7 @@
  * @see src/__tests__/publisher/helpers.ts        — makePage / makeSite (needs fix)
  * @see src/core/publisher/render.ts              — publishPage, renderNode
  * @see src/core/publisher/cssCollector.ts        — collectClassCSS
- * @see src/editor/components/Canvas/ClassStyleInjector.tsx — generateClassCSS, bagToCSS
+ * @see src/admin/pages/site/components/Canvas/ClassStyleInjector.tsx — generateClassCSS, bagToCSS
  */
 
 import { describe, it, expect } from 'bun:test'

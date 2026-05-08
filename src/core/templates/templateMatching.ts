@@ -1,4 +1,4 @@
-import type { Page, SiteDocument } from '../page-tree'
+import type { Page, SiteDocument } from '@core/page-tree'
 
 export function normalizeRouteBase(value: string): string {
   const trimmed = value.trim()

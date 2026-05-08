@@ -18,8 +18,8 @@
  *   - definition    — order they appear in `site.pages` (insertion order)
  */
 
-import type { LoopEntitySource, LoopFetchResult, LoopItem } from '../types'
-import type { Page } from '../../page-tree/schemas'
+import type { LoopEntitySource, LoopFetchResult, LoopItem } from '@core/loops/types'
+import type { Page } from '@core/page-tree/schemas'
 
 function pageToLoopItem(page: Page): LoopItem {
   const slug = page.slug.startsWith('/') ? page.slug : `/${page.slug}`

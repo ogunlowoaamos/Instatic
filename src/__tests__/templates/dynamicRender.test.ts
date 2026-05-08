@@ -3,7 +3,7 @@ import { makeModule, makePage, makeRegistry, makeSite } from '../publisher/helpe
 import { publishPage } from '@core/publisher/render'
 import { resolveDynamicProps } from '@core/templates/dynamicBindings'
 import type { LoopItem } from '@core/loops/types'
-import { ContentModule } from '../../modules/base/content'
+import { ContentModule } from '@modules/base/content'
 
 const currentEntry: LoopItem = {
   id: 'version_1',

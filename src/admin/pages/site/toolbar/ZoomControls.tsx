@@ -17,7 +17,7 @@
  */
 
 import { useCallback } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { MinusIcon } from 'pixel-art-icons/icons/minus'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { Button } from '@ui/components/Button'

@@ -1,6 +1,6 @@
 import type { ContentEntry } from '@core/content/schemas'
 import type { CmsCurrentUser } from '@core/persistence'
-import type { CoreCapability } from '@core/cms/capabilities'
+import type { CoreCapability } from '@core/capabilities'
 import type { AdminWorkspace } from './workspace'
 
 const CONTENT_ACCESS_CAPABILITIES: CoreCapability[] = [

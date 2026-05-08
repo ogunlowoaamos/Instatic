@@ -3,10 +3,10 @@ import React from 'react'
 import { act, fireEvent, render, screen, cleanup } from '@testing-library/react'
 import { readFileSync } from 'fs'
 import { DndContext } from '@dnd-kit/core'
-import { useEditorStore } from '@core/editor-store/store'
-import { BreakpointFrame } from '../../editor/components/Canvas/BreakpointFrame'
-import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
-import '../../modules/base'
+import { useEditorStore } from '@site/store/store'
+import { BreakpointFrame } from '@site/canvas/BreakpointFrame'
+import { CanvasRoot } from '@site/canvas/CanvasRoot'
+import '@modules/base'
 
 /** CanvasRoot uses useDroppable and must be rendered inside a DndContext. */
 function renderCanvas() {
@@ -14,7 +14,7 @@ function renderCanvas() {
 }
 
 const BREAKPOINT_FRAME_CSS = new URL(
-  '../../editor/components/Canvas/BreakpointFrame.module.css',
+  '../../admin/pages/site/canvas/BreakpointFrame.module.css',
   import.meta.url,
 )
 

@@ -9,6 +9,9 @@ import type {
   PluginResource,
 } from '@core/plugin-sdk'
 import {
+  isCompatiblePluginApiVersion,
+  MIN_SUPPORTED_PLUGIN_API_VERSION,
+  PLUGIN_API_VERSION,
   PLUGIN_PERMISSION_VALUES,
   permissionLabel as sdkPermissionLabel,
 } from '@core/plugin-sdk'
@@ -130,12 +133,38 @@ const settingDefinitionSchema = Type.Object({
   format: Type.Optional(Type.Union([Type.Literal('hex'), Type.Literal('rgba')])),
 })
 
+// Marketplace metadata — author, license, URLs, keywords, visual icon.
+// Validated at the manifest boundary so a malicious zip can't inject
+// arbitrary HTML or filesystem-traversing icon paths.
+const URL_PATTERN = /^https?:\/\/[^\s<>"'`]+$/
+const EMAIL_PATTERN = /^[^\s<>"'`@]+@[^\s<>"'`@]+\.[^\s<>"'`@]+$/
+const SPDX_PATTERN = /^[A-Za-z0-9.+-]{1,40}$/
+const KEYWORD_PATTERN = /^[A-Za-z0-9_-]{1,30}$/
+const ICON_PATH_PATTERN = /^[a-zA-Z0-9._-]+\.(png|svg|webp|jpg|jpeg)$/
+
+const authorSchema = Type.Object({
+  name: Type.String({ minLength: 1, maxLength: 120 }),
+  email: Type.Optional(Type.String({ pattern: EMAIL_PATTERN.source, maxLength: 240 })),
+  url: Type.Optional(Type.String({ pattern: URL_PATTERN.source, maxLength: 500 })),
+})
+
 const manifestSchema = Type.Object({
   id: Type.String({ pattern: PLUGIN_ID_PATTERN.source }),
   name: Type.String({ minLength: 1, maxLength: 80 }),
   version: Type.String({ pattern: SEMVERISH_PATTERN.source }),
-  apiVersion: Type.Literal(1),
+  // Schema accepts any positive integer; the parser narrows to the
+  // host-supported range via `isCompatiblePluginApiVersion`. Rejecting at
+  // a literal would force every old plugin offline the day a host bumps
+  // PLUGIN_API_VERSION, even when the host explicitly wants to keep
+  // serving older plugins via MIN_SUPPORTED_PLUGIN_API_VERSION.
+  apiVersion: Type.Integer({ minimum: 1 }),
   description: Type.Optional(Type.String({ maxLength: 500 })),
+  author: Type.Optional(authorSchema),
+  license: Type.Optional(Type.String({ pattern: SPDX_PATTERN.source })),
+  homepage: Type.Optional(Type.String({ pattern: URL_PATTERN.source, maxLength: 500 })),
+  repository: Type.Optional(Type.String({ pattern: URL_PATTERN.source, maxLength: 500 })),
+  keywords: Type.Optional(Type.Array(Type.String({ pattern: KEYWORD_PATTERN.source }), { maxItems: 20 })),
+  icon: Type.Optional(Type.String({ pattern: ICON_PATH_PATTERN.source, maxLength: 80 })),
   permissions: Type.Array(permissionSchema, { default: [] }),
   grantedPermissions: Type.Optional(Type.Array(permissionSchema)),
   entrypoints: Type.Optional(Type.Object({
@@ -167,6 +196,17 @@ export function parsePluginManifest(input: unknown): PluginManifest {
   } catch {
     const errors = [...Value.Errors(manifestSchema, input)]
     throw new Error(`Invalid plugin manifest: ${errors[0]?.message ?? 'manifest is malformed'}`)
+  }
+
+  // SDK compatibility — reject manifests targeting a host API version this
+  // build can't honour. Done after schema validation so the error message
+  // can reference the parsed value rather than `unknown`.
+  if (!isCompatiblePluginApiVersion(data.apiVersion)) {
+    throw new Error(
+      `Plugin "${data.id}" targets apiVersion ${data.apiVersion}, but this host ` +
+        `supports apiVersion ${MIN_SUPPORTED_PLUGIN_API_VERSION}–${PLUGIN_API_VERSION}. ` +
+        `Update the plugin (or the host) to a compatible version.`,
+    )
   }
 
   // The schema permits any `/uploads/plugins/{id}/{version}` shape, but the
@@ -255,6 +295,12 @@ export function parsePluginManifest(input: unknown): PluginManifest {
     adminPages,
     pack: data.pack,
     settings: data.settings as PluginManifest['settings'],
+    author: data.author,
+    license: data.license,
+    homepage: data.homepage,
+    repository: data.repository,
+    keywords: data.keywords ? [...data.keywords] : undefined,
+    icon: data.icon,
   }
 }
 

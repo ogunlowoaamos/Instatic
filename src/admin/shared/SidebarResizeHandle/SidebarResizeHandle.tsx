@@ -4,7 +4,7 @@ import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   clampSidebarWidth,
-} from '@core/editor-store/slices/uiSlice'
+} from '@site/store/slices/uiSlice'
 import styles from './SidebarResizeHandle.module.css'
 
 const KEYBOARD_STEP = 10

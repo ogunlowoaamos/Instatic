@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { useEffect, act } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { frameworkColorClassId } from '@core/framework/colors'
 import type { FrameworkColorToken } from '@core/framework/schemas'
 import { makeNode, makePage, makeSite } from '../fixtures'
@@ -19,7 +19,7 @@ import {
   FrameworkChangeConfirmProvider,
   useFrameworkChangeConfirm,
   type ConfirmFrameworkChangeRequest,
-} from '../../editor/components/shared/FrameworkChangeConfirmDialog'
+} from '@admin/shared/dialogs/FrameworkChangeConfirmDialog'
 
 const TOKEN_ID = 'primary-token'
 
@@ -110,7 +110,10 @@ describe('FrameworkChangeConfirmProvider', () => {
 
     act(() => triggerChange!())
 
-    const dialog = screen.getByRole('dialog')
+    // Destructive confirmations use role=alertdialog (Dialog primitive,
+    // tone="danger"). alertdialog is the correct ARIA role for prompts
+    // that interrupt a workflow with a destructive action.
+    const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getByText(/Disable tints\?/)).toBeDefined()
     // The 'Disable tints' confirm button (matched precisely so the
     // title doesn't leak into the role lookup).
@@ -135,7 +138,7 @@ describe('FrameworkChangeConfirmProvider', () => {
       useEditorStore.getState().site!.settings.framework!.colors.tokens[0].generateTints.enabled,
     ).toBe(false)
     // Dialog dismissed.
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
   it('cancels the dialog without committing', () => {
@@ -161,11 +164,11 @@ describe('FrameworkChangeConfirmProvider', () => {
 
     act(() => triggerChange!())
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
     expect(committed).toBe(false)
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
   it('commits silently when the change does not remove anything in use', () => {
@@ -193,6 +196,6 @@ describe('FrameworkChangeConfirmProvider', () => {
     act(() => triggerChange!())
 
     expect(committed).toBe(true)
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 })

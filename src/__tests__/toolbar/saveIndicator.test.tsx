@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, act } from '@testing-library/react'
-import { SaveIndicator } from '../../editor/components/Toolbar/SaveIndicator'
-import { EDITOR_PREFS_KEY } from '../../editor/preferences/editorPreferences'
-import { useEditorStore } from '@core/editor-store/store'
+import { SaveIndicator } from '@site/toolbar/SaveIndicator'
+import { EDITOR_PREFS_KEY } from '@site/preferences/editorPreferences'
+import { useEditorStore } from '@site/store/store'
 import { makeSite } from '../fixtures'
 
 function resetStore() {
@@ -21,7 +21,7 @@ describe('SaveIndicator — manual save mode', () => {
   it('uses the primary button variant for manual Save', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/SaveIndicator.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/SaveIndicator.tsx', import.meta.url),
       'utf-8',
     )
 

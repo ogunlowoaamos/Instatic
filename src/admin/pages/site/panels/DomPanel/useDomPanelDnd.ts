@@ -3,7 +3,7 @@ import type { DragCancelEvent, DragEndEvent, DragMoveEvent, DragStartEvent } fro
 import type { Page } from '@core/page-tree/schemas'
 import { registry } from '@core/module-engine/registry'
 import { getNodeDisplayName } from '@core/page-tree/nodeDisplayName'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import {
   findDomDropRow,
   getDomDropZone,

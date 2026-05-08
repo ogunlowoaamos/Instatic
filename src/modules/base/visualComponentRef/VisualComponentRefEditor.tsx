@@ -19,7 +19,7 @@
  */
 import React, { useCallback } from 'react'
 import type { ModuleComponentProps } from '@core/module-engine/types'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { instantiateVCAtRef } from '@core/visualComponents/instantiate'
 import type { BaseNode } from '@core/page-tree/baseNode'
 import { BracesIcon } from 'pixel-art-icons/icons/braces'

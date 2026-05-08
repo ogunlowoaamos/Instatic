@@ -19,11 +19,11 @@
  * VCInlineTree pipeline.
  */
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { instantiateVCAtRef } from '@core/visualComponents/instantiate'
 import type { BaseNode } from '@core/page-tree/baseNode'
 import { makeSite, makePage, makeNode } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 function freshStore() {
   useEditorStore.setState({

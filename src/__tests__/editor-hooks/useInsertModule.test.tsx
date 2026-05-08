@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test'
 import { act, cleanup, renderHook } from '@testing-library/react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
-import { useInsertModule } from '../../editor/hooks/useInsertModule'
+import { useInsertModule } from '@site/hooks/useInsertModule'
 import { makeNode, makePage, makeSite } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 beforeEach(() => {
   useEditorStore.setState({

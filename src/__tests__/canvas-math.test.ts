@@ -16,7 +16,7 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   DEFAULT_ZOOM,
-} from '../core/editor-store/slices/canvasSlice'
+} from '@site/store/slices/canvasSlice'
 
 // ---------------------------------------------------------------------------
 // clampZoom

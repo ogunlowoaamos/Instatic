@@ -1,4 +1,4 @@
-import { renderContentMarkdownToHtml } from '@core/markdown/renderContentMarkdown'
+import { renderContentMarkdownToHtml } from '@core/content/renderMarkdown'
 import { escapeHtml, safeUrl } from '@core/publisher/utils'
 
 interface RenderContentDocumentInput {

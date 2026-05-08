@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import {
   processStreamEvent,
   type AgentBridgeRuntime,
   type AgentTextStreamSink,
-} from '@core/agent/agentSlice'
-import type { AgentMessage, AgentToolCall } from '@core/agent/types'
-import '../../modules/base'
+} from '@site/agent/agentSlice'
+import type { AgentMessage, AgentToolCall } from '@site/agent/types'
+import '@modules/base'
 
 // ---------------------------------------------------------------------------
 // Test helpers

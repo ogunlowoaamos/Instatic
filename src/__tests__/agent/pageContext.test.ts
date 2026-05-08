@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
-import { buildPageContext } from '@core/agent/agentSlice'
+import { useEditorStore } from '@site/store/store'
+import { buildPageContext } from '@site/agent/agentSlice'
 import { registry } from '@core/module-engine/registry'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
 import { SquareIcon } from 'pixel-art-icons/icons/square'
-import '../../modules/base'
+import '@modules/base'
 
 const DYNAMIC_MODULE_ID = 'custom.dynamicHero'
 

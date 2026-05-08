@@ -39,15 +39,15 @@ const PROJECT_ROOT = resolve(import.meta.dir, '../../..')
 
 const PICKER_PATH = resolve(
   PROJECT_ROOT,
-  'src/editor/components/Toolbar/ModulePickerDropdown.tsx',
+  'src/admin/pages/site/toolbar/ModulePickerDropdown.tsx',
 )
 const EXPLORER_PATH = resolve(
   PROJECT_ROOT,
-  'src/editor/components/SiteExplorerPanel/SiteExplorerPanel.tsx',
+  'src/admin/pages/site/panels/SiteExplorerPanel/SiteExplorerPanel.tsx',
 )
 const CONTEXT_MENU_PATH = resolve(
   PROJECT_ROOT,
-  'src/editor/components/DomPanel/LayerNodeContextMenu.tsx',
+  'src/admin/pages/site/panels/DomPanel/LayerNodeContextMenu.tsx',
 )
 const ADMIN_LAYOUT_PATH = resolve(
   PROJECT_ROOT,
@@ -103,7 +103,7 @@ describe('G1 — ModulePickerDropdown calls insertComponentRef for VC insertion 
         '[Phase 4 / G1] ModulePickerDropdown.tsx does not reference insertComponentRef.\n' +
         'The Components-category click must route through insertComponentRef — the single\n' +
         'shared action that handles both page-mode and VC-mode insertion with cycle detection.\n' +
-        'File: src/editor/components/Toolbar/ModulePickerDropdown.tsx',
+        'File: src/admin/pages/site/components/Toolbar/ModulePickerDropdown.tsx',
       )
     }
     expect(src).toContain('insertComponentRef')
@@ -128,7 +128,7 @@ describe("G2 — SiteExplorerPanel drag source uses 'visualComponentRef' payload
         "The DraggableComponentRow must register the dnd-kit draggable with:\n" +
         "  data: { kind: 'visualComponentRef', componentId: component.id }\n" +
         "Without this, AdminLayout's onDragEnd cannot identify the drag as a VC insertion.\n" +
-        'File: src/editor/components/SiteExplorerPanel/SiteExplorerPanel.tsx',
+        'File: src/admin/pages/site/components/SiteExplorerPanel/SiteExplorerPanel.tsx',
       )
     }
     expect(src).toContain("'visualComponentRef'")
@@ -171,7 +171,7 @@ describe("G4 — LayerNodeContextMenu calls insertComponentRef for 'Insert modul
         "The 'Insert module here' submenu's VC-pick callback must route through\n" +
         "insertComponentRef so cycle detection and VC/page mode dispatch are\n" +
         'applied uniformly.\n' +
-        'File: src/editor/components/DomPanel/LayerNodeContextMenu.tsx',
+        'File: src/admin/pages/site/components/DomPanel/LayerNodeContextMenu.tsx',
       )
     }
     expect(src).toContain('insertComponentRef')

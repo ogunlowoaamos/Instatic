@@ -131,6 +131,9 @@
     --canvas-selection-ring: inset 0 0 0 1px #39ff14;
     --canvas-hover-ring: inset 0 0 0 1px #ff2bd6;
 
+    /* ─── Z-index layers ─────────────────────────────────────────────────── */
+    --z-dropdown: 20;
+
     /* ─── Tooltip ────────────────────────────────────────────────────────── */
     --tooltip-bg: #0a0a0c;
     --tooltip-fg: #f4f4f5;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { getColorInputValue, getColorSwatchValue } from '../../ui/components/ColorInput/ColorInput.utils'
+import { getColorInputValue, getColorSwatchValue } from '@ui/components/ColorInput/ColorInput.utils'
 
 describe('ColorInput utilities', () => {
   it('keeps native color input values restricted to six-digit hex', () => {

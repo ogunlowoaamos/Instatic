@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import type { LeftSidebarPanelId } from '@core/editor-store/slices/uiSlice'
+import { useEditorStore } from '@site/store/store'
+import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
 import type { IconComponent } from 'pixel-art-icons/types'
 import { Bulletlist2SharpIcon } from 'pixel-art-icons/icons/bulletlist-2-sharp'
 import { AiSettingsSolidIcon } from 'pixel-art-icons/icons/ai-settings-solid'

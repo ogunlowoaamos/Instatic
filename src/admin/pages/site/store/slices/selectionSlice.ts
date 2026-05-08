@@ -1,4 +1,4 @@
-import type { EditorStore, EditorStoreSliceCreator } from '../types'
+import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
 import { isUserVisibleClass } from '@core/page-tree/classUtils'
 import type { BaseNode } from '@core/page-tree/baseNode'
 import type { NodeTree } from '@core/page-tree/treeSchema'
@@ -56,7 +56,7 @@ export interface SelectionSlice {
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends SelectionSlice {}
 }
 

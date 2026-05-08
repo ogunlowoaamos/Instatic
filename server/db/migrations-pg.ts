@@ -342,4 +342,11 @@ export const pgMigrations: Migration[] = [
         on published_runtime_assets (page_version_id);
     `,
   },
+  {
+    id: '012_plugin_settings',
+    sql: `
+      alter table installed_plugins
+        add column if not exists settings_json jsonb not null default '{}'::jsonb;
+    `,
+  },
 ]

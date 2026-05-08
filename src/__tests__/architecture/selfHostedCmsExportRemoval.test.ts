@@ -29,7 +29,7 @@ describe('Self-hosted CMS pivot — static ZIP export removal', () => {
   })
 
   it('removes stale React export file-map state from sitePanelSlice', () => {
-    const src = read(join(SRC_ROOT, 'core/editor-store/slices/sitePanelSlice.ts'))
+    const src = read(join(SRC_ROOT, 'admin/pages/site/store/slices/sitePanelSlice.ts'))
     expect(src).not.toContain('lastReactExport')
     expect(src).not.toContain('setLastReactExport')
   })
@@ -67,7 +67,7 @@ describe('Self-hosted CMS pivot — static ZIP export removal', () => {
   it('does not keep a local IndexedDB persistence adapter', () => {
     expect(existsSync(join(SRC_ROOT, 'core/persistence/local.ts'))).toBe(false)
 
-    const persistence = read(join(SRC_ROOT, 'editor/hooks/usePersistence.ts'))
+    const persistence = read(join(SRC_ROOT, 'admin/pages/site/hooks/usePersistence.ts'))
     expect(persistence).not.toContain('localAdapter')
     expect(persistence).not.toContain('LAST_PROJECT_KEY')
     expect(persistence).not.toContain('rememberLastProject')
@@ -89,11 +89,11 @@ describe('Self-hosted CMS pivot — static ZIP export removal', () => {
   it('uses CMS media only, without site-vs-CMS media mode branching', () => {
     for (const path of [
       'admin/AdminLayout.tsx',
-      'editor/components/LeftSidebar/LeftSidebar.tsx',
-      'editor/components/RightSidebar/RightSidebar.tsx',
-      'editor/components/MediaExplorerPanel/MediaExplorerPanel.tsx',
-      'editor/components/PropertyControls/MediaLibraryControl.tsx',
-      'editor/components/PropertyControls/PropertyControlRenderer.tsx',
+      'admin/pages/site/sidebars/LeftSidebar/LeftSidebar.tsx',
+      'admin/pages/site/sidebars/RightSidebar/RightSidebar.tsx',
+      'admin/pages/site/panels/MediaExplorerPanel/MediaExplorerPanel.tsx',
+      'admin/pages/site/property-controls/MediaLibraryControl.tsx',
+      'admin/pages/site/property-controls/PropertyControlRenderer.tsx',
     ]) {
       const src = read(join(SRC_ROOT, path))
       expect(src).not.toContain('mediaMode')
@@ -103,7 +103,7 @@ describe('Self-hosted CMS pivot — static ZIP export removal', () => {
 
   it('does not keep export-mode state on the site document', () => {
     const siteTypes = read(join(SRC_ROOT, 'core/page-tree/schemas.ts'))
-    const siteSlice = read(join(SRC_ROOT, 'core/editor-store/slices/siteSlice.ts'))
+    const siteSlice = read(join(SRC_ROOT, 'admin/pages/site/store/slices/siteSlice.ts'))
     const validate = read(join(SRC_ROOT, 'core/persistence/validate.ts'))
     const cmsRepository = read(join(ROOT, 'server/repositories/site.ts'))
 

@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { RichTextEditor } from '../../editor/components/PropertyControls/RichTextEditor'
+import { RichTextEditor } from '@site/property-controls/RichTextEditor'
 
 afterEach(cleanup)
 

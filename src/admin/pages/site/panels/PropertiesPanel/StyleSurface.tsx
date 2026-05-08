@@ -37,7 +37,7 @@ import {
   getClassStyleSectionSetCounts,
   getActiveStyleTab,
 } from './cssControlTypes'
-import { useEditorPreference } from '@editor/preferences/editorPreferences'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import styles from './StyleSurface.module.css'
 import sectionStyles from './Section.module.css'
 

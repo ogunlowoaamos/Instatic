@@ -4,7 +4,7 @@ describe('ClassPropertyRow remove button layout', () => {
   it('does not reserve a right-side gutter that shrinks property controls', async () => {
     const { readFileSync } = await import('fs')
     const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
       'utf-8',
     )
 
@@ -14,11 +14,11 @@ describe('ClassPropertyRow remove button layout', () => {
   it('overlays the remove button on the left label column with a fade', async () => {
     const { readFileSync } = await import('fs')
     const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
       'utf-8',
     )
     const controlCss = readFileSync(
-      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      new URL('../../admin/pages/site/property-controls/controls.module.css', import.meta.url),
       'utf-8',
     )
     const compactCss = css.replace(/\s+/g, '')
@@ -42,11 +42,11 @@ describe('ClassPropertyRow remove button layout', () => {
   it('uses a neutral remove affordance instead of the destructive danger hover style', async () => {
     const { readFileSync } = await import('fs')
     const rowSource = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassPropertyRow.tsx', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/ClassPropertyRow.tsx', import.meta.url),
       'utf-8',
     )
     const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/ClassPropertyRow.module.css', import.meta.url),
       'utf-8',
     )
 
@@ -69,7 +69,7 @@ describe('ClassComposer module style remove button layout', () => {
     // This gate ensures no moduleStyleRow padding-right accidentally reappears.
     const { readFileSync } = await import('fs')
     const css = readFileSync(
-      new URL('../../editor/components/PropertiesPanel/ClassComposer.module.css', import.meta.url),
+      new URL('../../admin/pages/site/panels/PropertiesPanel/ClassComposer.module.css', import.meta.url),
       'utf-8',
     )
 

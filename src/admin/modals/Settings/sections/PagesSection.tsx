@@ -2,7 +2,7 @@
  * PagesSection — manage pages (add / rename / delete / reorder slug).
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useEditorStore, selectActivePage } from '@core/editor-store/store'
+import { useEditorStore, selectActivePage } from '@site/store/store'
 import {
   createUniquePageSlug,
   normalizePageSlug,
@@ -11,7 +11,7 @@ import {
 } from '@core/page-tree/slugs'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
-import s from '../Settings.module.css'
+import s from '../SettingsModal.module.css'
 
 export function PagesSection() {
   const site = useEditorStore((state) => state.site)

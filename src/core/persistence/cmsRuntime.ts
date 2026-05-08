@@ -2,9 +2,9 @@ import type {
   PublishedPageRuntimeAssets,
   SiteDependencyLock,
   SiteRuntimeDiagnostic,
-} from '../site-runtime'
-import type { SitePackageJson } from '../site-dependencies/manifest'
-import type { TemplateRenderDataContext } from '../templates/dynamicBindings'
+} from '@core/site-runtime'
+import type { SitePackageJson } from '@core/site-dependencies/manifest'
+import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
 import { parseJsonResponse } from '@core/utils/jsonValidate'
 import { responseErrorMessage } from './httpErrors'
 import {

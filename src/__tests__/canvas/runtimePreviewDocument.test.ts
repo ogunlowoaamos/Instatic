@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { materializeRuntimePreviewDocument } from '../../editor/components/Canvas/runtimePreviewDocument'
+import { materializeRuntimePreviewDocument } from '@site/canvas/runtimePreviewDocument'
 
 describe('runtime preview document materialization', () => {
   it('rewrites preview asset paths to sandbox-safe data module URLs', () => {

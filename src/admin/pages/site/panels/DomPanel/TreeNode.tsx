@@ -22,7 +22,7 @@
  */
 import { memo, useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
+import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import {
   getNodeDisplayName,
@@ -42,11 +42,11 @@ import {
   TreeLabelGroup,
   TreeMeta,
   TreeRow,
-} from '../../ui/Tree'
-import { ModuleIcon } from '../../ui/ModuleIcon'
+} from '@site/ui/Tree'
+import { ModuleIcon } from '@site/ui/ModuleIcon'
 import { pillAccent } from '@ui/pillAccent'
-import { useEditorPreference } from '@editor/preferences/editorPreferences'
-import { useConfirmDelete } from '../shared/ConfirmDeleteDialog'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
+import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import styles from './TreeNode.module.css'
 
 interface TreeNodeProps {
@@ -430,7 +430,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth, editable = true 
 
 // ─── ChildrenGroup — recursive child rendering ───────────────────────────────
 
-import { useEditorStore as useStore } from '@core/editor-store/store'
+import { useEditorStore as useStore } from '@site/store/store'
 
 function ChildrenGroup({ nodeId, depth, editable }: { nodeId: string; depth: number; editable: boolean }) {
   const children = useStore(

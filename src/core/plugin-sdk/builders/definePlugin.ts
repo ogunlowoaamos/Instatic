@@ -25,6 +25,7 @@
  * uses those builder objects to emit the final zip.
  */
 
+import { PLUGIN_API_VERSION } from '../types'
 import type { PluginManifest, PluginAdminPage, PluginPermission, PluginResource } from '../types'
 import type { PluginModuleDefinition } from '../modules'
 import type { PluginPackContents } from './definePack'
@@ -47,8 +48,19 @@ export interface DefinePluginConfig {
   repository?: string
   /** Discovery keywords. */
   keywords?: string[]
-  /** API version the plugin targets. Defaults to 1. */
-  apiVersion?: 1
+  /**
+   * Path inside the plugin source folder to a small visual icon
+   * (`icon.png`, `icon.svg`, `icon.webp`, `icon.jpg`). Copied through to
+   * the dist zip on build and surfaced on the Plugins admin card.
+   */
+  icon?: string
+  /**
+   * API version the plugin targets. Defaults to the current host
+   * `PLUGIN_API_VERSION` at build time. Plugins targeting an older API
+   * version are still accepted as long as the host's
+   * `MIN_SUPPORTED_PLUGIN_API_VERSION` doesn't exceed it.
+   */
+  apiVersion?: number
   permissions: PluginPermission[]
 
   /**
@@ -123,12 +135,18 @@ export function definePlugin(config: DefinePluginConfig): PluginDefinition {
     id: config.id,
     name: config.name,
     version: config.version,
-    apiVersion: config.apiVersion ?? 1,
+    apiVersion: config.apiVersion ?? PLUGIN_API_VERSION,
     description: config.description,
     permissions: [...config.permissions],
     resources: config.resources ?? [],
     adminPages: config.adminPages ?? [],
     settings: config.settings,
+    author: config.author,
+    license: config.license,
+    homepage: config.homepage,
+    repository: config.repository,
+    keywords: config.keywords ? [...config.keywords] : undefined,
+    icon: config.icon,
   }
   return {
     manifest,

@@ -19,7 +19,7 @@ import { render as renderReact } from '@testing-library/react'
 import './matchers'  // Register toBeCleanHTML
 
 import { runModuleConformanceSuite, renderModule, withBannedGlobals } from './helpers'
-import { escapeProps } from '../core/publisher/render'
+import { escapeProps } from '@core/publisher/render'
 
 // ---------------------------------------------------------------------------
 // Import base modules (self-register into global registry on import)
@@ -28,16 +28,16 @@ import { escapeProps } from '../core/publisher/render'
 // Module bootstrap files are `.ts` (no JSX) — editor components live in
 // sibling `*Editor.tsx` files so React Fast Refresh can hot-patch them
 // without re-running registry.registerOrReplace().
-import { TextModule } from '../modules/base/text'
-import { ButtonModule } from '../modules/base/button'
-import { ContainerModule } from '../modules/base/container'
-import { ImageModule } from '../modules/base/image'
-import { VideoModule } from '../modules/base/video'
-import { ListModule } from '../modules/base/list'
-import { LinkModule } from '../modules/base/link'
-import { BodyModule } from '../modules/base/body'
-import { VisualComponentRefModule } from '../modules/base/visualComponentRef'
-import { SlotOutletModule } from '../modules/base/slotOutlet'
+import { TextModule } from '@modules/base/text'
+import { ButtonModule } from '@modules/base/button'
+import { ContainerModule } from '@modules/base/container'
+import { ImageModule } from '@modules/base/image'
+import { VideoModule } from '@modules/base/video'
+import { ListModule } from '@modules/base/list'
+import { LinkModule } from '@modules/base/link'
+import { BodyModule } from '@modules/base/body'
+import { VisualComponentRefModule } from '@modules/base/visualComponentRef'
+import { SlotOutletModule } from '@modules/base/slotOutlet'
 
 // ---------------------------------------------------------------------------
 // Run the full conformance suite for every canonical base module (7 total)

@@ -3,7 +3,7 @@
  *
  * Pre-registered gate tests for the Settings Modal implementation (Task #183).
  * Uses the adaptive-skip pattern: gates activate when a `SettingsModal/` (or
- * equivalent) directory is detected under `src/editor/components/`.
+ * equivalent) directory is detected under `src/admin/pages/site/components/`.
  *
  * ENFORCED REQUIREMENTS (from Guideline #225 / Task #183):
  *
@@ -36,7 +36,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, extname } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const SLICES_DIR = join(SRC_ROOT, 'core/editor-store/slices')
+const SLICES_DIR = join(SRC_ROOT, 'admin/pages/site/store/slices')
 
 // ---------------------------------------------------------------------------
 // Adaptive-skip: activate when SettingsModal component directory is created.
@@ -44,9 +44,9 @@ const SLICES_DIR = join(SRC_ROOT, 'core/editor-store/slices')
 // ---------------------------------------------------------------------------
 
 const SETTINGS_MODAL_DIR_CANDIDATES = [
-  join(SRC_ROOT, 'editor/components/SettingsModal'),
-  join(SRC_ROOT, 'editor/components/Settings'),
-  join(SRC_ROOT, 'editor/components/SettingsPanel'),
+  join(SRC_ROOT, 'admin/modals/SettingsModal'),
+  join(SRC_ROOT, 'admin/modals/Settings'),
+  join(SRC_ROOT, 'admin/modals/SettingsPanel'),
   join(SRC_ROOT, 'editor/components/settings-modal'),
   join(SRC_ROOT, 'editor/components/settings'),
 ]

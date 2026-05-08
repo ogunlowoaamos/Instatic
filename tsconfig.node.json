@@ -25,11 +25,14 @@
        server/ files resolve project aliases identically to the editor app. */
     "paths": {
       "@core/*": ["./src/core/*"],
-      "@editor/*": ["./src/editor/*"],
       "@modules/*": ["./src/modules/*"],
       "@ui/*": ["./src/ui/*"],
-      "@admin/*": ["./src/admin/*"]
+      "@admin/*": ["./src/admin/*"],
+      "@site/*": ["./src/admin/pages/site/*"],
+      "@content/*": ["./src/admin/pages/content/*"],
+      "@plugins/*": ["./src/admin/pages/plugins/*"],
+      "@users/*": ["./src/admin/pages/users/*"]
     }
   },
-  "include": ["vite.config.ts", "server/**/*.ts"]
+  "include": ["vite.config.ts", "server/**/*.ts", "src/core/plugin-sdk/cli/**/*.ts"]
 }

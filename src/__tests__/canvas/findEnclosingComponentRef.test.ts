@@ -11,7 +11,7 @@ import { describe, it, expect } from 'bun:test'
 import {
   findEnclosingComponentRef,
   type AnnotatedPageNode,
-} from '@editor/components/Canvas/canvasSelectionUtils'
+} from '@site/canvas/canvasSelectionUtils'
 
 // ---------------------------------------------------------------------------
 // Helpers

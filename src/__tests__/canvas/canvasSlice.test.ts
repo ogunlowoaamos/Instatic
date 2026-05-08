@@ -18,7 +18,7 @@
  * @see MIN_ZOOM, MAX_ZOOM, MAX_PAN constants in canvasSlice.ts
  */
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import {
   MIN_ZOOM,
   MAX_ZOOM,
@@ -26,7 +26,7 @@ import {
   MAX_PAN,
   clampZoom,
   clampPan,
-} from '@core/editor-store/slices/canvasSlice'
+} from '@site/store/slices/canvasSlice'
 
 // ---------------------------------------------------------------------------
 // Store reset helper

@@ -29,8 +29,8 @@ import { join } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
 
-const DEPS_SECTION_PATH = join(SRC_ROOT, 'editor/components/DependenciesPanel/DepsSection.tsx')
-const PROJECT_PANEL_SLICE_PATH = join(SRC_ROOT, 'core/editor-store/slices/sitePanelSlice.ts')
+const DEPS_SECTION_PATH = join(SRC_ROOT, 'admin/pages/site/panels/DependenciesPanel/DepsSection.tsx')
+const PROJECT_PANEL_SLICE_PATH = join(SRC_ROOT, 'admin/pages/site/store/slices/sitePanelSlice.ts')
 const EDITOR_LAYOUT_PATH = join(SRC_ROOT, 'admin/AdminLayout.tsx')
 const PROJECT_PANEL_DIR = join(SRC_ROOT, 'editor/components/SitePanel')
 
@@ -42,11 +42,11 @@ const PROJECT_PANEL_DIR = join(SRC_ROOT, 'editor/components/SitePanel')
 // ---------------------------------------------------------------------------
 
 describe('DependenciesPanel — DepsSection at canonical path', () => {
-  it('DepsSection.tsx must exist at src/editor/components/DependenciesPanel/DepsSection.tsx', () => {
+  it('DepsSection.tsx must exist at src/admin/pages/site/components/DependenciesPanel/DepsSection.tsx', () => {
     if (!existsSync(DEPS_SECTION_PATH)) {
       throw new Error(
         'DepsSection.tsx not found at expected path.\n' +
-        'Expected: src/editor/components/DependenciesPanel/DepsSection.tsx\n' +
+        'Expected: src/admin/pages/site/components/DependenciesPanel/DepsSection.tsx\n' +
         '\n' +
         'If you moved it, update this gate to the new canonical path.'
       )
@@ -61,7 +61,7 @@ describe('DependenciesPanel — DepsSection at canonical path', () => {
       try { entries = readdirSync(PROJECT_PANEL_DIR) } catch { /* fine */ }
       if (entries.length > 0) {
         throw new Error(
-          '[Post-#434 regression] src/editor/components/SitePanel/ still has files.\n' +
+          '[Post-#434 regression] src/admin/pages/site/components/SitePanel/ still has files.\n' +
           `Found: ${entries.join(', ')}\n` +
           'SitePanel was fully deleted in Task #434 (Contribution #627).\n' +
           'Remove remaining files and the directory.'

@@ -7,7 +7,7 @@
 import type { ModuleDefinition } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import { ImageIcon } from 'pixel-art-icons/icons/image'
-import { safeUrl } from '../utils/escape'
+import { safeUrl } from '@modules/base/utils/escape'
 import { ImageEditor } from './ImageEditor'
 
 interface ImageProps extends Record<string, unknown> {

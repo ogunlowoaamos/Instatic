@@ -10,7 +10,7 @@ import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { useDialogEscape } from '@ui/lib/useDialogEscape'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
-import styles from '../SiteCreateDialog/SiteCreateDialog.module.css'
+import styles from '../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 
 export interface ExplorerRenamePayload {
   value: string

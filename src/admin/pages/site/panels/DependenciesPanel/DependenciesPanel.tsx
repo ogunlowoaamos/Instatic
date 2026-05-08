@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import { PanelHeader } from '../shared/PanelHeader'
+import { useEditorStore } from '@site/store/store'
+import { PanelHeader } from '@admin/shared/PanelHeader'
 import { DepsSection } from './DepsSection'
 import styles from './DependenciesPanel.module.css'
 

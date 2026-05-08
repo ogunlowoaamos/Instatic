@@ -1,4 +1,4 @@
-import type { CSSClass, CSSPropertyBag } from '../page-tree/schemas'
+import type { CSSClass, CSSPropertyBag } from '@core/page-tree/schemas'
 import type {
   FrameworkColorSettings,
   FrameworkColorToken,

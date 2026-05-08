@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from '../../admin/lib/router'
-import { UsersPage } from '../../admin/users/UsersPage'
-import { AdminSessionProvider } from '../../admin/session'
-import { useEditorStore } from '@core/editor-store/store'
+import { MemoryRouter } from '@admin/lib/routing'
+import { UsersPage } from '@users/UsersPage'
+import { AdminSessionProvider } from '@admin/session'
+import { useEditorStore } from '@site/store/store'
 import type { CmsCurrentUser } from '@core/persistence'
 import { makeSite } from '../fixtures'
 

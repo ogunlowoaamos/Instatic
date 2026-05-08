@@ -15,10 +15,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ClassPicker } from '../../editor/components/PropertiesPanel/ClassPicker'
-import { useEditorStore } from '@core/editor-store/store'
+import { ClassPicker } from '@site/panels/PropertiesPanel/ClassPicker'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage, makeNode } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 afterEach(cleanup)
 

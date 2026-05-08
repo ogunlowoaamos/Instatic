@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-import { renderMarkdownToHtml } from '@core/agent/markdown'
+import { renderMarkdownToHtml } from '@site/agent/markdown'
 
 describe('renderMarkdownToHtml', () => {
   it('renders bold and italic markers', () => {

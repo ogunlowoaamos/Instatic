@@ -9,7 +9,7 @@
 import type { ModuleDefinition } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
 import { VideoIcon } from 'pixel-art-icons/icons/video'
-import { safeUrl } from '../utils/escape'
+import { safeUrl } from '@modules/base/utils/escape'
 import { VideoEditor } from './VideoEditor'
 
 interface VideoProps extends Record<string, unknown> {

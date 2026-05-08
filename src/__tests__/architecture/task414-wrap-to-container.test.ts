@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import type { ComponentType } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import type { AnyModuleDefinition, ModuleComponentProps } from '@core/module-engine/types'
 import { SquareIcon } from 'pixel-art-icons/icons/square'
@@ -163,7 +163,7 @@ describe('Task #414 — source code guard (siteSlice)', () => {
     // (`slices/site/*`). `wrapNode` lives in `nodeActions.ts`.
     const filePath = path.resolve(
       __dirname,
-      '../../core/editor-store/slices/site/nodeActions.ts',
+      '../../admin/pages/site/store/slices/site/nodeActions.ts',
     )
     const src = fs.readFileSync(filePath, 'utf-8')
 

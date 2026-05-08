@@ -37,7 +37,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@ui/cn'
 import styles from './BreakpointSelectionOverlay.module.css'

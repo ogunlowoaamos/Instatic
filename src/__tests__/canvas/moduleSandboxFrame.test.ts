@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { createSandboxSrcDoc } from '../../editor/components/Canvas/moduleSandboxSrcDoc'
+import { createSandboxSrcDoc } from '@site/canvas/moduleSandboxSrcDoc'
 
 describe('ModuleSandboxFrame srcDoc', () => {
   it('builds an isolated iframe document with import map, encoded module source, and host bridge', () => {

@@ -34,12 +34,12 @@ import {
   type CmsCurrentUser,
   type CmsRole,
 } from '@core/persistence'
-import type { CoreCapability } from '@core/cms/capabilities'
-import dialogStyles from '@editor/components/SiteCreateDialog/SiteCreateDialog.module.css'
-import AdminLayout from '../AdminLayout'
-import { hasCapability } from '../access'
-import { useCurrentAdminUser } from '../sessionContext'
-import { SettingsButton } from '../../editor/components/Toolbar/SettingsButton'
+import type { CoreCapability } from '@core/capabilities'
+import dialogStyles from '../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
+import AdminLayout from '@admin/AdminLayout'
+import { hasCapability } from '@admin/access'
+import { useCurrentAdminUser } from '@admin/sessionContext'
+import { SettingsButton } from '@site/toolbar/SettingsButton'
 import styles from './UsersPage.module.css'
 
 type Tab = 'users' | 'roles' | 'audit'

@@ -27,10 +27,12 @@ const AuditActionSchema = Type.Union([
   Type.Literal('content.author.assign'),
   Type.Literal('publish'),
   Type.Literal('plugin.install'),
+  Type.Literal('plugin.update'),
   Type.Literal('plugin.enable'),
   Type.Literal('plugin.disable'),
   Type.Literal('plugin.delete'),
   Type.Literal('plugin.pack.install'),
+  Type.Literal('plugin.settings.update'),
 ])
 
 const AuditMetadataSchema = Type.Record(

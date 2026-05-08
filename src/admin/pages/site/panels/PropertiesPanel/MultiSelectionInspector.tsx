@@ -32,7 +32,7 @@ import { createPortal } from 'react-dom'
 import {
   useEditorStore,
   selectActiveCanvasPage,
-} from '@core/editor-store/store'
+} from '@site/store/store'
 import { registry } from '@core/module-engine/registry'
 import {
   getNodeDisplayName,
@@ -40,13 +40,13 @@ import {
   getNodeClassNames,
 } from '@core/page-tree/nodeDisplayName'
 import { Button } from '@ui/components/Button'
-import { useConfirmDelete } from '../shared/ConfirmDeleteDialog'
+import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import {
   TreeRow,
   TreeLabel,
   TreeLabelGroup,
   TreeMeta,
-} from '../../ui/Tree'
+} from '@site/ui/Tree'
 import { pillAccent } from '@ui/pillAccent'
 import { CopyIcon } from 'pixel-art-icons/icons/copy'
 import { Copy2Icon } from 'pixel-art-icons/icons/copy-2'

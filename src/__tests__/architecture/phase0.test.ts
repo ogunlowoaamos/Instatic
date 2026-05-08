@@ -10,11 +10,11 @@
  *
  * 1. No runtime `react` imports in `src/core/**`.
  *    The core layer — module-engine, publisher, persistence — must be framework-
- *    agnostic. React belongs in `src/editor/`.
+ *    agnostic. React belongs in `src/admin/pages/site/`.
  *    Type-only imports (`import type`) are allowed (zero runtime cost).
  *    (Constraints #179, #190 — "No React in core engine")
  *
- * 2. The six canonical Phase 0 slices must exist in `src/core/editor-store/slices/`.
+ * 2. The six canonical Phase 0 slices must exist in `src/admin/pages/site/store/slices/`.
  *    Required: `siteSlice.ts`, `canvasSlice.ts`, `classSlice.ts`, `settingsSlice.ts`,
  *    `selectionSlice.ts`, `uiSlice.ts`.
  *    `selectionSlice.ts` and `uiSlice.ts` were pre-approved by Guideline #341 (posted
@@ -24,7 +24,7 @@
  *    (Guideline #193 + Guideline #341 — Six Zustand slices)
  *
  * PATH NOTE (Guideline #337 Correction 1):
- * The canonical store path is `src/core/editor-store/` — NOT `src/editor-store/`.
+ * The canonical store path is `src/admin/pages/site/store/` — NOT `src/admin/pages/site-store/`.
  * Any reference to the old path in code or tests is a bug; see Guideline #337.
  *
  * @see Contribution #457 — Phase 0 SiteDocument Scaffold: Architectural Specification (Architect)
@@ -40,7 +40,7 @@ import { join, relative, extname } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
 const CORE_DIR = join(SRC_ROOT, 'core')
-const SLICES_DIR = join(SRC_ROOT, 'core/editor-store/slices')
+const SLICES_DIR = join(SRC_ROOT, 'admin/pages/site/store/slices')
 
 // ---------------------------------------------------------------------------
 // Phase 0 activation check
@@ -90,7 +90,7 @@ function collectTs(dir: string): string[] {
 //
 // NOTE: `src/core/persistence/usePersistence.ts` is a React hook currently
 // residing in `src/core/`. If this gate activates and catches it, the hook
-// should be moved to `src/editor/hooks/usePersistence.ts` per Constraint #179.
+// should be moved to `src/admin/pages/site/hooks/usePersistence.ts` per Constraint #179.
 // ---------------------------------------------------------------------------
 
 describe('Phase 0 Gate 1 — No runtime React imports in src/core/ (Constraints #179 / #190)', () => {
@@ -123,7 +123,7 @@ describe('Phase 0 Gate 1 — No runtime React imports in src/core/ (Constraints 
         if (/from\s+['"]react['"]/.test(line) || /^import\s+React\b/.test(line.trim())) {
           const rel = relative(SRC_ROOT, file)
           violations.push(
-            `src/${rel}:${i + 1} — runtime React import in core layer (use import type or move to src/editor/)`
+            `src/${rel}:${i + 1} — runtime React import in core layer (use import type or move to src/admin/pages/site/)`
           )
         }
       }
@@ -132,9 +132,9 @@ describe('Phase 0 Gate 1 — No runtime React imports in src/core/ (Constraints 
     if (violations.length > 0) {
       throw new Error(
         '[Phase 0 / Constraints #179 + #190] Runtime React imports found in src/core/ files.\n' +
-        'The core layer must be framework-agnostic. React belongs in src/editor/.\n' +
+        'The core layer must be framework-agnostic. React belongs in src/admin/pages/site/.\n' +
         'Type-only imports (`import type { ... } from "react"`) are allowed — zero runtime cost.\n' +
-        'If src/core/persistence/usePersistence.ts is flagged, move it to src/editor/hooks/.\n' +
+        'If src/core/persistence/usePersistence.ts is flagged, move it to src/admin/pages/site/hooks/.\n' +
         'See Contribution #457 (Phase 0 spec) and Constraints #179, #190.\n' +
         'Violations:\n' +
         violations.map((v) => `  ${v}`).join('\n')
@@ -162,7 +162,7 @@ describe('Phase 0 Gate 1 — No runtime React imports in src/core/ (Constraints 
 // This gate is written so that domTreeSlice is explicitly excluded from the
 // "unexpected slice" check — Phase 3 adding it will not fail this gate.
 //
-// Canonical path: `src/core/editor-store/slices/` (Guideline #337 Correction 1).
+// Canonical path: `src/admin/pages/site/store/slices/` (Guideline #337 Correction 1).
 // ---------------------------------------------------------------------------
 
 const CANONICAL_PHASE0_SLICES = [

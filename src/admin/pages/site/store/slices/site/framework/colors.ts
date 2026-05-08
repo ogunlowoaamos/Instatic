@@ -20,7 +20,7 @@ import type {
   SiteSlice,
   SiteSliceHelpers,
   UpdateFrameworkColorTokenPatch,
-} from '../types'
+} from '@site/store/slices/site/types'
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -287,5 +287,44 @@ export function createFrameworkColorActions({
         reconcileFrameworkClasses(site)
       })
     },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Preview helper — used by the panel to compute change impact before confirming
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply a token patch to a draft site for the *preview* path. Mirrors the
+ * field-level effect that `applyFrameworkColorTokenPatch` has in the slice
+ * for everything that changes class generation (utilities, transparent,
+ * shades, tints, slug). Side-effect-free fields (color values, category,
+ * darkValue, order) are intentionally omitted — they don't affect which
+ * classes the framework will generate, so the preview can skip them.
+ */
+export function applyColorTokenPatchPreview(
+  draft: SiteDocument,
+  tokenId: string,
+  patch: UpdateFrameworkColorTokenPatch,
+): void {
+  const token = draft.settings.framework?.colors?.tokens.find(
+    (t) => t.id === tokenId,
+  )
+  if (!token) return
+  if (patch.slug !== undefined) token.slug = patch.slug
+  if (patch.generateUtilities) {
+    token.generateUtilities = {
+      ...token.generateUtilities,
+      ...patch.generateUtilities,
+    }
+  }
+  if (patch.generateTransparent !== undefined) {
+    token.generateTransparent = patch.generateTransparent
+  }
+  if (patch.generateShades) {
+    token.generateShades = { ...token.generateShades, ...patch.generateShades }
+  }
+  if (patch.generateTints) {
+    token.generateTints = { ...token.generateTints, ...patch.generateTints }
   }
 }

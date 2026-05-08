@@ -69,7 +69,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
     // We assert this by checking the toolbar source uses aria-disabled, not disabled.
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     // Must use aria-disabled for the disabled state (Guideline #224)
@@ -85,7 +85,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('aria-keyshortcuts attributes are present for screen readers', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('aria-keyshortcuts="Meta+Z"')
@@ -95,7 +95,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('keyboard shortcut handler guards against text input targets', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     // Shortcuts must not fire inside inputs (would break text editing)
@@ -107,7 +107,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('keyboard handler registers on document (global scope, not canvas-local)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('document.addEventListener')
@@ -117,7 +117,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('handler supports both Cmd+Z (undo) and Cmd+Shift+Z / Cmd+Y (redo)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain("e.key === 'z' && !e.shiftKey")
@@ -148,7 +148,7 @@ describe('SaveIndicator — state display', () => {
   it('source uses role="status" + aria-live="polite" (non-intrusive AT announcement)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/SaveIndicator.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/SaveIndicator.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('role="status"')
@@ -158,7 +158,7 @@ describe('SaveIndicator — state display', () => {
   it('source emits role="alert" for save failures', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/SaveIndicator.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/SaveIndicator.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('role="alert"')
@@ -312,7 +312,7 @@ describe('PublishButton — publish state machine', () => {
   it('source emits role="alert" for error messages (Guideline #224)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url),
       'utf-8',
     )
     // Error must be surfaced via role="alert" — not silently swallowed
@@ -322,7 +322,7 @@ describe('PublishButton — publish state machine', () => {
   it('source uses aria-busy during publish', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('aria-busy={publishBusy}')
@@ -331,7 +331,7 @@ describe('PublishButton — publish state machine', () => {
   it('publish button has data-testid for Playwright targeting', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('data-testid="toolbar-publish-btn"')
@@ -340,7 +340,7 @@ describe('PublishButton — publish state machine', () => {
   it('saves the current draft before calling the CMS publish endpoint', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     const savePosition = src.indexOf('await onSave?.()')
@@ -352,7 +352,7 @@ describe('PublishButton — publish state machine', () => {
   it('loads persisted publish status when the toolbar mounts', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('getCmsPublishStatus')
@@ -362,7 +362,7 @@ describe('PublishButton — publish state machine', () => {
   it('returns from Published to Publish when the draft has unsaved changes', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('hasUnsavedChanges')
@@ -372,7 +372,7 @@ describe('PublishButton — publish state machine', () => {
   it('does not import old static export pipelines', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).not.toContain('@core/publisher')
@@ -388,7 +388,7 @@ describe('Toolbar — structural requirements', () => {
   it('source uses role="banner" as the top-level landmark', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('role="banner"')
@@ -397,7 +397,7 @@ describe('Toolbar — structural requirements', () => {
   it('source has data-testid="toolbar" for Playwright targeting', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('data-testid="toolbar"')
@@ -406,7 +406,7 @@ describe('Toolbar — structural requirements', () => {
   it('Toolbar imports and renders all required sub-components', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
     // Undo/Redo lives in the canvas notch, not the toolbar — verified separately.
@@ -423,7 +423,7 @@ describe('Toolbar — structural requirements', () => {
   it('module picker trigger has data-testid for Playwright', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/ModulePickerDropdown.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('triggerTestId')
@@ -432,7 +432,7 @@ describe('Toolbar — structural requirements', () => {
   it('Toolbar no longer renders panel toggles or create-page/component quick actions', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).not.toContain('FilesButton')
@@ -448,7 +448,7 @@ describe('Toolbar — structural requirements', () => {
     // place for site structure). The toolbar "+ Add" dropdown is module-only.
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/ModulePickerDropdown.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).not.toContain('toolbar-add-page-action')
@@ -463,20 +463,20 @@ describe('Toolbar — structural requirements', () => {
     const { readFileSync } = require('fs')
     // UndoRedo testids
     const undoSrc = readFileSync(
-      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url), 'utf-8',
+      new URL('../../admin/pages/site/canvas/UndoRedoButtons.tsx', import.meta.url), 'utf-8',
     )
     expect(undoSrc).toContain('data-testid="canvas-notch-undo-btn"')
     expect(undoSrc).toContain('data-testid="canvas-notch-redo-btn"')
 
     // ZoomControls testid
     const zoomSrc = readFileSync(
-      new URL('../../editor/components/Toolbar/ZoomControls.tsx', import.meta.url), 'utf-8',
+      new URL('../../admin/pages/site/toolbar/ZoomControls.tsx', import.meta.url), 'utf-8',
     )
     expect(zoomSrc).toContain('data-testid="toolbar-zoom-controls"')
 
     // Publishing split-button testids
     const publishingSrc = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url), 'utf-8',
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url), 'utf-8',
     )
     expect(publishingSrc).toContain('data-testid="toolbar-publish-actions-trigger"')
     expect(publishingSrc).toContain('data-testid="toolbar-publish-actions-menu"')
@@ -490,7 +490,7 @@ describe('Toolbar — structural requirements', () => {
     // ContextMenu (or ContextMenuSubmenu) for that — and uses ContextMenuItem
     // for every row, which renders a `role="menuitem"` button.
     const src = readFileSync(
-      new URL('../../editor/components/ModulePicker/ModulePicker.tsx', import.meta.url), 'utf-8',
+      new URL('../../admin/pages/site/module-picker/ModulePicker.tsx', import.meta.url), 'utf-8',
     )
     expect(src).toContain('ContextMenuItem')
     // UX Review #333: role="listbox" without arrow-key nav is incorrect. The
@@ -519,7 +519,7 @@ describe('Toolbar — structural requirements', () => {
   it('PublishButton uses ref to track status timer (no useState leak on unmount)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url), 'utf-8',
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url), 'utf-8',
     )
     // Timer must be stored in a ref and cleared in a cleanup effect
     expect(src).toContain('statusTimerRef')
@@ -530,7 +530,7 @@ describe('Toolbar — structural requirements', () => {
   it('PublishButton uses one split publishing control with explicit draft actions', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('PublishActionGroup')
@@ -551,7 +551,7 @@ describe('Toolbar — structural requirements', () => {
   it('PublishActionGroup exposes a menu button for secondary publishing actions and can omit the status label', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('statusLabel?: string | null')
@@ -565,7 +565,7 @@ describe('Toolbar — structural requirements', () => {
   it('PublishActionGroup uses the shared ContextMenu portal above editor panels', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/PublishActionGroup.tsx', import.meta.url),
+      new URL('../../admin/pages/site/toolbar/PublishActionGroup.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('@ui/components/ContextMenu')
@@ -601,11 +601,11 @@ describe('Toolbar — structural requirements', () => {
     ]
     const { readFileSync, existsSync } = require('fs')
     // Read the shared Toolbar.module.css once — all Toolbar sub-components use it
-    const cssUrl = new URL('../../editor/components/Toolbar/Toolbar.module.css', import.meta.url)
+    const cssUrl = new URL('../../admin/pages/site/toolbar/Toolbar.module.css', import.meta.url)
     const sharedCss = existsSync(cssUrl.pathname) ? readFileSync(cssUrl, 'utf-8') : ''
     for (const file of files) {
       const tsx = readFileSync(
-        new URL(`../../editor/components/Toolbar/${file}`, import.meta.url),
+        new URL(`../../admin/pages/site/toolbar/${file}`, import.meta.url),
         'utf-8',
       )
       const src = tsx + '\n' + sharedCss
@@ -636,7 +636,7 @@ describe('ModulePicker — ArrowDown keyboard bridge (WCAG SC 2.1.1)', () => {
   // toolbar "+ Add" dropdown and the DOM-panel right-click submenu).
   const { readFileSync } = require('fs')
   const src = readFileSync(
-    new URL('../../editor/components/ModulePicker/ModulePicker.tsx', import.meta.url),
+    new URL('../../admin/pages/site/module-picker/ModulePicker.tsx', import.meta.url),
     'utf-8',
   )
 
@@ -694,7 +694,7 @@ describe('SettingsModal — WCAG 2.4.3 focus-return on close (Guideline #225)', 
   it('declares a triggerRef to capture the element that opened the modal', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url).pathname,
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
     // The ref must be a nullable HTMLElement ref (so .focus() is available)
@@ -705,7 +705,7 @@ describe('SettingsModal — WCAG 2.4.3 focus-return on close (Guideline #225)', 
   it('captures document.activeElement into triggerRef when modal opens', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url).pathname,
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
     // Must guard with instanceof before assigning (avoids assigning non-focusable elements)
@@ -716,7 +716,7 @@ describe('SettingsModal — WCAG 2.4.3 focus-return on close (Guideline #225)', 
   it('restores focus to trigger when modal closes (Guideline #225)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url).pathname,
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
     // The else branch (open → false) must focus the captured trigger
@@ -728,7 +728,7 @@ describe('SettingsModal — WCAG 2.4.3 focus-return on close (Guideline #225)', 
   it('nav item buttons meet WCAG 2.5.5 44px touch target (not 36)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url).pathname,
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
     // No minHeight: 36 anywhere — both nav and close button must be 44
@@ -738,11 +738,11 @@ describe('SettingsModal — WCAG 2.4.3 focus-return on close (Guideline #225)', 
   it('nav items and close action have 44px touch targets', () => {
     const { readFileSync, existsSync } = require('fs')
     const tsx = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url).pathname,
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
-    // Post-Task #399: styles moved from inline to Settings.module.css — read both sources
-    const cssSrcUrl = new URL('../../editor/components/Settings/Settings.module.css', import.meta.url)
+    // Post-Task #399: styles moved from inline to SettingsModal.module.css — read both sources
+    const cssSrcUrl = new URL('../../admin/modals/Settings/SettingsModal.module.css', import.meta.url)
     const css = existsSync(cssSrcUrl.pathname) ? readFileSync(cssSrcUrl, 'utf-8') : ''
     expect(css).toContain('min-height: 44px')
 
@@ -757,7 +757,7 @@ describe('SettingsButton — section ID matches a valid SectionId', () => {
   it("dispatches 'pages' (a valid SectionId), not 'general' (unrecognised)", () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/SettingsButton.tsx', import.meta.url).pathname,
+      new URL('../../admin/pages/site/toolbar/SettingsButton.tsx', import.meta.url).pathname,
       'utf-8',
     ) as string
     // 'general' is not in NAV_ITEMS — the modal silently fell back to 'pages'

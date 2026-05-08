@@ -13,8 +13,9 @@
  * 1. Registry uses `Map` not plain object — O(1) lookup, no prototype pollution.
  *    (Guideline #307 Hot Path 1)
  *
- * 2. `renderCache.ts` exists at `src/core/engine/renderCache.ts`.
+ * 2. `renderCache.ts` exists at `src/admin/pages/site/canvas/renderCache.ts`.
  *    Cache must expose `get()`, `set()`, `clear()`, `invalidateModule()`, `size`.
+ *    Editor-only — the publisher renders one-shot and bypasses the cache.
  *    (Guideline #307 Hot Path 2)
  *
  * 3. `renderCache.clear()` is called inside `siteSlice.loadSite()`.
@@ -40,13 +41,13 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const RENDER_CACHE_PATH = join(SRC_ROOT, 'core/engine/renderCache.ts')
+const RENDER_CACHE_PATH = join(SRC_ROOT, 'admin/pages/site/canvas/renderCache.ts')
 /**
  * The siteSlice was split into a directory of per-domain action factories
  * (`slices/site/*`). `loadSite` now lives in `lifecycleActions.ts`, where the
  * `renderCache.clear()` call is performed.
  */
-const PROJECT_SLICE_PATH = join(SRC_ROOT, 'core/editor-store/slices/site/lifecycleActions.ts')
+const PROJECT_SLICE_PATH = join(SRC_ROOT, 'admin/pages/site/store/slices/site/lifecycleActions.ts')
 const CSS_COLLECTOR_PATH = join(SRC_ROOT, 'core/publisher/cssCollector.ts')
 const REGISTRY_PATH = join(SRC_ROOT, 'core/module-engine/registry.ts')
 
@@ -71,7 +72,7 @@ describe('Phase 1 Gate 1 — Registry uses Map (Guideline #307 Hot Path 1)', () 
 // ---------------------------------------------------------------------------
 
 describe('Phase 1 Gate 2 — renderCache API (Guideline #307 Hot Path 2)', () => {
-  it('renderCache.ts exists at src/core/engine/renderCache.ts', () => {
+  it('renderCache.ts exists at src/admin/pages/site/canvas/renderCache.ts', () => {
     expect(existsSync(RENDER_CACHE_PATH)).toBe(true)
   })
 

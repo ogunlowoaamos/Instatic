@@ -10,12 +10,12 @@
  *    a LoopItem that's seeded as the only frame on the entry stack.
  */
 
-import type { ContentEntry } from '../content/schemas'
-import type { CmsMediaAsset } from '../persistence/cmsMedia'
-import type { LoopItem } from '../loops/types'
-import { firstImagePathFromMarkdown } from '../markdown/renderContentMarkdown'
+import type { ContentEntry } from '@core/content/schemas'
+import type { CmsMediaAsset } from '@core/persistence/cmsMedia'
+import type { LoopItem } from '@core/loops/types'
+import { firstImagePathFromMarkdown } from '@core/content/renderMarkdown'
 import { normalizeRouteBase } from './templateMatching'
-import { publicContentUserReference } from '../content/publicContentUser'
+import { publicContentUserReference } from '@core/content/publicContentUser'
 
 function dateTimestamp(value: string | null | undefined): number {
   const timestamp = Date.parse(value ?? '')

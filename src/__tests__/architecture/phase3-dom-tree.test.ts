@@ -37,12 +37,12 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, extname } from 'path'
 
 const SRC_ROOT = join(import.meta.dir, '../../')
-const PROJECT_SLICE_PATH = join(SRC_ROOT, 'core/editor-store/slices/siteSlice.ts')
+const PROJECT_SLICE_PATH = join(SRC_ROOT, 'admin/pages/site/store/slices/siteSlice.ts')
 
 // Phase 3 DOM Tree Panel can live in either of these directories:
 const DOM_PANEL_DIRS = [
   join(SRC_ROOT, 'editor/components/DomTreePanel'),
-  join(SRC_ROOT, 'editor/components/DomPanel'),
+  join(SRC_ROOT, 'admin/pages/site/panels/DomPanel'),
 ]
 
 function findDomPanelDir(): string | null {

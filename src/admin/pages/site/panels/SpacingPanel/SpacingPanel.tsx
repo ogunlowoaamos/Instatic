@@ -27,9 +27,8 @@
  */
 
 import { type CSSProperties } from "react";
-import { useEditorStore } from "@core/editor-store/store";
+import { useEditorStore } from "@site/store/store";
 import { SPACING_RATIO_OPTIONS } from "@core/framework/scale";
-import type { SiteDocument } from '@core/page-tree/schemas'
 import type {
   FrameworkSpacingClassGenerator,
   FrameworkSpacingGroup,
@@ -41,13 +40,10 @@ import { SmartphoneIcon } from "pixel-art-icons/icons/smartphone";
 import {
   FrameworkScalePanel,
   type ScaleAdapter,
-} from "../shared/FrameworkScalePanel";
-import { useFrameworkChangeConfirm } from "../shared/FrameworkChangeConfirmDialog";
-import styles from "../shared/FrameworkScalePanel/FrameworkScalePanel.module.css";
-
-interface SpacingPanelProps {
-  variant?: "docked";
-}
+} from "@site/panels/FrameworkScalePanel";
+import { useFrameworkChangeConfirm } from "@admin/shared/dialogs/FrameworkChangeConfirmDialog";
+import { applySpacingGroupPatchPreview } from "@site/store/slices/site/framework/spacing";
+import styles from "./SpacingPanel.module.css";
 
 const SPACING_CSS_PROPERTIES = [
   { value: "padding", label: "padding" },
@@ -67,36 +63,6 @@ const SPACING_CSS_PROPERTIES = [
 
 const EMPTY_GROUPS: FrameworkSpacingGroup[] = [];
 const EMPTY_CLASSES: FrameworkSpacingClassGenerator[] = [];
-
-/**
- * Mirror the field-level effect of `applyFrameworkSpacingGroupPatch`
- * (in siteSlice) on a draft site for the *preview* path. Only fields
- * that influence which utility classes get generated need to be
- * applied — fields like display name don't affect class IDs or class
- * names so they're intentionally skipped.
- */
-function applySpacingGroupPatchPreview(
-  draft: SiteDocument,
-  groupId: string,
-  patch: Record<string, unknown>,
-): void {
-  const sg = draft.settings.framework?.spacing;
-  if (!sg) return;
-  const group = sg.groups.find((g) => g.id === groupId);
-  if (!group) return;
-  if (typeof patch.namingConvention === "string") {
-    group.namingConvention = patch.namingConvention;
-  }
-  if (typeof patch.steps === "string") group.steps = patch.steps;
-  if (typeof patch.mode === "string") {
-    group.mode = patch.mode as FrameworkSpacingGroup["mode"];
-  }
-  if (typeof patch.isDisabled === "boolean") group.isDisabled = patch.isDisabled;
-  if (Array.isArray(patch.manualSizes)) {
-    group.manualSizes =
-      patch.manualSizes as FrameworkSpacingGroup["manualSizes"];
-  }
-}
 
 interface ChartPoint {
   stepLabel: string;
@@ -291,7 +257,7 @@ function SpacingBarChart({ points }: { points: ChartPoint[] }) {
   )
 }
 
-export function SpacingPanel({ variant = "docked" }: SpacingPanelProps) {
+export function SpacingPanel() {
   const isOpen = useEditorStore((s) => s.spacingPanelOpen);
   const setOpen = useEditorStore((s) => s.setSpacingPanelOpen);
   const onToggleDisabled = useEditorStore(
@@ -399,7 +365,6 @@ export function SpacingPanel({ variant = "docked" }: SpacingPanelProps) {
 
   return (
     <FrameworkScalePanel
-      variant={variant}
       isOpen={isOpen}
       onClose={() => setOpen(false)}
       adapter={adapter}

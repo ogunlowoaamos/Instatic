@@ -1,4 +1,4 @@
-import type { EditorStoreSliceCreator } from '../types'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 
 type CanvasMode = 'select' | 'pan' | 'insert'
 
@@ -89,7 +89,7 @@ function nearestZoomStep(current: number, direction: 1 | -1): number {
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends CanvasSlice {}
 }
 

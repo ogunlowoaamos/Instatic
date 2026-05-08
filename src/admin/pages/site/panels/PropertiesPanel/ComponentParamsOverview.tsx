@@ -10,7 +10,7 @@
  * Constraint #269: may import from core/
  */
 
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { findParamOrigin } from '@core/visualComponents/origin'
 import { registry } from '@core/module-engine/registry'
 import type { VisualComponent, VCParam } from '@core/visualComponents/schemas'

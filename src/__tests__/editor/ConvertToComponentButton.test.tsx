@@ -15,8 +15,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ConvertToComponentButton } from '../../editor/components/PropertiesPanel/ConvertToComponentButton'
-import { useEditorStore } from '@core/editor-store/store'
+import { ConvertToComponentButton } from '@site/panels/PropertiesPanel/ConvertToComponentButton'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage, makeNode } from '../fixtures'
 
 afterEach(cleanup)

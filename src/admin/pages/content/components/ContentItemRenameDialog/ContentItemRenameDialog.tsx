@@ -4,7 +4,7 @@ import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { useDialogEscape } from '@ui/lib/useDialogEscape'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
-import dialogStyles from '@editor/components/SiteCreateDialog/SiteCreateDialog.module.css'
+import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import { slugFromTitle } from '@core/utils/slug'
 
 export interface ContentItemRenamePayload {

@@ -1,7 +1,7 @@
 /**
  * SettingsButton — opens the Settings modal.
  */
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { SettingsCogIcon } from 'pixel-art-icons/icons/settings-cog'
 import { Button } from '@ui/components/Button'
 

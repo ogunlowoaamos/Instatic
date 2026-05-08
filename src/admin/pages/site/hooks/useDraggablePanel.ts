@@ -26,7 +26,7 @@ import {
   writeStoredPanelPosition,
   type FloatingPanelId,
   type PanelPosition,
-} from '../layout/panelLayoutStorage'
+} from '@site/layout/panelLayoutStorage'
 
 export type { PanelPosition }
 

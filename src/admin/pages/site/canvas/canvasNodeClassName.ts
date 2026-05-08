@@ -1,4 +1,4 @@
-import type { ClassPreviewAssignment } from '@core/editor-store/slices/classSlice'
+import type { ClassPreviewAssignment } from '@site/store/slices/classSlice'
 import { classNamesForClassIds, type ClassRegistry } from '@core/page-tree/classNames'
 
 export function getCanvasNodeClassIds(

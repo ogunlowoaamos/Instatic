@@ -11,7 +11,7 @@
  * data-testid="settings-modal" for Playwright (Guideline #221)
  */
 import { useEffect, useRef, useCallback } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { Button } from '@ui/components/Button'
 import { Separator } from '@ui/components/Separator'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
@@ -27,7 +27,7 @@ import { PagesSection } from './sections/PagesSection'
 import { PublishingSection } from './sections/PublishingSection'
 import { ShortcutsSection } from './sections/ShortcutsSection'
 import { PreferencesSection } from './sections/PreferencesSection'
-import s from './Settings.module.css'
+import s from './SettingsModal.module.css'
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 

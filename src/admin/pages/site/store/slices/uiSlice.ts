@@ -1,4 +1,4 @@
-import type { EditorStore, EditorStoreSliceCreator } from '../types'
+import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
 
 export type FocusedPanel = 'canvas' | 'domTree' | 'properties' | null
 export type LeftSidebarPanelId =
@@ -186,7 +186,7 @@ function getActiveLeftSidebarPanel(state: EditorStore): LeftSidebarPanelId | nul
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends UiSlice {}
 }
 

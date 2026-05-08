@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { ColorsPanel } from '../../editor/components/ColorsPanel'
-import { useEditorStore } from '@core/editor-store/store'
+import { ColorsPanel } from '@site/panels/ColorsPanel'
+import { useEditorStore } from '@site/store/store'
 import { frameworkColorClassId } from '@core/framework/colors'
 import { makeSite } from '../fixtures'
 
@@ -29,7 +29,7 @@ afterEach(cleanup)
 
 describe('ColorsPanel', () => {
   it('creates a color token and generated utility classes', () => {
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     expect(screen.getByTestId('colors-panel')).toBeDefined()
     expect(screen.getByText(/no colors yet/i)).toBeDefined()
@@ -62,7 +62,7 @@ describe('ColorsPanel', () => {
       },
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit color primary' }))
     const panel = screen.getByTestId('colors-panel')
@@ -102,7 +102,7 @@ describe('ColorsPanel', () => {
       generateTints: { enabled: true, count: 4 },
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.change(screen.getByLabelText('Default color swatch primary'), {
       target: { value: '#ff0000' },
@@ -148,7 +148,7 @@ describe('ColorsPanel', () => {
       generateTints: { enabled: false, count: 0 },
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit color secondary' }))
     fireEvent.focus(within(screen.getByTestId('colors-panel')).getByRole('textbox', { name: /default color/i }))
@@ -169,7 +169,7 @@ describe('ColorsPanel', () => {
       lightValue: 'hsla(238, 100%, 62%, 1)',
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: /edit color primary/i }))
     const panel = screen.getByTestId('colors-panel')
@@ -198,7 +198,7 @@ describe('ColorsPanel', () => {
       lightValue: 'hsla(0, 94%, 68%, 1)',
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.click(screen.getByRole('button', { name: /edit color secondary/i }))
     const panel = screen.getByTestId('colors-panel')
@@ -222,7 +222,7 @@ describe('ColorsPanel', () => {
       category: 'Brand',
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     expect(screen.getByRole('button', { name: /^brand$/i })).toBeDefined()
 
@@ -240,7 +240,7 @@ describe('ColorsPanel', () => {
       category: 'Brand',
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.click(screen.getAllByRole('button', { name: /create color/i })[0])
     fireEvent.change(screen.getByRole('textbox', { name: /token name/i }), {
@@ -274,7 +274,7 @@ describe('ColorsPanel', () => {
       generateTints: { enabled: false, count: 0 },
     })
 
-    render(<ColorsPanel variant="docked" />)
+    render(<ColorsPanel />)
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Edit color primary' }))
     expect(screen.getByRole('menu', { name: /color token actions/i })).toBeDefined()

@@ -29,9 +29,12 @@ export default definePlugin({
   version: '1.0.0',
   description:
     'Pure visual kit: canvas modules, Visual Components, page templates, and a class pack — no server code. Install the pack to drop curated layouts straight into your site.',
-  author: { name: 'Acme', url: 'https://acme.dev' },
+  author: { name: 'Acme Design', url: 'https://acme.dev/design' },
   license: 'MIT',
-  keywords: ['ui-kit', 'landing', 'marketing', 'pricing'],
+  homepage: 'https://acme.dev/page-builder/ui-kit',
+  repository: 'https://github.com/acme/page-builder-ui-kit',
+  keywords: ['ui-kit', 'landing', 'marketing', 'pricing', 'components'],
+  icon: 'icon.svg',
   permissions: [
     permissions.modulesRegister,
     permissions.visualComponentsRegister,

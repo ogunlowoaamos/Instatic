@@ -42,7 +42,7 @@
     flex: 1 1 auto;
     min-width: 0;
     padding: 0 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     background: var(--editor-surface);
     color: var(--editor-text);
     text-align: left;

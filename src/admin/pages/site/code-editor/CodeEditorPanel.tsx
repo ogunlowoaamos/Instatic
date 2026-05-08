@@ -27,9 +27,9 @@
  */
 
 import { Suspense, lazy, memo, useEffect, useRef, type CSSProperties } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
-import { PanelHeader } from '../shared/PanelHeader'
-import { useDraggablePanel } from '../../hooks/useDraggablePanel'
+import { useEditorStore } from '@site/store/store'
+import { PanelHeader } from '@admin/shared/PanelHeader'
+import { useDraggablePanel } from '@site/hooks/useDraggablePanel'
 import { ImagePreview, RemoteAssetPreview } from './ImagePreview'
 import { ScriptSettingsPane } from './ScriptSettingsPane'
 import { EmptyState } from '@ui/components/EmptyState'

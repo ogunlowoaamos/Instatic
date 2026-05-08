@@ -121,9 +121,18 @@ export function pluginModuleToHostModule(
     defaults: definition.defaults,
     component: componentFactory(definition),
     htmlTag: typeof definition.htmlTag === 'string' ? definition.htmlTag : undefined,
+    // Defensive wrap — a throwing plugin render() must not crash the
+    // publisher (one bad module would otherwise abort the entire publish
+    // job). The editor canvas separately wraps the React preview in an
+    // ErrorBoundary; this wrap protects the server-side publisher path.
     render: (props, children) => {
-      const out = definition.render(props, children)
-      return { html: out.html, css: out.css }
+      try {
+        const out = definition.render(props, children)
+        return { html: out.html, css: out.css }
+      } catch (err) {
+        console.error(`[plugin-module:${definition.id}] render() threw:`, err)
+        return { html: `<!-- pb: plugin module "${definition.id}" render failed -->` }
+      }
     },
   }
 }

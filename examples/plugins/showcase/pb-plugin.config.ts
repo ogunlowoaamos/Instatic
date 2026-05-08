@@ -15,8 +15,12 @@ export default definePlugin({
   version: '1.0.0',
   description:
     'End-to-end demo plugin — exercises every plugin SDK surface: admin app, server routes, hooks, canvas modules, frontend tracker, and a Visual Component pack.',
-  author: { name: 'Acme', url: 'https://acme.dev' },
+  author: { name: 'Acme Engineering', email: 'plugins@acme.dev', url: 'https://acme.dev' },
   license: 'MIT',
+  homepage: 'https://acme.dev/page-builder/showcase',
+  repository: 'https://github.com/acme/page-builder-showcase',
+  keywords: ['demo', 'showcase', 'analytics', 'modules', 'pack'],
+  icon: 'icon.svg',
   permissions: [
     permissions.adminNavigation,
     permissions.cmsStorage,
@@ -70,4 +74,29 @@ export default definePlugin({
   ],
   modules: [callout, eventCounter],
   pack,
+  settings: [
+    {
+      id: 'eventLabelPrefix',
+      label: 'Event label prefix',
+      type: 'text',
+      placeholder: 'showcase',
+      description:
+        'Prepended to every tracker event the plugin records. Useful for tagging events with a deployment id.',
+      default: 'showcase',
+    },
+    {
+      id: 'storeOutboundClicks',
+      label: 'Store outbound clicks',
+      type: 'toggle',
+      description: 'When off, link-click events bypass storage but the front-end runtime still fires them.',
+      default: true,
+    },
+    {
+      id: 'apiKey',
+      label: 'Upstream API key',
+      type: 'password',
+      description: 'Optional — forwarded to a downstream analytics service when set. Stored encrypted at rest.',
+      secret: true,
+    },
+  ],
 })

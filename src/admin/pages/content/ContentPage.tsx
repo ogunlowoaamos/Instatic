@@ -6,13 +6,13 @@ import type {
   ContentEntryStatus,
   UpdateContentCollectionInput,
 } from '@core/content/schemas'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { HeadingIcon } from 'pixel-art-icons/icons/heading'
 import { ImagesIcon } from 'pixel-art-icons/icons/images'
 import { TextPlusIcon } from 'pixel-art-icons/icons/text-plus'
-import AdminLayout from '../AdminLayout'
-import { MediaExplorerPanel } from '../../editor/components/MediaExplorerPanel'
-import type { CanvasNotchAction } from '../../editor/components/Canvas/CanvasNotch'
+import AdminLayout from '@admin/AdminLayout'
+import { MediaExplorerPanel } from '@site/panels/MediaExplorerPanel'
+import type { CanvasNotchAction } from '@site/canvas/CanvasNotch'
 import { ContentDocumentCanvas } from './components/ContentDocumentCanvas/ContentDocumentCanvas'
 import { ContentCollectionCreateDialog } from './components/ContentCollectionCreateDialog/ContentCollectionCreateDialog'
 import { ContentExplorerPanel } from './components/ContentExplorerPanel/ContentExplorerPanel'
@@ -24,16 +24,16 @@ import { useContentEntryDraft } from './hooks/useContentEntryDraft'
 import { useContentMediaPicker } from './hooks/useContentMediaPicker'
 import { useContentWorkspace } from './hooks/useContentWorkspace'
 import { publicContentPath } from './utils/contentEntryUtils'
-import { CORE_CAPABILITIES } from '@core/cms/capabilities'
+import { CORE_CAPABILITIES } from '@core/capabilities'
 import type { CmsCurrentUser } from '@core/persistence'
-import { useCurrentAdminUser } from '../sessionContext'
+import { useCurrentAdminUser } from '@admin/sessionContext'
 import {
   canCreateContent,
   canEditAnyContent,
   canEditContentEntry,
   canManageContentCollections,
   canPublishContentEntry,
-} from '../access'
+} from '@admin/access'
 
 const UNRESTRICTED_ADMIN_USER: CmsCurrentUser = {
   id: 'admin-ui-unrestricted',

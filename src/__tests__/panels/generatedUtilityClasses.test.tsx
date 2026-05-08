@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { ClassPicker } from '../../editor/components/PropertiesPanel/ClassPicker'
-import { PropertiesPanel } from '../../editor/components/PropertiesPanel/PropertiesPanel'
-import { SelectorsPanel } from '../../editor/components/SelectorsPanel'
-import { useEditorStore } from '@core/editor-store/store'
+import { ClassPicker } from '@site/panels/PropertiesPanel/ClassPicker'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
+import { SelectorsPanel } from '@site/panels/SelectorsPanel'
+import { useEditorStore } from '@site/store/store'
 import type { CSSClass } from '@core/page-tree/schemas'
 import { makeNode, makePage, makeSite } from '../fixtures'
-import '../../modules/base/index'
+import '@modules/base/index'
 
 const GENERATED_CLASS_ID = 'framework:color:primary-token:base:text'
 

@@ -4,13 +4,13 @@ import { join } from 'node:path'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from '../../admin/lib/router'
-import { useLocation } from '../../admin/lib/routerHooks'
-import { ContentPage } from '../../admin/content/ContentPage'
-import { useEditorStore } from '@core/editor-store/store'
+import { MemoryRouter, Route, Routes } from '@admin/lib/routing'
+import { useLocation } from '@admin/lib/routing'
+import { ContentPage } from '@content/ContentPage'
+import { useEditorStore } from '@site/store/store'
 import { makeSite } from '../fixtures'
-import { Toolbar } from '../../editor/components/Toolbar'
-import { AdminSectionNavigation } from '../../admin/AdminLayout'
+import { Toolbar } from '@site/toolbar'
+import { AdminSectionNavigation } from '@admin/AdminLayout'
 
 const originalFetch = globalThis.fetch
 
@@ -669,7 +669,7 @@ describe('ContentPage', () => {
 
     expect(title.value).toBe(longTitle)
 
-    const contentCss = readFileSync(join(process.cwd(), 'src/admin/content/ContentPage.module.css'), 'utf8')
+    const contentCss = readFileSync(join(process.cwd(), 'src/admin/pages/content/ContentPage.module.css'), 'utf8')
     expect(contentCss).toMatch(/\.titleInput\s*\{[^}]*white-space:\s*pre-wrap/s)
     expect(contentCss).toMatch(/\.titleInput\s*\{[^}]*overflow-wrap:\s*anywhere/s)
   })
@@ -1655,14 +1655,14 @@ describe('ContentPage', () => {
   })
 
   it('keeps contenteditable text blocks uncontrolled so rerenders do not reset the caret', () => {
-    const src = readFileSync(join(process.cwd(), 'src/admin/content/RichMarkdownEditor.tsx'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'src/admin/pages/content/RichMarkdownEditor.tsx'), 'utf8')
 
     expect(src).toContain('EditableTextBlock')
     expect(src).not.toContain('{block.text}')
   })
 
   it('uses the content publish button as the single published-state indicator', () => {
-    const src = readFileSync(join(process.cwd(), 'src/admin/content/components/ContentToolbar/ContentToolbar.tsx'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'src/admin/pages/content/components/ContentToolbar/ContentToolbar.tsx'), 'utf8')
 
     expect(src).toContain("'Retry publish'")
     expect(src).toContain("'Published'")

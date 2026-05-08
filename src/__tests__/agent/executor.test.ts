@@ -11,9 +11,9 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
-import { executeAgentTool } from '@core/agent/executor'
-import '../../modules/base'
+import { useEditorStore } from '@site/store/store'
+import { executeAgentTool } from '@site/agent/executor'
+import '@modules/base'
 
 // ---------------------------------------------------------------------------
 // Store reset helper

@@ -27,7 +27,7 @@
   // export.
   "ignoreExports": [
     {
-      "file": "src/editor/components/CodeEditor/CodeEditorPanel.module.css",
+      "file": "src/admin/pages/site/code-editor/CodeEditorPanel.module.css",
       "exports": ["cm-editor"]
     }
   ]

@@ -20,7 +20,7 @@ import {
   readSiteClassUsage,
   recordClassUsage,
   selectRecentAndFrequent,
-} from '../../editor/preferences/classUsage'
+} from '@site/preferences/classUsage'
 
 beforeEach(() => {
   __resetClassUsageForTests()

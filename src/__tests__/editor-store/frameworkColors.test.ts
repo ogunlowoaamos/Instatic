@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { frameworkColorClassId } from '@core/framework/colors'
 import type { FrameworkColorToken } from '@core/framework/schemas'
 import { makeNode, makePage, makeSite } from '../fixtures'

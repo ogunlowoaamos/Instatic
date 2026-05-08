@@ -5,7 +5,7 @@
  * `site.breakpoints` from the store.
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { SmartphoneIcon } from 'pixel-art-icons/icons/smartphone'
 import { TabletIcon } from 'pixel-art-icons/icons/tablet'
 import { MonitorIcon } from 'pixel-art-icons/icons/monitor'
@@ -16,7 +16,7 @@ import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
 import type { Breakpoint } from '@core/page-tree/schemas'
-import s from '../Settings.module.css'
+import s from '../SettingsModal.module.css'
 
 const ICON_OPTIONS = [
   { value: 'smartphone', label: 'Smartphone', icon: <SmartphoneIcon size={13} /> },

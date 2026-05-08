@@ -18,8 +18,8 @@
  * Reference: Performance analysis in Contribution #308.
  */
 
-import type { SiteDocument } from '../page-tree/schemas'
-import { isGeneratedClass } from '../page-tree/classUtils'
+import type { SiteDocument } from '@core/page-tree/schemas'
+import { isGeneratedClass } from '@core/page-tree/classUtils'
 import { generateClassCSS } from './classCss'
 
 /**

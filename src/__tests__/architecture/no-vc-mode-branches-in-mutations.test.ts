@@ -92,7 +92,7 @@ const NAMED_TREE_MUTATION_ACTIONS: string[] = [
  * Each entry is at 4-space indent (2 for the function body + 2 for the
  * object property).
  */
-const NODE_ACTIONS_PATH = 'src/core/editor-store/slices/site/nodeActions.ts'
+const NODE_ACTIONS_PATH = 'src/admin/pages/site/store/slices/site/nodeActions.ts'
 
 /**
  * Extract a named action's body from the action object literal in

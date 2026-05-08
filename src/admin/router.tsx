@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import type { ReactElement, ReactNode } from 'react'
-import { Navigate, Route, Routes } from './lib/router'
-import { useLocation } from './lib/routerHooks'
+import { Navigate, Route, Routes } from './lib/routing'
+import { useLocation } from './lib/routing'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import { AppLoadingScreen } from './AppLoadingScreen'
 

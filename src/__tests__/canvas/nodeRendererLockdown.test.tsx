@@ -18,12 +18,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { DndContext } from '@dnd-kit/core'
-import { useEditorStore } from '@core/editor-store/store'
-import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
+import { useEditorStore } from '@site/store/store'
+import { CanvasRoot } from '@site/canvas/CanvasRoot'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { PageNode } from '@core/page-tree/schemas'
-import type { AnnotatedPageNode } from '../../editor/components/Canvas/canvasSelectionUtils'
-import '../../modules/base'
+import type { AnnotatedPageNode } from '@site/canvas/canvasSelectionUtils'
+import '@modules/base'
 
 // ---------------------------------------------------------------------------
 // Helpers

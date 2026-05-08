@@ -364,4 +364,11 @@ export const sqliteMigrations: Migration[] = [
         on published_runtime_assets (page_version_id);
     `,
   },
+  {
+    id: '012_plugin_settings',
+    sql: `
+      alter table installed_plugins
+        add column settings_json text not null default '{}';
+    `,
+  },
 ]

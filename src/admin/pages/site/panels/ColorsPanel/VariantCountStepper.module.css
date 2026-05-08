@@ -1,0 +1,39 @@
+.stepperRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.stepperControl {
+    display: grid;
+    grid-template-columns: 26px 32px 26px;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    background: var(--input-bg);
+}
+
+.stepperControl button {
+    height: 100%;
+    min-height: 0;
+    border-radius: 0;
+}
+
+.stepperValue {
+    display: grid;
+    min-height: 26px;
+    place-items: center;
+    border-right: 1px solid var(--input-border);
+    border-left: 1px solid var(--input-border);
+    color: var(--editor-text);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 760;
+    line-height: 1;
+}

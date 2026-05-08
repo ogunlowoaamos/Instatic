@@ -13,10 +13,10 @@ describe('admin feature folders', () => {
     expect(existsSync(join(root, 'src/admin/AdminLayout.tsx'))).toBe(true)
     expect(existsSync(join(root, 'src/admin/AdminEntry.tsx'))).toBe(true)
     expect(existsSync(join(root, 'src/admin/router.tsx'))).toBe(true)
-    expect(existsSync(join(root, 'src/admin/site/SitePage.tsx'))).toBe(true)
-    expect(existsSync(join(root, 'src/admin/content/ContentPage.tsx'))).toBe(true)
-    expect(existsSync(join(root, 'src/admin/plugins/PluginsPage.tsx'))).toBe(true)
-    expect(existsSync(join(root, 'src/admin/plugins/PluginPage.tsx'))).toBe(true)
+    expect(existsSync(join(root, 'src/admin/pages/site/SitePage.tsx'))).toBe(true)
+    expect(existsSync(join(root, 'src/admin/pages/content/ContentPage.tsx'))).toBe(true)
+    expect(existsSync(join(root, 'src/admin/pages/plugins/PluginsPage.tsx'))).toBe(true)
+    expect(existsSync(join(root, 'src/admin/pages/plugins/PluginPage.tsx'))).toBe(true)
   })
 
   it('uses page names instead of admin-specific component names', () => {

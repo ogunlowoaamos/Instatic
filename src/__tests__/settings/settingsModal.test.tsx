@@ -33,8 +33,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react'
 import { readFileSync } from 'fs'
-import { SettingsModal } from '../../editor/components/Settings/SettingsModal'
-import { useEditorStore } from '@core/editor-store/store'
+import { SettingsModal } from '@admin/modals/Settings/SettingsModal'
+import { useEditorStore } from '@site/store/store'
 import { makeSite, makePage } from '../fixtures'
 
 // ---------------------------------------------------------------------------
@@ -524,18 +524,18 @@ describe('SettingsModal — PreferencesSection toggles', () => {
 
 describe('SettingsModal — WCAG 2.5.5 touch targets (source enforcement)', () => {
   const modalTsx = readFileSync(
-    new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url),
     'utf-8',
   )
-  // Post-Task #399: styles moved from inline to Settings.module.css — read both sources
+  // Post-Task #399: styles moved from inline to SettingsModal.module.css — read both sources
   const { existsSync } = require('fs')
-  const cssSrcUrl = new URL('../../editor/components/Settings/Settings.module.css', import.meta.url)
+  const cssSrcUrl = new URL('../../admin/modals/Settings/SettingsModal.module.css', import.meta.url)
   const settingsCss = existsSync(cssSrcUrl.pathname) ? readFileSync(cssSrcUrl, 'utf-8') : ''
   const modalSrc = modalTsx + '\n' + settingsCss
 
   it(`nav item buttons have minHeight: ${MIN_TOUCH_TARGET} (WCAG 2.5.5)`, () => {
     // Phase B: accept inline style (minHeight: 44) OR Tailwind utility (min-h-[44px]) OR
-    // CSS module (min-height: 44px) — post-Task #399 styles moved to Settings.module.css.
+    // CSS module (min-height: 44px) — post-Task #399 styles moved to SettingsModal.module.css.
     const hasInline = modalSrc.includes('minHeight: 44')
     const hasTailwind = modalSrc.includes('min-h-[44px]')
     const hasCssModule = modalSrc.includes('min-height: 44px')
@@ -551,7 +551,7 @@ describe('SettingsModal — WCAG 2.5.5 touch targets (source enforcement)', () =
   })
 
   const prefSrc = readFileSync(
-    new URL('../../editor/components/Settings/sections/PreferencesSection.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/sections/PreferencesSection.tsx', import.meta.url),
     'utf-8',
   )
 
@@ -575,7 +575,7 @@ describe('SettingsModal — WCAG 2.5.5 touch targets (source enforcement)', () =
 
 describe('SettingsModal — Guideline #225 focus return (source enforcement)', () => {
   const modalSrc = readFileSync(
-    new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url),
+    new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url),
     'utf-8',
   )
 
@@ -601,12 +601,12 @@ describe('SettingsModal — Guideline #225 focus return (source enforcement)', (
 
 describe('SettingsButton + uiSlice — section ID alignment (source enforcement)', () => {
   const btnSrc = readFileSync(
-    new URL('../../editor/components/Toolbar/SettingsButton.tsx', import.meta.url),
+    new URL('../../admin/pages/site/toolbar/SettingsButton.tsx', import.meta.url),
     'utf-8',
   )
 
   const uiSliceSrc = readFileSync(
-    new URL('../../core/editor-store/slices/uiSlice.ts', import.meta.url),
+    new URL('../../admin/pages/site/store/slices/uiSlice.ts', import.meta.url),
     'utf-8',
   )
 
@@ -662,7 +662,7 @@ describe('SettingsModal — WCAG 2.4.7 input focus rings (source enforcement)', 
     // Hardcoded rgba focus ring inside the modal violated the design-token
     // policy. Primitives now own this — the `<style>` block must stay gone.
     const modalSrc = readFileSync(
-      new URL('../../editor/components/Settings/SettingsModal.tsx', import.meta.url),
+      new URL('../../admin/modals/Settings/SettingsModal.tsx', import.meta.url),
       'utf-8',
     )
     expect(modalSrc).not.toContain('<style>')

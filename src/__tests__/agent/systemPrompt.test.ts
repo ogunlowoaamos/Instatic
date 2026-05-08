@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { buildSystemPrompt, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@core/agent/systemPrompt'
-import type { PageContext } from '@core/agent/types'
+import { buildSystemPrompt, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@site/agent/systemPrompt'
+import type { PageContext } from '@site/agent/types'
 
 function makeContext(overrides: Partial<PageContext> = {}): PageContext {
   return {

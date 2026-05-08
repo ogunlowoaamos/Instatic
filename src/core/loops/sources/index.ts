@@ -7,7 +7,7 @@
  * before any loop renders.
  */
 
-import { loopSourceRegistry } from '../registry'
+import { loopSourceRegistry } from '@core/loops/registry'
 import { ContentEntriesSource } from './contentEntries'
 import { SitePagesSource } from './sitePages'
 import { SiteMediaSource } from './siteMedia'

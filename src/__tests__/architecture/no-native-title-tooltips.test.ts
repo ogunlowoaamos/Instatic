@@ -1,7 +1,7 @@
 /**
  * Architecture gate — no native HTML `title=` attribute on interactive elements.
  *
- * Interactive elements (<Button>, <button>) in src/admin/ and src/editor/ MUST
+ * Interactive elements (<Button>, <button>) in src/admin/ and src/admin/pages/site/ MUST
  * use the Tooltip primitive for hover hints — either via Button's `tooltip=`
  * prop or via a direct <Tooltip> wrapper — rather than the native HTML
  * `title=` attribute, which renders a native OS tooltip with no styling control.
@@ -50,43 +50,43 @@ export const ALLOWED_NATIVE_TITLES: Array<{
   reason: string
 }> = [
   {
-    file: 'editor/components/Canvas/NodeRenderer.tsx',
+    file: 'admin/pages/site/canvas/NodeRenderer.tsx',
     reason:
       'Non-interactive <div title="Unknown module: …"> error-display panel. ' +
       'Not a button — no onClick, no role="button".',
   },
   {
-    file: 'editor/components/DomPanel/TreeNode.tsx',
+    file: 'admin/pages/site/panels/DomPanel/TreeNode.tsx',
     reason:
       'aria-hidden="true" emoji lock/visibility indicators: <span title="Locked"> and ' +
       '<span title="Hidden">. Adding aria-label to an aria-hidden element is ignored by AT; ' +
       'title= is the only way to give sighted users a hover label here.',
   },
   {
-    file: 'editor/components/DependenciesPanel/DepsSection.tsx',
+    file: 'admin/pages/site/panels/DependenciesPanel/DepsSection.tsx',
     reason:
       'Three non-interactive display spans: truncated dep name (<span title={name}>), ' +
       'locked-version badge (<span title="Locked at …">), and usage badge ' +
       '(<span title="Required by …">). All are display-only, no onClick.',
   },
   {
-    file: 'editor/components/PropertiesPanel/ComponentRefView.tsx',
+    file: 'admin/pages/site/panels/PropertiesPanel/ComponentRefView.tsx',
     reason:
       'Truncated parameter name label (<span title={param.name}>) — non-interactive display.',
   },
   {
-    file: 'editor/components/PropertiesPanel/PropertiesPanel.tsx',
+    file: 'admin/pages/site/panels/PropertiesPanel/PropertiesPanel.tsx',
     reason:
       'Truncated element/selector name labels (<span title={displayName}>, ' +
       '<span title={selectorLabel}>) — non-interactive display spans used for text-overflow.',
   },
   {
-    file: 'editor/components/PropertyControls/MediaLibraryControl.tsx',
+    file: 'admin/pages/site/property-controls/MediaLibraryControl.tsx',
     reason:
       'Truncated media path (<div title={currentAsset.publicPath}>) — non-interactive display.',
   },
   {
-    file: 'editor/components/Toolbar/Toolbar.tsx',
+    file: 'admin/pages/site/toolbar/Toolbar.tsx',
     reason:
       'Truncated site name (<span title={siteName}>) — non-interactive display span.',
   },
@@ -181,7 +181,7 @@ function findViolations(source: string, rel: string): Violation[] {
 // ─── Test ──────────────────────────────────────────────────────────────────────
 
 describe('Architecture — no native title= on interactive elements', () => {
-  it('no <Button or <button carries a title= attribute in src/admin and src/editor', () => {
+  it('no <Button or <button carries a title= attribute in src/admin and src/admin/pages/site', () => {
     const files = SCAN_ROOTS.flatMap((root) => collectTSXFiles(root))
     const allViolations: Violation[] = []
 

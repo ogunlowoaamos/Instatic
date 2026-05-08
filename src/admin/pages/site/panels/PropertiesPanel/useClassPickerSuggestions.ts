@@ -17,7 +17,7 @@ import {
   CLASS_USAGE_RECENT_LIMIT,
   readSiteClassUsage,
   selectRecentAndFrequent,
-} from '../../preferences/classUsage'
+} from '@site/preferences/classUsage'
 
 /** Per-site class-usage table — return type of `readSiteClassUsage`. */
 type ClassUsageMap = ReturnType<typeof readSiteClassUsage>

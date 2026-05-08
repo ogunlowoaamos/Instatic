@@ -10,23 +10,23 @@ import {
   setupCms,
   type CmsCurrentUser,
 } from '@core/persistence'
-import { ContentPage } from './content/ContentPage'
-import { PluginPage } from './plugins/PluginPage'
-import { PluginsPage } from './plugins/PluginsPage'
-import { SitePage } from './site/SitePage'
-import { UsersPage } from './users/UsersPage'
+import { ContentPage } from './pages/content/ContentPage'
+import { PluginPage } from './pages/plugins/PluginPage'
+import { PluginsPage } from './pages/plugins/PluginsPage'
+import { SitePage } from './pages/site/SitePage'
+import { UsersPage } from './pages/users/UsersPage'
 import { AppLoadingScreen } from './AppLoadingScreen'
 import type { AdminWorkspace } from './workspace'
 import { AdminSessionProvider } from './session'
 import { canAccessWorkspace, firstAccessibleWorkspace, workspacePath } from './access'
-import { Navigate } from './lib/router'
-import { useInRouterContext } from './lib/routerHooks'
+import { Navigate } from './lib/routing'
+import { useInRouterContext } from './lib/routing'
 import styles from './AdminEntry.module.css'
 
 // Register base modules with the global registry. Kept here (not in main.tsx)
 // so the publisher / page-tree / sanitize stack only ships in the lazy admin
 // chunk, never on the login / setup cold path.
-import '../modules/base'
+import '@modules/base'
 // Register built-in loop sources so the Properties Panel + editor preview
 // can pick them up. Same lazy-chunk reasoning as the modules import above.
 import '@core/loops/sources'

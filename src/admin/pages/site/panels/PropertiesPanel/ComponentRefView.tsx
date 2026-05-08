@@ -14,7 +14,7 @@
  */
 
 import { useCallback } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { WarningDiamondIcon } from 'pixel-art-icons/icons/warning-diamond'
 import { BracesIcon } from 'pixel-art-icons/icons/braces'
 import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'

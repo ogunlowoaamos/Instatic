@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { validateSite, SiteValidationError } from '../core/persistence/validate'
-import type { SiteDocument } from '../core/page-tree/schemas'
+import { validateSite, SiteValidationError } from '@core/persistence/validate'
+import type { SiteDocument } from '@core/page-tree/schemas'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

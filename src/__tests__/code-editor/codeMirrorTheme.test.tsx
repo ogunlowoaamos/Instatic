@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view'
 import { highlightingFor } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { readFileSync } from 'node:fs'
-import CodeMirrorEditor from '../../editor/components/CodeEditor/CodeMirrorEditor'
+import CodeMirrorEditor from '@site/code-editor/CodeMirrorEditor'
 import type { SiteFile } from '@core/files/schemas'
 
 afterEach(cleanup)

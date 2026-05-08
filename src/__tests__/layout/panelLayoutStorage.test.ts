@@ -4,7 +4,7 @@ import {
   readEditorLayout,
   readStoredPanelPosition,
   writeStoredPanelPosition,
-} from '../../editor/layout/panelLayoutStorage'
+} from '@site/layout/panelLayoutStorage'
 
 beforeEach(() => {
   localStorage.clear()

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import type { SiteFile } from '@core/files/schemas'
 import type { Page } from '@core/page-tree'
 import type { VisualComponent } from '@core/visualComponents/schemas'
 import { createUniquePageSlug, pagePublicPath } from '@core/page-tree/slugs'
-import { PanelHeader } from '../shared/PanelHeader'
+import { PanelHeader } from '@admin/shared/PanelHeader'
 import { Button } from '@ui/components/Button'
 import { EmptyState } from '@ui/components/EmptyState'
 import type { IconComponent } from 'pixel-art-icons/types'
@@ -23,9 +23,9 @@ import {
   slugifySiteItemName,
   type SiteCreatePayload,
   type SiteCreateKind,
-} from '../SiteCreateDialog'
-import { ExplorerItemContextMenu, ExplorerRenameDialog, type ExplorerRenamePayload } from '../ExplorerPanelActions'
-import { TemplateSettingsDialog, type TemplateSettingsPayload } from '../TemplateSettingsDialog'
+} from '@admin/shared/dialogs/SiteCreateDialog'
+import { ExplorerItemContextMenu, ExplorerRenameDialog, type ExplorerRenamePayload } from '@site/explorer-actions'
+import { TemplateSettingsDialog, type TemplateSettingsPayload } from '@admin/shared/dialogs/TemplateSettingsDialog'
 import styles from './SiteExplorerPanel.module.css'
 
 interface SiteExplorerPanelProps {

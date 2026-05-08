@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox'
-import type { PluginRecord, PluginResource } from '../plugin-sdk'
+import type { PluginRecord, PluginResource } from '@core/plugin-sdk'
 import { readEnvelope } from './httpJson'
 import { responseErrorMessage } from './httpErrors'
 

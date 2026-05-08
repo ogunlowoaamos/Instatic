@@ -12,7 +12,7 @@
 
 import { Type, type Static } from '@sinclair/typebox'
 import { withFallback } from '@core/utils/typeboxHelpers'
-import { SiteFileSchema } from '../files/schemas'
+import { SiteFileSchema } from '@core/files/schemas'
 
 // ---------------------------------------------------------------------------
 // LockedSiteDependency

@@ -37,10 +37,22 @@ function runtimePath(pluginId: string, path: string): string {
 
 const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
+export interface CreateAdminPluginApiOptions {
+  /** Snapshot of the plugin's current settings; omitted = empty record. */
+  settingsSnapshot?: Record<string, string | number | boolean>
+  fetchImpl?: FetchLike
+}
+
 export function createAdminPluginApi(
   pluginId: string,
-  fetchImpl: FetchLike = defaultFetch,
+  options: CreateAdminPluginApiOptions = {},
 ): PluginAdminAppApi {
+  const fetchImpl = options.fetchImpl ?? defaultFetch
+  // Local mutable snapshot — `update()` mutates this so subsequent reads
+  // see the new values without a round-trip through the host.
+  const settingsSnapshot: Record<string, string | number | boolean> = {
+    ...(options.settingsSnapshot ?? {}),
+  }
   return {
     cms: {
       routes: {
@@ -67,6 +79,31 @@ export function createAdminPluginApi(
             update: (recordId, data) => updateCmsPluginResourceRecord(pluginId, resourceId, recordId, data, fetchImpl),
             delete: (recordId) => deleteCmsPluginResourceRecord(pluginId, resourceId, recordId, fetchImpl),
           }
+        },
+      },
+      settings: {
+        get<T extends string | number | boolean = string>(key: string): T | undefined {
+          return settingsSnapshot[key] as T | undefined
+        },
+        getAll() {
+          return { ...settingsSnapshot }
+        },
+        async update(next) {
+          const res = await fetchImpl(`/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/settings`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(next),
+          })
+          if (!res.ok) {
+            throw new Error(await res.text() || `Plugin settings update failed with ${res.status}`)
+          }
+          const body = await res.json() as { settings: Record<string, string | number | boolean> }
+          // Replace the local snapshot with the host's authoritative response
+          // so subsequent `get()` calls see the same values the server stored.
+          for (const key of Object.keys(settingsSnapshot)) delete settingsSnapshot[key]
+          Object.assign(settingsSnapshot, body.settings)
+          return body.settings
         },
       },
     },

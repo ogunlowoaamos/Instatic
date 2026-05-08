@@ -54,8 +54,8 @@ import { AlignVerticalSpaceBetweenIcon } from 'pixel-art-icons/icons/align-verti
 import { AlignVerticalSpaceAroundIcon } from 'pixel-art-icons/icons/align-vertical-space-around'
 import { UnderlineIcon } from 'pixel-art-icons/icons/underline'
 import { ClassPropertyRow } from './ClassPropertyRow'
-import { TokenAwareInput } from '../PropertyControls/TokenAwareInput'
-import { useSpacingTokens } from '../PropertyControls/tokenUtils'
+import { TokenAwareInput } from '@site/property-controls/TokenAwareInput'
+import { useSpacingTokens } from '@site/property-controls/tokenUtils'
 import { getEnumOptions, getCSSPropertyDefaultValue } from './cssControlTypes'
 import styles from './LayoutSection.module.css'
 

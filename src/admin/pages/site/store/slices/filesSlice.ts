@@ -17,7 +17,7 @@
  */
 
 import { nanoid } from 'nanoid'
-import type { EditorStoreSliceCreator } from '../types'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 import type { SiteFile, SiteFileType } from '@core/files/schemas'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
 
@@ -73,7 +73,7 @@ export interface FilesSlice {
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends FilesSlice {}
 }
 

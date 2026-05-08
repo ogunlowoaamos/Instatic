@@ -12,7 +12,7 @@
  * tooltip priority order.
  */
 import { describe, expect, it } from 'bun:test'
-import { useClassPickerSuggestions } from '../../editor/components/PropertiesPanel/useClassPickerSuggestions'
+import { useClassPickerSuggestions } from '@site/panels/PropertiesPanel/useClassPickerSuggestions'
 import type { CSSClass } from '@core/page-tree/schemas'
 
 // ---------------------------------------------------------------------------

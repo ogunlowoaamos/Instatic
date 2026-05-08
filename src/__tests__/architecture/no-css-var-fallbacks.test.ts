@@ -14,7 +14,7 @@
  * scattered across every `var()` reader.
  *
  * Scope: every `.module.css` and the global `globals.css` under `src/admin`,
- * `src/editor`, `src/ui`, plus any inline-style `var(...)` strings inside
+ * `src/admin/pages/site`, `src/ui`, plus any inline-style `var(...)` strings inside
  * `.ts` / `.tsx` files in the same directories.
  *
  * Module CSS in `src/modules/` is intentionally exempt — those styles ship to

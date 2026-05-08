@@ -10,7 +10,7 @@ import { describe, it, expect } from 'bun:test'
 import {
   rankBySuggestionScore,
   scoreClassNameMatch,
-} from '../../editor/components/PropertiesPanel/classPickerRanking'
+} from '@site/panels/PropertiesPanel/classPickerRanking'
 
 describe('scoreClassNameMatch', () => {
   it('grades exact matches highest', () => {

@@ -1,10 +1,10 @@
-import { useEditorStore } from '../editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
   listCmsPluginResourceRecords,
   updateCmsPluginResourceRecord,
-} from '../persistence/cmsPluginRecords'
+} from '@core/persistence/cmsPluginRecords'
 import type {
   EditorPluginApi,
   EditorPluginModule,
@@ -13,8 +13,8 @@ import type {
   PluginManifest,
   PluginToolbarButton,
   RegisteredPluginToolbarButton,
-} from '../plugin-sdk'
-import { assertPluginPermission } from '../plugin-sdk'
+} from '@core/plugin-sdk'
+import { assertPluginPermission } from '@core/plugin-sdk'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 

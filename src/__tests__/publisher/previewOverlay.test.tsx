@@ -15,8 +15,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import React from 'react'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'fs'
-import { PreviewOverlay } from '../../editor/components/Preview/PreviewOverlay'
-import { useEditorStore } from '@core/editor-store/store'
+import { PreviewOverlay } from '@site/preview/PreviewOverlay'
+import { useEditorStore } from '@site/store/store'
 import { publishPage } from '@core/publisher/render'
 import { makeModule, makeRegistry, makePage, makeSite } from './helpers'
 
@@ -211,7 +211,7 @@ describe('PreviewOverlay — DOM rendering', () => {
 
 describe('PreviewOverlay — source enforcement', () => {
   const overlaySrc = readFileSync(
-    new URL('../../editor/components/Preview/PreviewOverlay.tsx', import.meta.url),
+    new URL('../../admin/pages/site/preview/PreviewOverlay.tsx', import.meta.url),
     'utf-8',
   )
 

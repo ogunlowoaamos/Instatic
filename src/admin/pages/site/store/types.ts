@@ -2,7 +2,7 @@
  * Editor store — combined-state type.
  *
  * `EditorStore` is declared here as an EMPTY interface that each slice file
- * augments via `declare module '@core/editor-store/types' { interface
+ * augments via `declare module './types' { interface
  * EditorStore extends MySlice {} }`. By the time a consumer references
  * `EditorStore`, all slice files have been loaded by the TS compiler and the
  * augmentations have merged together — `EditorStore` resolves to the full
@@ -26,7 +26,7 @@
  *
  * To register a new slice:
  *   1. Define and export its slice interface from the slice file.
- *   2. Add a `declare module '@core/editor-store/types'` block alongside the
+ *   2. Add a `declare module './types'` block alongside the
  *      slice interface declaring `interface EditorStore extends MySlice {}`.
  *   3. Wire its creator into `./store.ts`.
  *

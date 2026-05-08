@@ -16,7 +16,7 @@
  */
 
 import { nanoid } from 'nanoid'
-import type { EditorStoreSliceCreator } from '../types'
+import type { EditorStoreSliceCreator } from '@site/store/types'
 import type { VisualComponent, VCParam, VCNode } from '@core/visualComponents/schemas'
 import type { PageNode, CSSClass } from '@core/page-tree/schemas'
 import type { BaseNode } from '@core/page-tree/baseNode'
@@ -346,7 +346,7 @@ export interface VisualComponentsSlice {
 
 // Contribute this slice's fields to the combined `EditorStore` type via TS
 // module augmentation. See `../types.ts` for why we use this pattern.
-declare module '@core/editor-store/types' {
+declare module '@site/store/types' {
   interface EditorStore extends VisualComponentsSlice {}
 }
 

@@ -18,7 +18,7 @@ import type {
   SourceFetchContext,
 } from '@core/loops/types'
 import { loopSourceRegistry } from '@core/loops/registry'
-import { firstImagePathFromMarkdown } from '@core/markdown/renderContentMarkdown'
+import { firstImagePathFromMarkdown } from '@core/content/renderMarkdown'
 import { normalizeRouteBase } from '@core/templates/templateMatching'
 import { publicContentUserFromParts } from '@core/content/publicContentUser'
 import type { PublishedContentEntry } from '@core/content/schemas'

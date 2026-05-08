@@ -14,7 +14,7 @@ import {
   updateCmsContentCollection,
   updateCmsContentEntryStatus,
 } from '@core/persistence'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import type {
   ContentCollection,
   ContentEntry,
@@ -23,7 +23,7 @@ import type {
   CreateContentCollectionInput,
   UpdateContentCollectionInput,
 } from '@core/content/schemas'
-import { updateEntryList } from '../utils/contentEntryUtils'
+import { updateEntryList } from '@content/utils/contentEntryUtils'
 
 interface UseContentWorkspaceOptions {
   loadAuthors?: boolean

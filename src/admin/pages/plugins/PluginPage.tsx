@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from '../lib/routerHooks'
+import { useParams } from '@admin/lib/routing'
 import type { CmsPluginsPayload, PluginAdminPageRoute } from '@core/plugin-sdk'
 import { listCmsPlugins } from '@core/persistence'
-import AdminLayout from '../AdminLayout'
-import { SettingsButton } from '../../editor/components/Toolbar/SettingsButton'
+import AdminLayout from '@admin/AdminLayout'
+import { SettingsButton } from '@site/toolbar/SettingsButton'
 import { PluginPageRenderer } from './components/PluginPageRenderer/PluginPageRenderer'
 import styles from './PluginsPage.module.css'
 

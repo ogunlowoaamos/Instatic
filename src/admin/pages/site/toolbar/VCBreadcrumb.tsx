@@ -21,7 +21,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { ChevronLeftIcon } from 'pixel-art-icons/icons/chevron-left'

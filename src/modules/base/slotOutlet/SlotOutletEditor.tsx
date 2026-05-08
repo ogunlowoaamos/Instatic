@@ -12,7 +12,7 @@
  */
 import React from 'react'
 import type { ModuleComponentProps } from '@core/module-engine/types'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore } from '@site/store/store'
 import { TargetIcon } from 'pixel-art-icons/icons/target'
 import styles from './SlotOutlet.module.css'
 
