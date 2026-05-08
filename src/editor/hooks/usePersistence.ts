@@ -74,10 +74,13 @@ function applyDefaultBreakpointPreference(
 export function usePersistence(
   requestedSiteId = 'default',
   adapter: IPersistenceAdapter = cmsAdapter,
-  options: { markNewSiteUnsaved?: boolean } = {},
+  options: { markNewSiteUnsaved?: boolean; enabled?: boolean } = {},
 ): PersistenceController {
   const markNewSiteUnsaved = options.markNewSiteUnsaved ?? false
-  const [saveStatus, setSaveStatus] = useState<PersistenceSaveStatus>({ state: 'loading' })
+  const enabled = options.enabled ?? true
+  const [saveStatus, setSaveStatus] = useState<PersistenceSaveStatus>(
+    enabled ? { state: 'loading' } : { state: 'saved' },
+  )
   /** Whether the initial load has completed — prevents auto-save before load */
   const loadedRef = useRef(false)
   /** Stable reference to the adapter so it doesn't trigger re-renders */
@@ -103,6 +106,11 @@ export function usePersistence(
 
   // ─── 1. Load site document on mount ────────────────────────────────────────
   useEffect(() => {
+    if (!enabled) {
+      loadedRef.current = true
+      return
+    }
+
     let cancelled = false
 
     async function load() {
@@ -173,10 +181,12 @@ export function usePersistence(
 
     load()
     return () => { cancelled = true }
-  }, [markNewSiteUnsaved, requestedSiteId])
+  }, [enabled, markNewSiteUnsaved, requestedSiteId])
 
   // ─── 2. Auto-save (debounced) ──────────────────────────────────────────────
   useEffect(() => {
+    if (!enabled) return undefined
+
     // Primitive boolean selector — Object.is works correctly, listener fires
     // ONLY when hasUnsavedChanges actually changes (false→true or true→false).
     // This avoids creating a new object on every selector evaluation (which
@@ -233,10 +243,12 @@ export function usePersistence(
       clearTimeout(timer)
       window.removeEventListener('beforeunload', flushOnUnload)
     }
-  }, [saveCurrentSite])
+  }, [enabled, saveCurrentSite])
 
   // ─── 3. Cmd/Ctrl+S — immediate save ───────────────────────────────────────
   useEffect(() => {
+    if (!enabled) return undefined
+
     async function handleKeyDown(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 's') return
       e.preventDefault()
@@ -250,7 +262,7 @@ export function usePersistence(
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [saveCurrentSite])
+  }, [enabled, saveCurrentSite])
 
   return { saveSite: saveCurrentSite, saveStatus }
 }

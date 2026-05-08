@@ -58,14 +58,21 @@ const EMPTY_BREAKPOINTS: Breakpoint[] = []
  */
 export const CANVAS_ROOT_DROPPABLE_ID = 'canvas-root'
 
-export function CanvasRoot() {
+interface CanvasRootProps {
+  editable?: boolean
+}
+
+export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const transformLayerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null)
 
   // B2 — Register canvas root as a drop target for visualComponentRef drags.
   // The AdminLayout DndContext's onDragEnd checks event.over.id against CANVAS_ROOT_DROPPABLE_ID.
-  const { setNodeRef: setCanvasDropRef } = useDroppable({ id: CANVAS_ROOT_DROPPABLE_ID })
+  const { setNodeRef: setCanvasDropRef } = useDroppable({
+    id: CANVAS_ROOT_DROPPABLE_ID,
+    disabled: !editable,
+  })
 
   // Merged callback ref: satisfies both useCanvas (canvasRef) and useDroppable (setCanvasDropRef).
   const mergedCanvasRef = useCallback(
@@ -188,6 +195,7 @@ export function CanvasRoot() {
     (nodeId: string, e: React.MouseEvent, breakpointId?: string) => {
       e.preventDefault()
       e.stopPropagation()
+      if (!editable) return
       if (breakpointId && breakpointId !== activeBreakpointId) {
         setActiveBreakpoint(breakpointId)
       }
@@ -201,7 +209,7 @@ export function CanvasRoot() {
       setFocusedPanel('canvas')
       setContextMenu({ x: e.clientX, y: e.clientY, nodeId })
     },
-    [activeBreakpointId, selectNode, setActiveBreakpoint, setFocusedPanel],
+    [activeBreakpointId, editable, selectNode, setActiveBreakpoint, setFocusedPanel],
   )
 
   /**
@@ -211,6 +219,7 @@ export function CanvasRoot() {
    */
   const onNodeDoubleClick = useCallback(
     (nodeId: string, _e: React.MouseEvent) => {
+      if (!editable) return
       // Imperative store access — correct in event handlers
       const state = useEditorStore.getState()
       const node = selectActiveCanvasPage(state)?.nodes[nodeId]
@@ -223,7 +232,7 @@ export function CanvasRoot() {
         }
       }
     },
-    [setActiveDocument],
+    [editable, setActiveDocument],
   )
 
   // Context carries only stable callbacks — selectedNodeId/hoveredNodeId are
@@ -253,6 +262,7 @@ export function CanvasRoot() {
         return
       }
 
+      if (!editable) return
       if (!selectedNodeId) return
 
       // Read the live selection set inside the handler so multi-actions see
@@ -325,6 +335,7 @@ export function CanvasRoot() {
       duplicateNodes,
       deleteNodes,
       activeDocument,
+      editable,
       setActiveDocument,
       copyNode,
       copyNodes,
@@ -405,7 +416,7 @@ export function CanvasRoot() {
 
         {/* Insert toolbar and breakpoint context selector are design-only —
             preview has its own chrome inside CanvasModeToggle. */}
-        {!isPreview && <CanvasNotch />}
+        {!isPreview && editable && <CanvasNotch />}
 
         {/* Design / Preview view toggle — top-left chrome. In preview mode
             this also hosts inline breakpoint switcher buttons. */}
@@ -449,7 +460,7 @@ export function CanvasRoot() {
           )}
         </ErrorBoundary>
 
-        {!isPreview && contextMenu && createPortal(
+        {!isPreview && editable && contextMenu && createPortal(
           <LayerNodeContextMenu
             x={contextMenu.x}
             y={contextMenu.y}

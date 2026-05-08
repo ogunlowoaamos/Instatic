@@ -86,6 +86,9 @@ const auditEvents = [
     targetType: 'user',
     targetId: 'user_1',
     metadata: { roleId: 'viewer' },
+    actorLabel: 'hello@davidbabinec.com',
+    targetLabel: 'Tester One',
+    metadataLabels: { roleId: 'Viewer' },
     ipAddress: '127.0.0.1',
     userAgent: 'Test Browser',
     createdAt: now,
@@ -97,7 +100,24 @@ const auditEvents = [
     targetType: 'user',
     targetId: null,
     metadata: { email: 'missing@example.com' },
+    actorLabel: null,
+    targetLabel: null,
+    metadataLabels: {},
     ipAddress: 'unknown',
+    userAgent: 'Test Browser',
+    createdAt: now,
+  },
+  {
+    id: 'audit_3',
+    actorUserId: 'owner_1',
+    action: 'role.delete',
+    targetType: 'role',
+    targetId: 'deleted-role',
+    metadata: { name: 'Deleted Role', slug: 'deleted-role' },
+    actorLabel: 'hello@davidbabinec.com',
+    targetLabel: 'Deleted Role',
+    metadataLabels: {},
+    ipAddress: null,
     userAgent: 'Test Browser',
     createdAt: now,
   },
@@ -249,6 +269,10 @@ describe('UsersPage', () => {
       if (url === '/admin/api/cms/audit' && init?.method === 'GET') return json({ events: auditEvents })
       return json({ error: `Unhandled ${url}` }, 500)
     }
+    useEditorStore.setState({
+      site: null,
+      activePageId: null,
+    } as Parameters<typeof useEditorStore.setState>[0])
 
     render(
       <MemoryRouter>
@@ -264,6 +288,13 @@ describe('UsersPage', () => {
     expect(screen.getByRole('button', { name: 'Audit' })).toBeDefined()
     expect(screen.queryByRole('button', { name: /create user/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /create role/i })).toBeNull()
+    expect(screen.getByText('Tester One was created')).toBeDefined()
+    expect(screen.getAllByText('by hello@davidbabinec.com').length).toBeGreaterThan(0)
+    expect(screen.getByText('Role: Viewer')).toBeDefined()
+    expect(screen.getByText('Deleted Role was deleted')).toBeDefined()
+    expect(screen.queryByText('user_1 was created')).toBeNull()
+    expect(screen.queryByText('by owner_1')).toBeNull()
+    expect(screen.queryByText('Role: viewer')).toBeNull()
     expect(calls).not.toContain('GET /admin/api/cms/users')
     expect(calls).not.toContain('GET /admin/api/cms/roles')
     expect(calls).toContain('GET /admin/api/cms/audit')
@@ -391,7 +422,7 @@ describe('UsersPage', () => {
     const auditTable = await screen.findByRole('table', { name: 'Audit events' })
     expect(auditTable.getAttribute('data-density')).toBe('compact')
     expect(screen.getByText('Tester One was created')).toBeDefined()
-    expect(screen.getByText('by hello@davidbabinec.com')).toBeDefined()
+    expect(screen.getAllByText('by hello@davidbabinec.com').length).toBeGreaterThan(0)
     expect(screen.getByText('Role: Viewer').getAttribute('data-accent')).toBeTruthy()
     expect(screen.getByText('IP: 127.0.0.1').getAttribute('data-accent')).toBeTruthy()
     expect(screen.getByText('Failed login for missing@example.com')).toBeDefined()

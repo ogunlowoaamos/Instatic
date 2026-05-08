@@ -46,7 +46,7 @@ export class UserMutationError extends Error {
   }
 }
 
-export function normalizeEmail(email: string): string {
+function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 

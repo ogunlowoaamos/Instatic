@@ -112,9 +112,10 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
 
 interface PanelRailProps {
   workspace?: 'site' | 'content'
+  editable?: boolean
 }
 
-export function PanelRail({ workspace = 'site' }: PanelRailProps) {
+export function PanelRail({ workspace = 'site', editable = true }: PanelRailProps) {
   const domOpen = useEditorStore((s) => !s.domTreePanel.collapsed)
   const siteOpen = useEditorStore((s) => s.siteExplorerPanelOpen)
   const selectorsOpen = useEditorStore((s) => s.selectorsPanelOpen)
@@ -128,6 +129,8 @@ export function PanelRail({ workspace = 'site' }: PanelRailProps) {
   const toggleLeftSidebarPanel = useEditorStore((s) => s.toggleLeftSidebarPanel)
 
   useEffect(() => {
+    if (!editable) return undefined
+
     function isTypingTarget(target: EventTarget | null) {
       const element = target as HTMLElement | null
       return Boolean(element && (
@@ -157,7 +160,7 @@ export function PanelRail({ workspace = 'site' }: PanelRailProps) {
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [editable])
 
   const panelOpenById = {
     layers: domOpen,
@@ -171,13 +174,17 @@ export function PanelRail({ workspace = 'site' }: PanelRailProps) {
     dependencies: dependenciesOpen,
   } satisfies Record<LeftSidebarPanelId, boolean>
 
-  const primaryItems: RailItem[] = PRIMARY_RAIL_ITEMS.map((item) => {
+  const visiblePrimaryItems = editable
+    ? PRIMARY_RAIL_ITEMS
+    : PRIMARY_RAIL_ITEMS.filter((item) => item.id === 'layers')
+
+  const primaryItems: RailItem[] = visiblePrimaryItems.map((item) => {
     const label = workspace === 'content' && item.id === 'site' ? 'Content' : item.label
     return {
       ...item,
       label,
-      open: panelOpenById[item.id],
-      onToggle: () => toggleLeftSidebarPanel(item.id),
+      open: editable ? panelOpenById[item.id] : item.id === 'layers',
+      onToggle: editable ? () => toggleLeftSidebarPanel(item.id) : () => undefined,
     }
   })
 

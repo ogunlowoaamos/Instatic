@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { isAbsolute, join, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { DbClient } from '../db/client'
 import {
@@ -168,6 +168,20 @@ export async function runServerPluginLifecycleHook(
   await handler(createServerPluginApi(manifest, db))
 }
 
+/**
+ * Defense-in-depth path containment. The schema-level pattern on
+ * `assetBasePath` and the `SAFE_ASSET_PATH_PATTERN` on `entrypoints.*` already
+ * exclude `..` segments and absolute paths, but the filesystem sinks recompose
+ * paths via `path.join` — so we re-assert the resolved path stays under
+ * `uploadsDir` after composition.
+ */
+export function assertPluginPathWithin(uploadsDir: string, child: string): void {
+  const rel = relative(uploadsDir, child)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`Plugin path "${child}" escapes uploads root`)
+  }
+}
+
 export async function loadServerPluginModule(
   manifest: PluginManifest,
   uploadsDir?: string,
@@ -175,6 +189,7 @@ export async function loadServerPluginModule(
   if (!uploadsDir || !manifest.assetBasePath || !manifest.entrypoints?.server) return null
   const relativeBase = manifest.assetBasePath.replace(/^\/uploads\/?/, '')
   const entryPath = join(uploadsDir, relativeBase, manifest.entrypoints.server)
+  assertPluginPathWithin(uploadsDir, entryPath)
   return await import(`${pathToFileURL(entryPath).href}?v=${Date.now()}`) as ServerPluginModule
 }
 

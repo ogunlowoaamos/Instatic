@@ -23,6 +23,9 @@ export interface CmsAuditEvent {
   targetType: string | null
   targetId: string | null
   metadata: Record<string, unknown>
+  actorLabel: string | null
+  targetLabel: string | null
+  metadataLabels: Record<string, string>
   ipAddress: string | null
   userAgent: string | null
   createdAt: string

@@ -10,7 +10,7 @@ const DOM_GLOBALS = [
   'XMLSerializer',
 ] as const
 
-export function installServerDomEnvironment(): void {
+function installServerDomEnvironment(): void {
   const globalRecord = globalThis as Record<string, unknown>
   if (globalRecord.window && globalRecord.document) return
 

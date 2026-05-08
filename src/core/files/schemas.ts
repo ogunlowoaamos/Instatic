@@ -19,7 +19,7 @@ import { Type, type Static } from '@sinclair/typebox'
 // SiteFileType
 // ---------------------------------------------------------------------------
 
-export const SiteFileTypeSchema = Type.Union([
+const SiteFileTypeSchema = Type.Union([
   Type.Literal('component'), // src/components/*.tsx — user-authored React components
   Type.Literal('script'),    // src/scripts/*.ts, src/utils/*.ts, src/hooks/*.ts
   Type.Literal('style'),     // src/styles/*.css — global CSS
@@ -34,12 +34,11 @@ export type SiteFileType = Static<typeof SiteFileTypeSchema>
 // SiteFile
 // ---------------------------------------------------------------------------
 
-export const SiteFileBlobSchema = Type.Object({
+const SiteFileBlobSchema = Type.Object({
   mimeType: Type.String(),
   base64: Type.String(),
 })
 
-export type SiteFileBlob = Static<typeof SiteFileBlobSchema>
 
 export const SiteFileSchema = Type.Object({
   /** Unique ID — generated with nanoid() (NOT path; path is mutable on rename) */

@@ -15,12 +15,12 @@ import { withFallback, filterArray } from '@core/utils/typeboxHelpers'
 // FontSource
 // ---------------------------------------------------------------------------
 
-export const FontSourceSchema = Type.Union([
+const FontSourceSchema = Type.Union([
   Type.Literal('google'),
   Type.Literal('custom'),
 ])
 
-export type FontSource = Static<typeof FontSourceSchema>
+type FontSource = Static<typeof FontSourceSchema>
 
 // ---------------------------------------------------------------------------
 // FontFile
@@ -48,7 +48,7 @@ function isSafeFontPath(path: string): boolean {
  * omits the `unicode-range:` declaration and the browser uses the file for
  * any character (legacy single-file behavior).
  */
-export const FontFileSchema = Type.Object({
+const FontFileSchema = Type.Object({
   variant: Type.String({ minLength: 1 }),
   subset: Type.String({ minLength: 1 }),
   path: Type.String({ pattern: FONT_PATH_PATTERN.source }),
@@ -72,7 +72,7 @@ function isSafeUnicodeRange(range: string): boolean {
 }
 
 // Composite check used by callers that want pattern + path-traversal in one go.
-export function checkFontFile(value: unknown): value is FontFile {
+function checkFontFile(value: unknown): value is FontFile {
   if (!Value.Check(FontFileSchema, value)) return false
   const file = value as FontFile
   if (!isSafeFontPath(file.path)) return false
@@ -91,7 +91,7 @@ export function checkFontFile(value: unknown): value is FontFile {
  * Invalid entries are silently dropped at the SiteFontsSettings level.
  * Mirrors `validateFontEntry` in validate.ts (lines ~575–603).
  */
-export const FontEntrySchema = Type.Object({
+const FontEntrySchema = Type.Object({
   id: Type.String({ minLength: 1 }),
   source: withFallback(FontSourceSchema, 'google' as const),
   family: Type.String({ minLength: 1 }),
@@ -111,7 +111,7 @@ export type FontEntry = Static<typeof FontEntrySchema>
  * timestamp fallbacks. Use this when reading persisted site documents where
  * one corrupt sub-entry should not invalidate the whole library.
  */
-export function parseFontEntry(raw: unknown): FontEntry | null {
+function parseFontEntry(raw: unknown): FontEntry | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   if (typeof r.id !== 'string' || r.id.length === 0) return null

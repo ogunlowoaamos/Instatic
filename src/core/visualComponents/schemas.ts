@@ -16,7 +16,7 @@ import { NodeTreeSchema } from '@core/page-tree/treeSchema'
 // VCParamType — valid param type values
 // ---------------------------------------------------------------------------
 
-export const VCParamTypeSchema = Type.Union([
+const VCParamTypeSchema = Type.Union([
   Type.Literal('string'),
   Type.Literal('number'),
   Type.Literal('boolean'),
@@ -57,7 +57,7 @@ export type VCNode = BaseNode
 // VCParam — a named parameter on a Visual Component
 // ---------------------------------------------------------------------------
 
-export const VCParamSchema = Type.Object({
+const VCParamSchema = Type.Object({
   /** Stable ID — generated with nanoid(); survives param renames */
   id: Type.String(),
   /** Free-form name; uniqueness within the VC is validated at the slice boundary */
@@ -82,7 +82,7 @@ export type VCParam = Static<typeof VCParamSchema>
  *   - defaultValue fallback to ''
  * Returns null for structurally invalid entries (missing id or name).
  */
-export function parseVCParam(raw: unknown): VCParam | null {
+function parseVCParam(raw: unknown): VCParam | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const r = raw as Record<string, unknown>
   if (typeof r.id !== 'string') return null
@@ -158,7 +158,7 @@ function parseVCBreakpoint(raw: unknown): VCBreakpoint | null {
  * Returns null when required fields (id, moduleId, children) are invalid.
  * VCNode is a flat node in a flat-map tree (no recursive nesting).
  */
-export function parseVCNode(raw: unknown): VCNode | null {
+function parseVCNode(raw: unknown): VCNode | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const r = raw as Record<string, unknown>
   if (typeof r.id !== 'string') return null

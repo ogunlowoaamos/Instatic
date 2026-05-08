@@ -46,11 +46,13 @@ const ContentCollectionBuiltInFieldsSchema = Type.Object({
 // ContentCustomFieldDefinition
 // ---------------------------------------------------------------------------
 
-const ContentCustomFieldDefinitionSchema = Type.Object({
+export const ContentCustomFieldDefinitionSchema = Type.Object({
   id: Type.String(),
   label: Type.String(),
   type: Type.String(),
 })
+
+export type ContentCustomFieldDefinition = Static<typeof ContentCustomFieldDefinitionSchema>
 
 
 // ---------------------------------------------------------------------------
@@ -211,6 +213,77 @@ const UpdateContentEntryCollectionInputSchema = Type.Object({
 })
 
 export type UpdateContentEntryCollectionInput = Static<typeof UpdateContentEntryCollectionInputSchema>
+
+// ---------------------------------------------------------------------------
+// ContentEntryVersion — one row in content_entry_versions
+// ---------------------------------------------------------------------------
+
+const ContentEntryVersionSchema = Type.Object({
+  id: Type.String(),
+  entryId: Type.String(),
+  versionNumber: Type.Number(),
+  title: Type.String(),
+  slug: Type.String(),
+  bodyMarkdown: Type.String(),
+  featuredMediaId: Type.Union([Type.String(), Type.Null()]),
+  seoTitle: Type.String(),
+  seoDescription: Type.String(),
+  publishedByUserId: Type.Union([Type.String(), Type.Null()]),
+  /** ISO datetime string from DB */
+  publishedAt: Type.String(),
+  /** ISO datetime string from DB */
+  createdAt: Type.String(),
+})
+
+export type ContentEntryVersion = Static<typeof ContentEntryVersionSchema>
+
+// ---------------------------------------------------------------------------
+// PublishedContentEntry — the active version joined with its collection,
+// resolved for public-route rendering.
+// ---------------------------------------------------------------------------
+
+const PublishedContentEntrySchema = Type.Object({
+  id: Type.String(),
+  entryId: Type.String(),
+  collectionId: Type.String(),
+  collectionSlug: Type.String(),
+  collectionRouteBase: Type.String(),
+  versionNumber: Type.Number(),
+  title: Type.String(),
+  slug: Type.String(),
+  bodyMarkdown: Type.String(),
+  featuredMediaId: Type.Union([Type.String(), Type.Null()]),
+  featuredMediaPath: Type.Union([Type.String(), Type.Null()]),
+  seoTitle: Type.String(),
+  seoDescription: Type.String(),
+  authorUserId: Type.Union([Type.String(), Type.Null()]),
+  authorName: Type.Union([Type.String(), Type.Null()]),
+  authorRoleSlug: Type.Union([Type.String(), Type.Null()]),
+  authorRoleName: Type.Union([Type.String(), Type.Null()]),
+  publishedByUserId: Type.Union([Type.String(), Type.Null()]),
+  publishedByName: Type.Union([Type.String(), Type.Null()]),
+  publishedByRoleSlug: Type.Union([Type.String(), Type.Null()]),
+  publishedByRoleName: Type.Union([Type.String(), Type.Null()]),
+  /** ISO datetime string from DB */
+  publishedAt: Type.String(),
+  /** ISO datetime string from DB */
+  createdAt: Type.String(),
+})
+
+export type PublishedContentEntry = Static<typeof PublishedContentEntrySchema>
+
+// ---------------------------------------------------------------------------
+// ContentEntryRedirect — one row in content_entry_redirects, resolved to
+// public paths on both sides for the public router.
+// ---------------------------------------------------------------------------
+
+const ContentEntryRedirectSchema = Type.Object({
+  id: Type.String(),
+  fromPath: Type.String(),
+  targetPath: Type.String(),
+})
+
+export type ContentEntryRedirect = Static<typeof ContentEntryRedirectSchema>
 
 // ---------------------------------------------------------------------------
 // ContentMediaType

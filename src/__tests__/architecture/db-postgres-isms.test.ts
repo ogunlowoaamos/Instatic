@@ -1,9 +1,9 @@
 /**
  * Architecture Source-Scan — Postgres-ism Isolation
  *
- * No file under `server/cms/` that imports `DbClient` (i.e., any file that
- * issues DB queries) may use Postgres-specific SQL syntax or types, EXCEPT
- * the two migration files which are explicitly allowlisted:
+ * No file under `server/` that imports `DbClient` (i.e., any file that issues
+ * DB queries) may use Postgres-specific SQL syntax or types, EXCEPT the two
+ * migration files which are explicitly allowlisted:
  *
  *   - `server/db/migrations-pg.ts`     — the Postgres dialect migration file;
  *                                            this is its entire job.
@@ -38,7 +38,18 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'fs'
 import { extname, join, relative } from 'path'
 
 const PROJECT_ROOT = join(import.meta.dir, '../../../')
-const SERVER_CMS_ROOT = join(PROJECT_ROOT, 'server/cms')
+/**
+ * Roots that contain DbClient-consuming code in the current layout.
+ * The legacy `server/cms/` namespace was split into `server/{repositories,
+ * handlers/cms,auth,db,plugins,publish}/` — this gate previously scanned only
+ * the now-missing `server/cms/` and silently inspected zero files (F-0007).
+ * Scanning all of `server/` is safe because the `DbClient` import filter below
+ * already scopes to query-issuing files.
+ */
+const SCAN_ROOTS = [join(PROJECT_ROOT, 'server')]
+
+/** Strips JS line and block comments so PG type names in JSDoc don't false-positive. */
+const COMMENT_RE = /\/\/.*$|\/\*[\s\S]*?\*\//gm
 
 // ---------------------------------------------------------------------------
 // File walker — .ts files only, recursive
@@ -67,6 +78,15 @@ const ALLOWLISTED = new Set([
   // function subquery"). Those comment-only mentions are not live SQL.
   join(PROJECT_ROOT, 'server/db/migrations-sqlite.ts'),
 ])
+
+/**
+ * Strip JS line + block comments. Preserves line numbering by replacing every
+ * non-newline byte inside a comment with a space, so violation line numbers
+ * still line up with the original source.
+ */
+function stripComments(src: string): string {
+  return src.replace(COMMENT_RE, (m) => m.replace(/[^\n]/g, ' '))
+}
 
 // ---------------------------------------------------------------------------
 // Forbidden patterns
@@ -142,7 +162,9 @@ interface Violation {
 // ---------------------------------------------------------------------------
 
 function scanForViolations(): Violation[] {
-  const files = walk(SERVER_CMS_ROOT).filter((f) => !ALLOWLISTED.has(f))
+  const files = SCAN_ROOTS.flatMap((root) => walk(root)).filter(
+    (f) => !ALLOWLISTED.has(f),
+  )
   const violations: Violation[] = []
 
   for (const file of files) {
@@ -159,7 +181,10 @@ function scanForViolations(): Violation[] {
     // (e.g. `options.now ?? Date.now`) and must not be flagged.
     if (!content.includes('DbClient')) continue
 
-    const lines = content.split('\n')
+    // Strip JS comments so PG type names referenced in JSDoc / inline comments
+    // (e.g. `bytea → blob`, `JSONB`-mentioning docstrings in server/db/sqlite.ts)
+    // don't false-positive. PG-ism patterns must match LIVE SQL.
+    const lines = stripComments(content).split('\n')
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx]
@@ -187,8 +212,35 @@ function scanForViolations(): Violation[] {
 // Test
 // ---------------------------------------------------------------------------
 
-describe('Postgres-ism isolation — server/cms/ repository files', () => {
-  test('no server/cms/ file (outside the migration allowlist) uses Postgres-specific SQL', () => {
+describe('Postgres-ism isolation — DbClient-consuming server files', () => {
+  test('SCAN_ROOTS resolve to at least one existing directory with .ts files', () => {
+    // Defensive sanity check: if SCAN_ROOTS ever rots the way `server/cms/` did,
+    // walk() will return an empty list and the gate will silently inspect zero
+    // files. Fail loudly here so the next layout move is caught immediately.
+    const total = SCAN_ROOTS.flatMap((root) => walk(root)).length
+    if (total === 0) {
+      throw new Error(
+        `[db-postgres-isms] SCAN_ROOTS resolved to zero .ts files — the layout has likely ` +
+          `moved. Update SCAN_ROOTS in this file to match the current DbClient-consumer ` +
+          `directories.`,
+      )
+    }
+    expect(total).toBeGreaterThan(0)
+  })
+
+  test('scanner finds at least one DbClient-importing file (sanity check that the gate runs)', () => {
+    // After excluding the allowlist, there must be at least one DbClient consumer
+    // left to scan — otherwise the loop body never executes and the gate is a no-op.
+    const files = SCAN_ROOTS.flatMap((root) => walk(root)).filter(
+      (f) => !ALLOWLISTED.has(f),
+    )
+    const dbConsumers = files.filter((f) =>
+      readFileSync(f, 'utf8').includes('DbClient'),
+    )
+    expect(dbConsumers.length).toBeGreaterThan(0)
+  })
+
+  test('no DbClient-consuming file (outside the migration allowlist) uses Postgres-specific SQL', () => {
     const violations = scanForViolations()
 
     if (violations.length === 0) {
@@ -203,7 +255,7 @@ describe('Postgres-ism isolation — server/cms/ repository files', () => {
     )
 
     throw new Error(
-      `[db-postgres-isms] ${violations.length} Postgres-specific SQL construct(s) found in server/cms/.\n` +
+      `[db-postgres-isms] ${violations.length} Postgres-specific SQL construct(s) found in DbClient-consuming files.\n` +
         `These constructs are incompatible with the SQLite adapter and break dialect portability.\n` +
         `Replace each with its dialect-neutral equivalent (see pattern name for guidance).\n\n` +
         `Violations:\n` +

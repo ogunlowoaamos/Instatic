@@ -56,4 +56,6 @@ export {
   duplicatePage,
 } from './mutations'
 
+export { cloneScopedClassesForNodeMap } from './scopedClassClone'
+
 export { getParent } from './selectors'

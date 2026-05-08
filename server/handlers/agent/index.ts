@@ -26,6 +26,9 @@ import { Type, safeParseValue, formatValueErrors } from '@core/utils/typeboxHelp
 import { buildSystemPrompt } from '../../../src/core/agent/systemPrompt'
 import { createPageBuilderMcpServer, type PageBuilderBridge } from './tools'
 import { jsonResponse } from '../../http'
+import { isStateChangingMethod, originAllowed } from '../../auth/security'
+import { requireCapability } from '../../auth/authz'
+import type { DbClient } from '../../db/client'
 import type {
   AgentActionResult,
   AgentRequestBody,
@@ -457,10 +460,25 @@ function normalizeResumeSessionId(value: unknown): string | undefined {
 // handleAgentRequest — POST /api/agent
 // ---------------------------------------------------------------------------
 
-export async function handleAgentRequest(req: Request): Promise<Response> {
+export async function handleAgentRequest(req: Request, db: DbClient): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
   }
+
+  // CSRF defense-in-depth — same gate used by handleCmsRequest. Without
+  // this, any cross-origin request (curl, server-to-server, fetch from a
+  // non-browser client) could open a streaming Claude session against the
+  // operator's ambient credentials.
+  if (isStateChangingMethod(req.method) && !originAllowed(req)) {
+    return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
+  }
+
+  // Auth: only signed-in users with the page-edit capability may invoke the
+  // agent. The in-app AI panel exists to assist with editing, so this matches
+  // the editor's own capability gate. Returning the gate result directly
+  // forwards 401/403 if auth fails.
+  const userOrResponse = await requireCapability(req, db, 'pages.edit')
+  if (userOrResponse instanceof Response) return userOrResponse
 
   let rawBody: unknown
   try {
@@ -598,10 +616,21 @@ export async function handleAgentRequest(req: Request): Promise<Response> {
 // handleAgentToolResult — POST /api/agent/tool-result
 // ---------------------------------------------------------------------------
 
-export async function handleAgentToolResult(req: Request): Promise<Response> {
+export async function handleAgentToolResult(req: Request, db: DbClient): Promise<Response> {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
   }
+
+  // Symmetric to handleAgentRequest — defence-in-depth CSRF + capability
+  // gate. The bridgeId carried on this request is unguessable (~126 bits of
+  // entropy from nanoid), but an attacker who somehow learned a bridgeId
+  // shouldn't be able to inject tool results without a valid session either.
+  if (isStateChangingMethod(req.method) && !originAllowed(req)) {
+    return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
+  }
+
+  const userOrResponse = await requireCapability(req, db, 'pages.edit')
+  if (userOrResponse instanceof Response) return userOrResponse
 
   let rawBody: unknown
   try {

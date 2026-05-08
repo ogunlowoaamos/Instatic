@@ -41,7 +41,7 @@ const ClassUsageMapSchema = Type.Record(
   Type.Record(Type.String(), ClassUsageEntrySchema),
 )
 
-export type ClassUsageMap = Static<typeof ClassUsageMapSchema>
+type ClassUsageMap = Static<typeof ClassUsageMapSchema>
 type ClassUsageEntry = Static<typeof ClassUsageEntrySchema>
 
 const EMPTY_USAGE_MAP: ClassUsageMap = {}

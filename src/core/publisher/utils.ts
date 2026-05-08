@@ -103,6 +103,11 @@ export function safeUrl(value: unknown): string {
  * - `data:text/` — data URI in CSS `url()` loads arbitrary HTML in some browsers
  * - `{` or `}` — closes/opens the surrounding class selector block,
  *               enabling injection of arbitrary CSS rules (CWE-74, Medium)
+ * - `</` — close-tag-open bigram. Defence-in-depth against HTML5 RAWTEXT
+ *          escape (`</style/>`, `</style/foo>`, etc.) breaking out of the
+ *          inline `<style>` block. Legitimate CSS values never contain `</`
+ *          — even URLs with paths use bare `/`. Pairs with the block-level
+ *          neutraliser in `sanitizeModuleCSS` (CWE-79).
  *
  * Numbers are always safe — they are stringified and returned directly.
  * Returns the trimmed string value if safe, or `null` if the value must be dropped.
@@ -116,5 +121,6 @@ export function sanitiseCssValue(value: string | number): string | null {
   if (/-moz-binding/i.test(v)) return null
   if (/data\s*:\s*text/i.test(v)) return null
   if (/[{}]/.test(v)) return null
+  if (/<\//.test(v)) return null
   return v
 }

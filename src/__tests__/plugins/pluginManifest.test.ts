@@ -137,6 +137,67 @@ describe('plugin manifest validation', () => {
     ).toThrow('Invalid plugin manifest')
   })
 
+  it('accepts a server-shaped assetBasePath that matches the plugin id and version', () => {
+    const manifest = parsePluginManifest({
+      id: 'acme.workflow',
+      name: 'Workflow',
+      version: '1.2.3',
+      apiVersion: 1,
+      assetBasePath: '/uploads/plugins/acme.workflow/1.2.3',
+      entrypoints: { server: 'server/index.js' },
+    })
+    expect(manifest.assetBasePath).toBe('/uploads/plugins/acme.workflow/1.2.3')
+  })
+
+  it('rejects assetBasePath containing path traversal segments', () => {
+    expect(() =>
+      parsePluginManifest({
+        id: 'atk.evil',
+        name: 'evil',
+        version: '1.0.0',
+        apiVersion: 1,
+        assetBasePath: '/uploads/plugins/../../etc',
+        entrypoints: { server: 'pwn.js' },
+      }),
+    ).toThrow('Invalid plugin manifest')
+  })
+
+  it('rejects assetBasePath outside /uploads/plugins/', () => {
+    expect(() =>
+      parsePluginManifest({
+        id: 'atk.evil',
+        name: 'evil',
+        version: '1.0.0',
+        apiVersion: 1,
+        assetBasePath: '/etc',
+      }),
+    ).toThrow('Invalid plugin manifest')
+
+    expect(() =>
+      parsePluginManifest({
+        id: 'atk.evil',
+        name: 'evil',
+        version: '1.0.0',
+        apiVersion: 1,
+        assetBasePath: '/uploads/anywhere/atk.evil/1.0.0',
+      }),
+    ).toThrow('Invalid plugin manifest')
+  })
+
+  it('rejects assetBasePath that does not match the manifest id+version', () => {
+    expect(() =>
+      parsePluginManifest({
+        id: 'atk.evil',
+        name: 'evil',
+        version: '1.0.0',
+        apiVersion: 1,
+        // Schema-level pattern accepts this shape, but the post-parse
+        // cross-check rejects it because it points at someone else's plugin.
+        assetBasePath: '/uploads/plugins/legit.workflow/2.0.0',
+      }),
+    ).toThrow('assetBasePath must equal "/uploads/plugins/atk.evil/1.0.0"')
+  })
+
   it('rejects unsafe plugin IDs and page IDs', () => {
     expect(() =>
       parsePluginManifest({

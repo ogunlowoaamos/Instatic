@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { SESSION_COOKIE_NAME, hashSessionToken } from '../../../server/auth/tokens'
 import type { DbClient, DbResult } from '../../../server/db'
@@ -12,6 +12,16 @@ import {
   listMediaAssets,
   renameMediaAsset,
 } from '../../../server/repositories/media'
+
+// Real magic-byte prefixes used to make the upload handler's MIME sniffer
+// accept the test fixture as the indicated type. Padded with a few bytes
+// so the prefix never coincides with `file.size <= 0`.
+const PNG_PREFIX = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])
+const JPEG_PREFIX = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46])
+
+function pngFile(name: string): File {
+  return new File([PNG_PREFIX], name, { type: 'image/png' })
+}
 
 function makeFakeDb() {
   const admins: Record<string, unknown>[] = [
@@ -216,7 +226,7 @@ describe('CMS media handlers', () => {
     const cookie = await createCookie(db)
     const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
     const body = new FormData()
-    body.set('file', new File(['image-bytes'], 'Hero Image.png', { type: 'image/png' }))
+    body.set('file', pngFile('Hero Image.png'))
 
     try {
       const res = await handleCmsRequest(
@@ -240,7 +250,141 @@ describe('CMS media handlers', () => {
       })
       expect(payload.asset.publicPath).toStartWith('/uploads/')
       expect(db.media).toHaveLength(1)
-      expect(await readFile(join(uploadsDir, String(db.media[0].storage_path)), 'utf-8')).toBe('image-bytes')
+      // The on-disk extension is server-chosen (`.png`), not user-supplied —
+      // the original filename's extension is irrelevant once stripped.
+      expect(extname(String(db.media[0].storage_path))).toBe('.png')
+      expect(new Uint8Array(await readFile(join(uploadsDir, String(db.media[0].storage_path))))).toEqual(PNG_PREFIX)
+    } finally {
+      rmSync(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  // F-0002 regression: stored XSS via spoofed Content-Type was the entry
+  // point. The upload handler MUST reject any file whose actual bytes do
+  // not match an accepted image/video signature, regardless of what the
+  // client claimed in the multipart `Content-Type` header.
+  it('rejects an HTML payload that lies about its Content-Type as image/png (F-0002)', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const body = new FormData()
+    // Attacker plants `<script>` HTML but sets the multipart Content-Type
+    // to `image/png`. Old code accepted this and wrote `pwn.html` to disk.
+    body.set(
+      'file',
+      new File(['<!doctype html><script>alert(1)</script>'], 'pwn.html', { type: 'image/png' }),
+    )
+
+    try {
+      const res = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media', {
+          method: 'POST',
+          headers: { cookie },
+          formData: body,
+        }),
+        db,
+        { uploadsDir },
+      )
+
+      expect(res.status).toBe(400)
+      expect(await res.json()).toMatchObject({
+        error: expect.stringContaining('JPEG'),
+      })
+      expect(db.media).toHaveLength(0)
+    } finally {
+      rmSync(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  // F-0002 regression: even when the bytes ARE valid (e.g. a real PNG), the
+  // user-supplied filename extension must not survive — otherwise an
+  // attacker could plant `pwn.html` filename containing real PNG bytes
+  // (still gets `text/html` from the static handler's extension lookup) or
+  // vary other tricks. The on-disk filename extension MUST be server-chosen.
+  it('strips the user-supplied filename extension and uses a server-chosen one (F-0002)', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const body = new FormData()
+    // Real PNG bytes, but the filename claims `.html`. Server must rename
+    // it to `.png` (the magic-byte-derived extension) on disk.
+    body.set('file', new File([PNG_PREFIX], 'pwn.html', { type: 'image/png' }))
+
+    try {
+      const res = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media', {
+          method: 'POST',
+          headers: { cookie },
+          formData: body,
+        }),
+        db,
+        { uploadsDir },
+      )
+
+      expect(res.status).toBe(201)
+      expect(db.media).toHaveLength(1)
+      const storagePath = String(db.media[0].storage_path)
+      expect(extname(storagePath)).toBe('.png')
+      expect(storagePath.endsWith('.html')).toBe(false)
+    } finally {
+      rmSync(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects an SVG upload (XSS gadget — explicitly off the allowlist)', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const body = new FormData()
+    body.set(
+      'file',
+      new File(
+        ['<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],
+        'evil.svg',
+        { type: 'image/svg+xml' },
+      ),
+    )
+
+    try {
+      const res = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media', {
+          method: 'POST',
+          headers: { cookie },
+          formData: body,
+        }),
+        db,
+        { uploadsDir },
+      )
+
+      expect(res.status).toBe(400)
+      expect(db.media).toHaveLength(0)
+    } finally {
+      rmSync(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('accepts a JPEG when bytes match the JPEG signature', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const body = new FormData()
+    body.set('file', new File([JPEG_PREFIX], 'photo.jpg', { type: 'image/jpeg' }))
+
+    try {
+      const res = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media', {
+          method: 'POST',
+          headers: { cookie },
+          formData: body,
+        }),
+        db,
+        { uploadsDir },
+      )
+
+      expect(res.status).toBe(201)
+      expect(db.media).toHaveLength(1)
+      expect(db.media[0].mime_type).toBe('image/jpeg')
+      expect(extname(String(db.media[0].storage_path))).toBe('.jpg')
     } finally {
       rmSync(uploadsDir, { recursive: true, force: true })
     }

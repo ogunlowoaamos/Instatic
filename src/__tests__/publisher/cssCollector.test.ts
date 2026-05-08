@@ -6,22 +6,53 @@ import { CssCollector, sanitizeModuleCSS } from '@core/publisher/cssCollector'
 // ---------------------------------------------------------------------------
 
 describe('sanitizeModuleCSS', () => {
-  it('strips </style> to prevent breaking out of <style> block (CWE-79)', () => {
-    // The dangerous sequence is </style> closing the block early — strip it.
-    // The remaining <script> text is harmless inside <style> content (parsed as raw text).
+  // The neutraliser turns `</style…` into `<\/style…`. The byte sequence
+  // `<` followed by `\` (not `/`) keeps the HTML5 RAWTEXT tokenizer in data
+  // state, so the `<style>` block never closes early regardless of trailer.
+  // CSS string literals resolve `\/` back to `/`, so any author-intended URL
+  // value round-trips identically through the CSS parser.
+
+  it('neutralises </style> so RAWTEXT cannot enter end-tag-open state (CWE-79)', () => {
     const malicious = 'h1{color:red}</style><script>alert(1)</script><style>'
     const sanitized = sanitizeModuleCSS(malicious)
-    expect(sanitized).not.toContain('</style>')
-    // </style> was removed so the closing tag can no longer escape the style block
-    expect(sanitized).not.toMatch(/<\/style\s*>/)
+    // The literal `</style` byte sequence must not survive — that is what the
+    // RAWTEXT tokenizer scans for. The replacement `<\/style` does survive.
+    expect(sanitized).not.toMatch(/<\/style/i)
+    expect(sanitized).toContain('<\\/style')
   })
 
-  it('strips </STYLE> (case-insensitive)', () => {
-    expect(sanitizeModuleCSS('a{}</STYLE><b>')).not.toContain('</STYLE>')
+  it('neutralises </STYLE> (case-insensitive)', () => {
+    expect(sanitizeModuleCSS('a{}</STYLE><b>')).not.toMatch(/<\/style/i)
   })
 
-  it('strips </style  > (whitespace before >)', () => {
-    expect(sanitizeModuleCSS('a{}</style  ><b>')).not.toContain('</style')
+  it('neutralises </style  > (whitespace before >)', () => {
+    expect(sanitizeModuleCSS('a{}</style  ><b>')).not.toMatch(/<\/style/i)
+  })
+
+  // -------------------------------------------------------------------------
+  // HTML5 RAWTEXT terminator coverage. Per spec, `</style` followed by `/`,
+  // whitespace (incl. tab/LF/FF), or `>` closes the block. The previous
+  // `/<\/style\s*>/gi` regex missed the slash terminators.
+  // -------------------------------------------------------------------------
+
+  it('neutralises </style/> (HTML5 RAWTEXT slash terminator)', () => {
+    expect(sanitizeModuleCSS('a{}</style/><img src=x onerror=alert(1)>')).not.toMatch(/<\/style/i)
+  })
+
+  it('neutralises </style /> (whitespace + slash)', () => {
+    expect(sanitizeModuleCSS('a{}</style />b')).not.toMatch(/<\/style/i)
+  })
+
+  it('neutralises </style/foo> (slash + attribute-name junk)', () => {
+    expect(sanitizeModuleCSS('a{}</style/foo>b')).not.toMatch(/<\/style/i)
+  })
+
+  it('neutralises </style\t> (tab terminator)', () => {
+    expect(sanitizeModuleCSS('a{}</style\t>b')).not.toMatch(/<\/style/i)
+  })
+
+  it('neutralises </style at EOF (no trailer)', () => {
+    expect(sanitizeModuleCSS('a{}</style')).not.toMatch(/<\/style/i)
   })
 
   it('passes through safe CSS unchanged', () => {
@@ -78,12 +109,12 @@ describe('CssCollector', () => {
     expect(collector.size).toBe(1)
   })
 
-  it('sanitizes </style> injection in add() — strips </style> (Constraint #228)', () => {
-    // </style> is stripped; remaining <script> text is inside <style> block = harmless raw text
+  it('sanitizes </style> injection in add() — neutralises </style (Constraint #228)', () => {
+    // `</style` is rewritten to `<\/style`; the RAWTEXT tokenizer never enters
+    // end-tag-open state, so the surrounding <style> block stays intact.
     collector.add('evil.mod', 'a{}</style><script>alert(1)</script><style>')
     const css = collector.collect()
-    expect(css).not.toContain('</style>')
-    expect(css).not.toMatch(/<\/style\s*>/)
+    expect(css).not.toMatch(/<\/style/i)
   })
 
   it('clear() resets the collector', () => {

@@ -1,10 +1,12 @@
-import type {
-  BuiltInContentCollectionField,
-  ContentCollection,
-  ContentCollectionFields,
+import { filterArray } from '@core/utils/typeboxHelpers'
+import {
+  ContentCustomFieldDefinitionSchema,
+  type BuiltInContentCollectionField,
+  type ContentCollection,
+  type ContentCollectionFields,
 } from './schemas'
 
-export const DEFAULT_CONTENT_COLLECTION_FIELDS: ContentCollectionFields = {
+const DEFAULT_CONTENT_COLLECTION_FIELDS: ContentCollectionFields = {
   builtIn: {
     body: true,
     featuredMedia: true,
@@ -33,7 +35,7 @@ export function normalizeContentCollectionFields(value: unknown): ContentCollect
         ? raw.builtIn.seo
         : DEFAULT_CONTENT_COLLECTION_FIELDS.builtIn.seo,
     },
-    custom: Array.isArray(raw.custom) ? [] : [],
+    custom: filterArray(ContentCustomFieldDefinitionSchema, raw.custom),
   }
 }
 

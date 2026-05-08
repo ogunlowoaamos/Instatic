@@ -37,7 +37,7 @@ import { formatCssVariableBlock } from './cssVariables'
 // Public types — shared between typography and spacing
 // ---------------------------------------------------------------------------
 
-export type FrameworkScaleFamily = 'spacing' | 'typography'
+type FrameworkScaleFamily = 'spacing' | 'typography'
 
 /** Output shape — same for typography and spacing. */
 export interface FrameworkScaleVariable {

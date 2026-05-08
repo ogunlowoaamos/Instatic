@@ -8,7 +8,7 @@ import type { IconComponent } from 'pixel-art-icons/types'
 import styles from './Toolbar.module.css'
 
 export type PublishActionStatusTone = 'neutral' | 'success' | 'warning' | 'danger'
-export type PublishActionState = 'idle' | 'busy' | 'success' | 'error'
+type PublishActionState = 'idle' | 'busy' | 'success' | 'error'
 
 export interface PublishActionMenuItem {
   id: string

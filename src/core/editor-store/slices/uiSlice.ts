@@ -16,7 +16,7 @@ export type PropertiesPanelMode = 'docked' | 'floating'
 export const SIDEBAR_MIN_WIDTH = 300
 export const SIDEBAR_MAX_WIDTH = 520
 export const LEFT_SIDEBAR_DEFAULT_WIDTH = 320
-export const PROPERTIES_PANEL_DEFAULT_WIDTH = 360
+const PROPERTIES_PANEL_DEFAULT_WIDTH = 360
 
 /**
  * Active document descriptor — tracks which canvas document is open.

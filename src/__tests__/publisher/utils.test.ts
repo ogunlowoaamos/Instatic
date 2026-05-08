@@ -310,6 +310,37 @@ describe('sanitiseCssValue', () => {
   })
 
   // -------------------------------------------------------------------------
+  // </ — close-tag-open bigram (defence-in-depth against HTML5 RAWTEXT escape).
+  // Pairs with the block-level neutraliser in `sanitizeModuleCSS` so a CSS
+  // value carrying `</style/>` (and the slash-terminator variants the HTML
+  // tokenizer accepts) cannot break out of the inline `<style>` block.
+  // -------------------------------------------------------------------------
+
+  it('blocks </style> in url() — direct close-tag-open', () => {
+    expect(sanitiseCssValue('url("</style><script>alert(1)</script>")')).toBeNull()
+  })
+
+  it('blocks </style/> — HTML5 RAWTEXT slash terminator', () => {
+    expect(sanitiseCssValue('url("</style/><img src=x>")')).toBeNull()
+  })
+
+  it('blocks </ in any value position', () => {
+    expect(sanitiseCssValue('red </b> blue')).toBeNull()
+  })
+
+  it('allows < without following / (does not over-block)', () => {
+    // `<` alone is unusual in CSS but not the close-tag-open bigram.
+    expect(sanitiseCssValue('counter(num, "<>")')).toBe('counter(num, "<>")')
+  })
+
+  it('allows / on its own (paths in URLs are unaffected)', () => {
+    expect(sanitiseCssValue('url("/assets/img.png")')).toBe('url("/assets/img.png")')
+    expect(sanitiseCssValue('url("https://cdn.example.com/a/b/c.svg")')).toBe(
+      'url("https://cdn.example.com/a/b/c.svg")',
+    )
+  })
+
+  // -------------------------------------------------------------------------
   // Empty / edge cases
   // -------------------------------------------------------------------------
 

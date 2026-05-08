@@ -38,7 +38,7 @@ export interface NavigateFn {
   (to: string, options?: NavigateOptions): void
 }
 
-export interface RouteContextValue {
+interface RouteContextValue {
   /** params from the currently-matched <Route>, or empty object if none. */
   params: Record<string, string>
 }
@@ -112,7 +112,7 @@ export function matchPath(
 // Public hooks
 // ---------------------------------------------------------------------------
 
-export function useRouterContextOrThrow(): RouterContextValue {
+function useRouterContextOrThrow(): RouterContextValue {
   const ctx = useContext(RouterContext)
   if (!ctx) {
     throw new Error('Router hooks must be used inside <Router> or <MemoryRouter>')

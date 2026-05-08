@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import type { DbClient } from '../db/client'
 import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
 
-export const AuditActionSchema = Type.Union([
+const AuditActionSchema = Type.Union([
   Type.Literal('login.success'),
   Type.Literal('login.failure'),
   Type.Literal('logout'),
@@ -32,7 +32,7 @@ export const AuditActionSchema = Type.Union([
   Type.Literal('plugin.delete'),
 ])
 
-export const AuditMetadataSchema = Type.Record(
+const AuditMetadataSchema = Type.Record(
   Type.String(),
   Type.Union([Type.String(), Type.Number(), Type.Boolean(), Type.Null(), Type.Array(Type.String())]),
 )
@@ -52,6 +52,23 @@ interface AuditEventRow {
   created_at: Date | string
 }
 
+interface AuditUserLabelRow {
+  id: string
+  email: string
+  display_name: string
+}
+
+interface AuditRoleLabelRow {
+  id: string
+  name: string
+}
+
+interface AuditEventLabels {
+  actorLabel: string | null
+  targetLabel: string | null
+  metadataLabels: Record<string, string>
+}
+
 export interface AuditEvent {
   id: string
   actorUserId: string | null
@@ -59,6 +76,9 @@ export interface AuditEvent {
   targetType: string | null
   targetId: string | null
   metadata: AuditMetadata
+  actorLabel: string | null
+  targetLabel: string | null
+  metadataLabels: Record<string, string>
   ipAddress: string | null
   userAgent: string | null
   createdAt: string
@@ -68,18 +88,74 @@ function normalizeMetadata(value: unknown): AuditMetadata {
   return Value.Check(AuditMetadataSchema, value) ? Value.Decode(AuditMetadataSchema, value) : {}
 }
 
-function rowToAuditEvent(row: AuditEventRow): AuditEvent {
+function userAuditLabel(row: AuditUserLabelRow): string {
+  return row.display_name.trim() || row.email || row.id
+}
+
+function metadataString(metadata: AuditMetadata, key: string): string | null {
+  const value = metadata[key]
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function rowToAuditEvent(row: AuditEventRow, metadata: AuditMetadata, labels: AuditEventLabels): AuditEvent {
   return {
     id: row.id,
     actorUserId: row.actor_user_id,
     action: row.action,
     targetType: row.target_type,
     targetId: row.target_id,
-    metadata: normalizeMetadata(row.metadata_json),
+    metadata,
+    actorLabel: labels.actorLabel,
+    targetLabel: labels.targetLabel,
+    metadataLabels: labels.metadataLabels,
     ipAddress: row.ip_address,
     userAgent: row.user_agent,
     createdAt: new Date(row.created_at).toISOString(),
   }
+}
+
+async function auditLabelMaps(db: DbClient): Promise<{
+  usersById: Map<string, string>
+  rolesById: Map<string, string>
+}> {
+  const [usersResult, rolesResult] = await Promise.all([
+    db<AuditUserLabelRow>`select id, email, display_name from users`,
+    db<AuditRoleLabelRow>`select id, name from roles`,
+  ])
+
+  const usersById = new Map<string, string>()
+  for (const row of usersResult.rows) {
+    usersById.set(row.id, userAuditLabel(row))
+  }
+
+  const rolesById = new Map<string, string>()
+  for (const row of rolesResult.rows) {
+    rolesById.set(row.id, row.name)
+  }
+
+  return { usersById, rolesById }
+}
+
+function labelsForAuditEvent(
+  row: AuditEventRow,
+  metadata: AuditMetadata,
+  maps: { usersById: Map<string, string>; rolesById: Map<string, string> },
+): AuditEventLabels {
+  const metadataLabels: Record<string, string> = {}
+  const roleId = metadataString(metadata, 'roleId')
+  if (roleId) {
+    const roleLabel = maps.rolesById.get(roleId)
+    if (roleLabel) metadataLabels.roleId = roleLabel
+  }
+
+  const actorLabel = row.actor_user_id ? maps.usersById.get(row.actor_user_id) ?? null : null
+  const targetLabel = row.target_type === 'user' && row.target_id
+    ? maps.usersById.get(row.target_id) ?? null
+    : row.target_type === 'role' && row.target_id
+      ? maps.rolesById.get(row.target_id) ?? metadataString(metadata, 'name') ?? metadataString(metadata, 'slug')
+      : null
+
+  return { actorLabel, targetLabel, metadataLabels }
 }
 
 export async function createAuditEvent(
@@ -116,5 +192,9 @@ export async function listAuditEvents(db: DbClient, limit = 100): Promise<AuditE
     order by created_at desc
     limit ${limit}
   `
-  return rows.map(rowToAuditEvent)
+  const maps = await auditLabelMaps(db)
+  return rows.map((row) => {
+    const metadata = normalizeMetadata(row.metadata_json)
+    return rowToAuditEvent(row, metadata, labelsForAuditEvent(row, metadata, maps))
+  })
 }

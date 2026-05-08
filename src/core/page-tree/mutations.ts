@@ -3,6 +3,7 @@ import type { Page, PageNode, SiteDocument } from './schemas'
 import type { NodeTree } from './treeSchema'
 import { getParent, isAncestor } from './selectors'
 import { normalizePageSlug } from './slugs'
+import { cloneScopedClassesForNodeMap } from './scopedClassClone'
 
 /**
  * Pure Immer-compatible mutation helpers for the page tree.
@@ -208,26 +209,48 @@ export function moveNode(
  * Deep-clone a node subtree, assigning new IDs to all cloned nodes.
  * Inserts the clone immediately after the source node in the same parent.
  * Returns the ID of the new root clone node.
+ *
+ * `options.nodeIdMap` accepts a precomputed oldId → newId map; if omitted, one
+ * is built locally via DFS from `nodeId`. Callers that need to clone scoped
+ * classes alongside the node duplication MUST precompute the map (so they can
+ * call `cloneScopedClassesForNodeMap` against it) and pass it in.
+ *
+ * `options.classIdRemap` lets the caller remap classIds at clone time — needed
+ * when scoped classes were cloned alongside the nodes (each old node-scoped
+ * classId maps to a fresh clone with the new node's `scope.nodeId`). Class ids
+ * NOT in the map pass through unchanged.
  */
-export function duplicateNode(tree: NodeTree<PageNode>, nodeId: string): string {
-  const idMap = new Map<string, string>() // old ID → new ID
+export function duplicateNode(
+  tree: NodeTree<PageNode>,
+  nodeId: string,
+  options: {
+    nodeIdMap?: Map<string, string>
+    classIdRemap?: Map<string, string>
+  } = {},
+): string {
+  const idMap = options.nodeIdMap ?? new Map<string, string>()
+  const { classIdRemap } = options
 
-  // Build id mapping for entire subtree
-  const stack = [nodeId]
-  const toClone: string[] = []
-  while (stack.length > 0) {
-    const id = stack.pop()!
-    const node = tree.nodes[id]
-    if (!node) continue
-    toClone.push(id)
-    idMap.set(id, nanoid())
-    stack.push(...node.children)
+  // Build id mapping for entire subtree if the caller didn't provide one.
+  // If the caller passed a precomputed map, trust it as-is — the caller
+  // already walked the subtree (typically to build a class-id remap against
+  // the same set of node ids).
+  if (idMap.size === 0) {
+    const stack = [nodeId]
+    while (stack.length > 0) {
+      const id = stack.pop()!
+      if (idMap.has(id)) continue
+      const node = tree.nodes[id]
+      if (!node) continue
+      idMap.set(id, nanoid())
+      stack.push(...node.children)
+    }
   }
 
-  // Clone all nodes with remapped IDs and children
-  for (const id of toClone) {
-    const original = tree.nodes[id]
-    const newId = idMap.get(id)!
+  // Clone all nodes with remapped IDs, children, and (optionally) classIds.
+  for (const [oldId, newId] of idMap) {
+    const original = tree.nodes[oldId]
+    if (!original) continue
     tree.nodes[newId] = {
       ...original,
       id: newId,
@@ -236,6 +259,9 @@ export function duplicateNode(tree: NodeTree<PageNode>, nodeId: string): string 
         Object.entries(original.breakpointOverrides).map(([k, v]) => [k, { ...v }])
       ),
       children: original.children.map((childId) => idMap.get(childId) ?? childId),
+      classIds: classIdRemap
+        ? original.classIds.map((cid) => classIdRemap.get(cid) ?? cid)
+        : [...original.classIds],
     }
   }
 
@@ -685,6 +711,12 @@ export function reorderPages(site: SiteDocument, fromIndex: number, toIndex: num
  * breakpointOverrides) under a new title and slug. The cloned nodes get
  * fresh nanoid IDs so they don't collide with the source page. Returns
  * the new Page; caller is responsible for activating it if desired.
+ *
+ * Per-node "module-style" CSS classes (those with `scope.type === 'node'`)
+ * are also cloned with fresh class ids and rewritten `scope.nodeId`s — the
+ * publisher emits one CSS rule per class, so without this clone the new page
+ * would silently share style entries with the source page (editing one would
+ * restyle both). The newly cloned classes are written to `site.classes`.
  */
 export function duplicatePage(
   site: SiteDocument,
@@ -701,7 +733,19 @@ export function duplicatePage(
     idMap.set(oldId, nanoid())
   }
 
-  // Clone each node with remapped IDs and remapped child references.
+  // Clone every node-scoped class for nodes in the source page so the new
+  // page gets its own scoped classes (with `scope.nodeId` pointing at the
+  // duplicate's node ids). Non-scoped classes are shared and not cloned.
+  const { added: clonedClasses, classIdRemap } = cloneScopedClassesForNodeMap(
+    idMap,
+    site.classes,
+  )
+  for (const cls of clonedClasses) {
+    site.classes[cls.id] = cls
+  }
+
+  // Clone each node with remapped IDs, remapped child references, and
+  // remapped scoped-class ids.
   const newNodes: Record<string, PageNode> = {}
   for (const [oldId, oldNode] of Object.entries(source.nodes)) {
     const newId = idMap.get(oldId)!
@@ -715,7 +759,7 @@ export function duplicatePage(
       children: oldNode.children
         .map((childId) => idMap.get(childId))
         .filter((cid): cid is string => typeof cid === 'string'),
-      classIds: [...oldNode.classIds],
+      classIds: oldNode.classIds.map((cid) => classIdRemap.get(cid) ?? cid),
     }
   }
 

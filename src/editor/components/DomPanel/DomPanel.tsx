@@ -143,7 +143,7 @@ function SearchResults({ rows, showTag, showClasses, onSelect }: SearchResultsPr
 
 // ─── Inner panel (needs context from DomTreeProvider) ─────────────────────────
 
-function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
+function DomPanelInner({ variant = 'floating', editable = true }: { variant?: PanelVariant; editable?: boolean }) {
   const page = useEditorStore(selectActiveCanvasPage)
   const panelState = useEditorStore((s) => s.domTreePanel)
   const setDomTreePanel = useEditorStore((s) => s.setDomTreePanel)
@@ -295,18 +295,20 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
   // tree-mode UI (with its root anchor) isn't what's on screen.
   const handleBackgroundContextMenu = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!editable) return
       if (searchQuery.trim()) return
       if (!page) return
       e.preventDefault()
       e.stopPropagation()
       setBgContextMenu({ x: e.clientX, y: e.clientY })
     },
-    [page, searchQuery],
+    [editable, page, searchQuery],
   )
 
   // ─── DnD drag-end: commit one validated move to store ────────────────────
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      if (!editable) return
       const target = dnd.handleDragEnd(event)
       if (!target) return
 
@@ -319,7 +321,7 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
         console.warn('[DomPanel] Ignored stale drag/drop target:', err)
       }
     },
-    [dnd],
+    [dnd, editable],
   )
 
   // ─── Search: flat filtered list of matching nodes ─────────────────────────
@@ -469,10 +471,10 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
             /* ── Normal tree mode ── */
             <DndContext
               sensors={sensors}
-              onDragStart={dnd.handleDragStart}
-              onDragMove={dnd.handleDragMove}
+              onDragStart={editable ? dnd.handleDragStart : undefined}
+              onDragMove={editable ? dnd.handleDragMove : undefined}
               onDragEnd={handleDragEnd}
-              onDragCancel={dnd.handleDragCancel}
+              onDragCancel={editable ? dnd.handleDragCancel : undefined}
             >
               <DomPanelDndContext.Provider value={dnd.contextValue}>
                 <TreeContainer
@@ -490,7 +492,7 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
                     tree's structure (and its `+` affordances) consistent
                     across the empty → populated transition.
                   */}
-                  <TreeNode nodeId={page.rootNodeId} depth={0} />
+                  <TreeNode nodeId={page.rootNodeId} depth={0} editable={editable} />
                 </TreeContainer>
               </DomPanelDndContext.Provider>
               {typeof document === 'undefined'
@@ -505,7 +507,7 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
           to escape the panel's transform: translateZ(0) stacking context.
           Without the portal, position:fixed inside a transformed ancestor is
           positioned relative to that ancestor, not the viewport. */}
-      {bgContextMenu && createPortal(
+      {editable && bgContextMenu && createPortal(
         <TreeBackgroundContextMenu
           x={bgContextMenu.x}
           y={bgContextMenu.y}
@@ -517,10 +519,10 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
   )
 }
 
-export function DomPanel({ variant = 'floating' }: { variant?: PanelVariant }) {
+export function DomPanel({ variant = 'floating', editable = true }: { variant?: PanelVariant; editable?: boolean }) {
   return (
     <DomTreeProvider>
-      <DomPanelInner variant={variant} />
+      <DomPanelInner variant={variant} editable={editable} />
     </DomTreeProvider>
   )
 }

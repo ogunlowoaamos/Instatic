@@ -23,7 +23,7 @@ import { withFallback } from '@core/utils/typeboxHelpers'
 // FrameworkColorUtilityType
 // ---------------------------------------------------------------------------
 
-export const FrameworkColorUtilityTypeSchema = Type.Union([
+const FrameworkColorUtilityTypeSchema = Type.Union([
   Type.Literal('text'),
   Type.Literal('background'),
   Type.Literal('border'),
@@ -36,7 +36,7 @@ export type FrameworkColorUtilityType = Static<typeof FrameworkColorUtilityTypeS
 // GeneratedClassMetadata — discriminated union on `family`
 // ---------------------------------------------------------------------------
 
-export const GeneratedColorClassMetadataSchema = Type.Object({
+const GeneratedColorClassMetadataSchema = Type.Object({
   origin: Type.Literal('framework'),
   family: Type.Literal('color'),
   sourceId: Type.String(),
@@ -46,9 +46,8 @@ export const GeneratedColorClassMetadataSchema = Type.Object({
   locked: Type.Literal(true),
 })
 
-export type GeneratedColorClassMetadata = Static<typeof GeneratedColorClassMetadataSchema>
 
-export const GeneratedTypographyClassMetadataSchema = Type.Object({
+const GeneratedTypographyClassMetadataSchema = Type.Object({
   origin: Type.Literal('framework'),
   family: Type.Literal('typography'),
   /** ID of the FrameworkTypographyGroup this class was generated from. */
@@ -62,9 +61,8 @@ export const GeneratedTypographyClassMetadataSchema = Type.Object({
   locked: Type.Literal(true),
 })
 
-export type GeneratedTypographyClassMetadata = Static<typeof GeneratedTypographyClassMetadataSchema>
 
-export const GeneratedSpacingClassMetadataSchema = Type.Object({
+const GeneratedSpacingClassMetadataSchema = Type.Object({
   origin: Type.Literal('framework'),
   family: Type.Literal('spacing'),
   sourceId: Type.String(),
@@ -74,7 +72,6 @@ export const GeneratedSpacingClassMetadataSchema = Type.Object({
   locked: Type.Literal(true),
 })
 
-export type GeneratedSpacingClassMetadata = Static<typeof GeneratedSpacingClassMetadataSchema>
 
 /**
  * Discriminated union of all framework-generated class metadata.
@@ -86,7 +83,6 @@ export const GeneratedClassMetadataSchema = Type.Union([
   GeneratedSpacingClassMetadataSchema,
 ])
 
-export type GeneratedClassMetadata = Static<typeof GeneratedClassMetadataSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkColorToken and FrameworkColorSettings
@@ -120,7 +116,7 @@ const FrameworkColorVariantOptionsSchema = withFallback(
   { enabled: true, count: 4 },
 )
 
-export const FrameworkColorTokenSchema = Type.Object({
+const FrameworkColorTokenSchema = Type.Object({
   id: Type.String(),
   /**
    * Free-form category label. Empty string means "uncategorized".
@@ -147,7 +143,7 @@ export const FrameworkColorTokenSchema = Type.Object({
 
 export type FrameworkColorToken = Static<typeof FrameworkColorTokenSchema>
 
-export const FrameworkColorSettingsSchema = Type.Object({
+const FrameworkColorSettingsSchema = Type.Object({
   tokens: withFallback(Type.Array(FrameworkColorTokenSchema), []),
 })
 
@@ -157,7 +153,7 @@ export type FrameworkColorSettings = Static<typeof FrameworkColorSettingsSchema>
 // FrameworkScaleMode
 // ---------------------------------------------------------------------------
 
-export const FrameworkScaleModeSchema = Type.Union([
+const FrameworkScaleModeSchema = Type.Union([
   Type.Literal('fluid'),
   Type.Literal('fluid_manual'),
 ])
@@ -172,7 +168,7 @@ export type FrameworkScaleMode = Static<typeof FrameworkScaleModeSchema>
  * Shared breakpoint config carried by both typography and spacing groups.
  * validate.ts: inline in validateFrameworkTypographyGroup / validateFrameworkSpacingGroup.
  */
-export const FrameworkScaleBreakpointConfigSchema = Type.Object({
+const FrameworkScaleBreakpointConfigSchema = Type.Object({
   /** Per-breakpoint scale ratio — a preset string or a raw number. */
   scaleRatio: Type.Union([Type.Number(), Type.String()]),
   /** When true, scaleRatioInputValue overrides scaleRatio. */
@@ -180,29 +176,26 @@ export const FrameworkScaleBreakpointConfigSchema = Type.Object({
   scaleRatioInputValue: Type.Optional(Type.Number()),
 })
 
-export type FrameworkScaleBreakpointConfig = Static<typeof FrameworkScaleBreakpointConfigSchema>
 
-export const FrameworkTypographyBreakpointConfigSchema = Type.Object({
+const FrameworkTypographyBreakpointConfigSchema = Type.Object({
   ...FrameworkScaleBreakpointConfigSchema.properties,
   /** Base font size at this breakpoint in px. */
   fontSize: Type.Number(),
 })
 
-export type FrameworkTypographyBreakpointConfig = Static<typeof FrameworkTypographyBreakpointConfigSchema>
 
-export const FrameworkSpacingBreakpointConfigSchema = Type.Object({
+const FrameworkSpacingBreakpointConfigSchema = Type.Object({
   ...FrameworkScaleBreakpointConfigSchema.properties,
   /** Base spacing size at this breakpoint in px. */
   size: Type.Number(),
 })
 
-export type FrameworkSpacingBreakpointConfig = Static<typeof FrameworkSpacingBreakpointConfigSchema>
 
 // ---------------------------------------------------------------------------
 // FrameworkScaleManualSize
 // ---------------------------------------------------------------------------
 
-export const FrameworkScaleManualSizeSchema = Type.Object({
+const FrameworkScaleManualSizeSchema = Type.Object({
   id: Type.String(),
   name: Type.String(),
   min: Type.Number(),
@@ -255,7 +248,7 @@ const TypographyMaxBreakpointSchema = Type.Object({
   scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.333),
 })
 
-export const FrameworkTypographyGroupSchema = Type.Object({
+const FrameworkTypographyGroupSchema = Type.Object({
   ...FrameworkScaleGroupBaseSchema.properties,
   /** Variable prefix — e.g. "text" produces --text-xs, --text-m, … */
   namingConvention: withFallback(Type.String(), 'text'),
@@ -287,7 +280,7 @@ const SpacingMaxBreakpointSchema = Type.Object({
   scaleRatio: withFallback(Type.Union([Type.Number(), Type.String()]), 1.414),
 })
 
-export const FrameworkSpacingGroupSchema = Type.Object({
+const FrameworkSpacingGroupSchema = Type.Object({
   ...FrameworkScaleGroupBaseSchema.properties,
   /** Variable prefix — e.g. "space" produces --space-xs, --space-m, … */
   namingConvention: withFallback(Type.String(), 'space'),
@@ -311,7 +304,7 @@ export type FrameworkSpacingGroup = Static<typeof FrameworkSpacingGroupSchema>
  * Typography and spacing share the exact same shape — the spacing schema
  * is an alias so consumers can import either name.
  */
-export const FrameworkTypographyClassGeneratorSchema = Type.Object({
+const FrameworkTypographyClassGeneratorSchema = Type.Object({
   id: Type.String(),
   /** Class name pattern — `*` or `{step}` is replaced with the step suffix. */
   name: Type.String(),
@@ -325,7 +318,7 @@ export const FrameworkTypographyClassGeneratorSchema = Type.Object({
 export type FrameworkTypographyClassGenerator = Static<typeof FrameworkTypographyClassGeneratorSchema>
 
 // Spacing class generators are identical in shape to typography class generators.
-export const FrameworkSpacingClassGeneratorSchema = FrameworkTypographyClassGeneratorSchema
+const FrameworkSpacingClassGeneratorSchema = FrameworkTypographyClassGeneratorSchema
 
 export type FrameworkSpacingClassGenerator = FrameworkTypographyClassGenerator
 
@@ -333,7 +326,7 @@ export type FrameworkSpacingClassGenerator = FrameworkTypographyClassGenerator
 // FrameworkTypographySettings and FrameworkSpacingSettings
 // ---------------------------------------------------------------------------
 
-export const FrameworkTypographySettingsSchema = Type.Object({
+const FrameworkTypographySettingsSchema = Type.Object({
   groups: withFallback(Type.Array(FrameworkTypographyGroupSchema), []),
   classes: Type.Optional(Type.Array(FrameworkTypographyClassGeneratorSchema)),
   isDisabled: Type.Optional(Type.Boolean()),
@@ -341,7 +334,7 @@ export const FrameworkTypographySettingsSchema = Type.Object({
 
 export type FrameworkTypographySettings = Static<typeof FrameworkTypographySettingsSchema>
 
-export const FrameworkSpacingSettingsSchema = Type.Object({
+const FrameworkSpacingSettingsSchema = Type.Object({
   groups: withFallback(Type.Array(FrameworkSpacingGroupSchema), []),
   classes: Type.Optional(Type.Array(FrameworkSpacingClassGeneratorSchema)),
   isDisabled: Type.Optional(Type.Boolean()),
@@ -361,7 +354,7 @@ export type FrameworkSpacingSettings = Static<typeof FrameworkSpacingSettingsSch
  * the site opts into the full generated framework utility set.
  * validate.ts: validateFrameworkPreferencesSettings(), lines ~358–376.
  */
-export const FrameworkPreferencesSettingsSchema = Type.Object({
+const FrameworkPreferencesSettingsSchema = Type.Object({
   /** Root font size used to convert px → rem in published CSS. Default 10 (Core Framework). */
   rootFontSize: withFallback(Type.Number(), 10),
   /** Lower clamp anchor in px for fluid scales. Default 320. */
@@ -395,4 +388,3 @@ export const FrameworkSettingsSchema = Type.Object({
   preferences: Type.Optional(FrameworkPreferencesSettingsSchema),
 })
 
-export type FrameworkSettings = Static<typeof FrameworkSettingsSchema>

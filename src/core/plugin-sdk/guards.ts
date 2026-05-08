@@ -1,6 +1,6 @@
 import type { PluginManifest, PluginPermission } from './types'
 
-export function hasPluginPermission(
+function hasPluginPermission(
   manifest: Pick<PluginManifest, 'grantedPermissions'>,
   permission: PluginPermission,
 ): boolean {

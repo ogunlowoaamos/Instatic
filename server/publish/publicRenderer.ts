@@ -5,8 +5,8 @@ import { publishPage } from '@core/publisher/render'
 import { buildSiteCssBundle } from './siteCssBundle'
 import { selectEntryTemplate } from '@core/templates/templateMatching'
 import { prefetchLoopData, publishedContentEntryToLoopItem } from './loopPrefetch'
+import type { PublishedContentEntry } from '@core/content/schemas'
 import type { DbClient } from '../db/client'
-import type { PublishedContentEntry } from '../repositories/content'
 import type { PublishedPageSnapshot } from '../repositories/publish'
 
 /**

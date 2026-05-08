@@ -162,3 +162,52 @@ export async function serveStaticFile(
 export function serveAdminApp(staticDir: string, req?: Request): Promise<Response | null> {
   return serveStaticFile(staticDir, '/index.html', req)
 }
+
+/**
+ * MIMEs we trust to render inline from `/uploads/*` without forcing a
+ * download prompt. Strict by design: only the modern image/video formats
+ * the upload handler accepts via magic-byte detection.
+ *
+ * Anything else served from `/uploads/*` is forced to `Content-Disposition:
+ * attachment` so a future regression (or a legacy file written before the
+ * extension hardening) can't be top-level navigated to and rendered as
+ * HTML on the admin origin.
+ */
+const INERT_UPLOAD_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+])
+
+/**
+ * Defense-in-depth headers for `/uploads/*` responses:
+ *
+ *  - `X-Content-Type-Options: nosniff` — prevents the browser from
+ *    overriding our declared Content-Type. Caddy already sets this in the
+ *    production reverse proxy, but `bun run dev` and self-hosted
+ *    deployments without Caddy don't have it; we set it at the app layer
+ *    so it ships in every environment.
+ *
+ *  - `Content-Disposition: attachment` for non-inert MIMEs — even if a
+ *    file with an unsafe extension somehow landed in the uploads dir
+ *    (predating the extension hardening, or via a future regression),
+ *    forcing a download prevents top-level navigation from running it as
+ *    HTML/JS on the admin origin.
+ */
+export function hardenUploadResponse(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.set('x-content-type-options', 'nosniff')
+  const contentType = headers.get('content-type') ?? ''
+  const baseMime = contentType.split(';', 1)[0].trim().toLowerCase()
+  if (!INERT_UPLOAD_MIMES.has(baseMime)) {
+    headers.set('content-disposition', 'attachment')
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}

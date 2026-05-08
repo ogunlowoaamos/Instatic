@@ -18,7 +18,7 @@ import { SiteFileSchema } from '../files/schemas'
 // LockedSiteDependency
 // ---------------------------------------------------------------------------
 
-export const LockedSiteDependencySchema = Type.Object({
+const LockedSiteDependencySchema = Type.Object({
   name: Type.String(),
   requested: Type.String(),
   version: Type.String(),
@@ -33,7 +33,7 @@ export type LockedSiteDependency = Static<typeof LockedSiteDependencySchema>
 // SiteDependencyLock
 // ---------------------------------------------------------------------------
 
-export const SiteDependencyLockSchema = Type.Object({
+const SiteDependencyLockSchema = Type.Object({
   /** Literal 1 — schema version, not a counter */
   version: Type.Literal(1),
   packages: Type.Record(Type.String(), LockedSiteDependencySchema),
@@ -46,7 +46,7 @@ export type SiteDependencyLock = Static<typeof SiteDependencyLockSchema>
 // SiteScriptPlacement
 // ---------------------------------------------------------------------------
 
-export const SiteScriptPlacementSchema = Type.Union([
+const SiteScriptPlacementSchema = Type.Union([
   Type.Literal('head'),
   Type.Literal('body-end'),
 ])
@@ -57,7 +57,7 @@ export type SiteScriptPlacement = Static<typeof SiteScriptPlacementSchema>
 // SiteScriptTiming
 // ---------------------------------------------------------------------------
 
-export const SiteScriptTimingSchema = Type.Union([
+const SiteScriptTimingSchema = Type.Union([
   Type.Literal('immediate'),
   Type.Literal('dom-ready'),
   Type.Literal('idle'),
@@ -69,7 +69,7 @@ export type SiteScriptTiming = Static<typeof SiteScriptTimingSchema>
 // SiteScriptScope — discriminated union on `type`
 // ---------------------------------------------------------------------------
 
-export const SiteScriptScopeSchema = withFallback(
+const SiteScriptScopeSchema = withFallback(
   Type.Union([
     Type.Object({ type: Type.Literal('all-pages') }),
     Type.Object({ type: Type.Literal('pages'), pageIds: Type.Array(Type.String()) }),
@@ -84,7 +84,7 @@ export type SiteScriptScope = Static<typeof SiteScriptScopeSchema>
 // SiteScriptRuntimeConfig
 // ---------------------------------------------------------------------------
 
-export const SiteScriptRuntimeConfigSchema = Type.Object({
+const SiteScriptRuntimeConfigSchema = Type.Object({
   enabled: Type.Boolean(),
   runInCanvas: Type.Boolean(),
   placement: SiteScriptPlacementSchema,
@@ -110,7 +110,7 @@ export type SiteRuntimeConfig = Static<typeof SiteRuntimeConfigSchema>
 // SiteRuntimeTarget
 // ---------------------------------------------------------------------------
 
-export const SiteRuntimeTargetSchema = Type.Union([
+const SiteRuntimeTargetSchema = Type.Union([
   Type.Literal('canvas'),
   Type.Literal('publish'),
 ])
@@ -121,19 +121,18 @@ export type SiteRuntimeTarget = Static<typeof SiteRuntimeTargetSchema>
 // SiteRuntimeDiagnosticSeverity
 // ---------------------------------------------------------------------------
 
-export const SiteRuntimeDiagnosticSeveritySchema = Type.Union([
+const SiteRuntimeDiagnosticSeveritySchema = Type.Union([
   Type.Literal('error'),
   Type.Literal('warning'),
   Type.Literal('info'),
 ])
 
-export type SiteRuntimeDiagnosticSeverity = Static<typeof SiteRuntimeDiagnosticSeveritySchema>
 
 // ---------------------------------------------------------------------------
 // SiteRuntimeDiagnostic
 // ---------------------------------------------------------------------------
 
-export const SiteRuntimeDiagnosticSchema = Type.Object({
+const SiteRuntimeDiagnosticSchema = Type.Object({
   code: Type.String(),
   severity: SiteRuntimeDiagnosticSeveritySchema,
   message: Type.String(),
@@ -150,7 +149,7 @@ export type SiteRuntimeDiagnostic = Static<typeof SiteRuntimeDiagnosticSchema>
 // RuntimeImportKind
 // ---------------------------------------------------------------------------
 
-export const RuntimeImportKindSchema = Type.Union([
+const RuntimeImportKindSchema = Type.Union([
   Type.Literal('static'),
   Type.Literal('dynamic'),
   Type.Literal('reexport'),
@@ -162,7 +161,7 @@ export type RuntimeImportKind = Static<typeof RuntimeImportKindSchema>
 // RuntimeImportSpecifier
 // ---------------------------------------------------------------------------
 
-export const RuntimeImportSpecifierSchema = Type.Object({
+const RuntimeImportSpecifierSchema = Type.Object({
   specifier: Type.String(),
   kind: RuntimeImportKindSchema,
   start: Type.Number(),
@@ -175,18 +174,17 @@ export type RuntimeImportSpecifier = Static<typeof RuntimeImportSpecifierSchema>
 // RuntimePackageUsageFile
 // ---------------------------------------------------------------------------
 
-export const RuntimePackageUsageFileSchema = Type.Object({
+const RuntimePackageUsageFileSchema = Type.Object({
   fileId: Type.String(),
   path: Type.String(),
 })
 
-export type RuntimePackageUsageFile = Static<typeof RuntimePackageUsageFileSchema>
 
 // ---------------------------------------------------------------------------
 // RuntimePackageDependencyUsage
 // ---------------------------------------------------------------------------
 
-export const RuntimePackageDependencyUsageSchema = Type.Object({
+const RuntimePackageDependencyUsageSchema = Type.Object({
   name: Type.String(),
   requestedVersion: Type.Union([Type.String(), Type.Null()]),
   specifiers: Type.Array(Type.String()),
@@ -199,7 +197,7 @@ export type RuntimePackageDependencyUsage = Static<typeof RuntimePackageDependen
 // PublishedRuntimeScriptAsset
 // ---------------------------------------------------------------------------
 
-export const PublishedRuntimeScriptAssetSchema = Type.Object({
+const PublishedRuntimeScriptAssetSchema = Type.Object({
   fileId: Type.String(),
   src: Type.String(),
   placement: SiteScriptPlacementSchema,
@@ -214,7 +212,7 @@ export type PublishedRuntimeScriptAsset = Static<typeof PublishedRuntimeScriptAs
 // PublishedPageRuntimeAssets
 // ---------------------------------------------------------------------------
 
-export const PublishedPageRuntimeAssetsSchema = Type.Object({
+const PublishedPageRuntimeAssetsSchema = Type.Object({
   scripts: Type.Array(PublishedRuntimeScriptAssetSchema),
 })
 
@@ -224,7 +222,7 @@ export type PublishedPageRuntimeAssets = Static<typeof PublishedPageRuntimeAsset
 // RuntimeScriptEntry
 // ---------------------------------------------------------------------------
 
-export const RuntimeScriptEntrySchema = Type.Object({
+const RuntimeScriptEntrySchema = Type.Object({
   file: SiteFileSchema,
   config: SiteScriptRuntimeConfigSchema,
 })

@@ -9,7 +9,7 @@ import type { DbClient } from '../../../db/client'
 import { jsonResponse } from '../../../http'
 import type { AuthUser } from '../../../repositories/users'
 
-export const CONTENT_ACCESS_CAPABILITIES = [
+const CONTENT_ACCESS_CAPABILITIES = [
   'content.create',
   'content.edit.own',
   'content.edit.any',
@@ -82,7 +82,7 @@ export function canSeeAllContent(user: AuthUser): boolean {
   return userHasAnyCapability(user, CONTENT_ANY_VISIBILITY_CAPABILITIES)
 }
 
-export function ownsContentEntry(user: AuthUser, entry: OwnedContentEntry): boolean {
+function ownsContentEntry(user: AuthUser, entry: OwnedContentEntry): boolean {
   return entry.authorUserId === user.id || (!entry.authorUserId && entry.createdByUserId === user.id)
 }
 

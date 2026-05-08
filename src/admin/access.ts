@@ -3,7 +3,7 @@ import type { CmsCurrentUser } from '@core/persistence'
 import type { CoreCapability } from '@core/cms/capabilities'
 import type { AdminWorkspace } from './workspace'
 
-export const CONTENT_ACCESS_CAPABILITIES: CoreCapability[] = [
+const CONTENT_ACCESS_CAPABILITIES: CoreCapability[] = [
   'content.create',
   'content.edit.own',
   'content.edit.any',
@@ -16,7 +16,7 @@ export function hasCapability(user: CmsCurrentUser | null, capability: CoreCapab
   return Boolean(user?.capabilities.includes(capability))
 }
 
-export function hasAnyCapability(user: CmsCurrentUser | null, capabilities: readonly CoreCapability[]): boolean {
+function hasAnyCapability(user: CmsCurrentUser | null, capabilities: readonly CoreCapability[]): boolean {
   return capabilities.some((capability) => hasCapability(user, capability))
 }
 
@@ -24,12 +24,12 @@ export function hasAllCapabilities(user: CmsCurrentUser | null, capabilities: re
   return capabilities.every((capability) => hasCapability(user, capability))
 }
 
-export function ownsContentEntry(user: CmsCurrentUser | null, entry: ContentEntry | null): boolean {
+function ownsContentEntry(user: CmsCurrentUser | null, entry: ContentEntry | null): boolean {
   if (!user || !entry) return false
   return entry.authorUserId === user.id || (!entry.authorUserId && entry.createdByUserId === user.id)
 }
 
-export function canAccessContent(user: CmsCurrentUser | null): boolean {
+function canAccessContent(user: CmsCurrentUser | null): boolean {
   return hasAnyCapability(user, CONTENT_ACCESS_CAPABILITIES)
 }
 
@@ -54,7 +54,7 @@ export function canPublishContentEntry(user: CmsCurrentUser | null, entry: Conte
     (ownsContentEntry(user, entry) && hasCapability(user, 'content.publish.own'))
 }
 
-export function canAccessUsersWorkspace(user: CmsCurrentUser | null): boolean {
+function canAccessUsersWorkspace(user: CmsCurrentUser | null): boolean {
   return hasAnyCapability(user, ['users.manage', 'roles.manage', 'audit.read'])
 }
 

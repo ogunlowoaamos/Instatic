@@ -25,7 +25,7 @@ interface SlotInstanceProps extends Record<string, unknown> {
   slotName: string
 }
 
-export const SlotInstanceModule: ModuleDefinition<SlotInstanceProps> = {
+const SlotInstanceModule: ModuleDefinition<SlotInstanceProps> = {
   id: 'base.slot-instance',
   name: 'Slot',
   description: 'A materialized slot for component content',

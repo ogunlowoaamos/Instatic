@@ -36,7 +36,7 @@ import { DynamicBindingControl } from './DynamicBindingControl'
 import { cn } from '@ui/cn'
 import styles from './controls.module.css'
 
-export interface DynamicBindingRenderContext {
+interface DynamicBindingRenderContext {
   binding?: DynamicPropBinding
   onSet: (binding: DynamicPropBinding) => void
   onClear: () => void

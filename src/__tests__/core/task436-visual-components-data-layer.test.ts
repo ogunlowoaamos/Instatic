@@ -930,12 +930,12 @@ describe('Gate VP-7 — full site with valid VC still passes full validateSite',
 
 // ── Round-trip gates (added post-#635 hot-fix — Coverage gaps surfaced by CR msg #1948) ──
 
-describe('Gate VP-8 — validateSite round-trips flat VC tree and converts legacy shape', () => {
+describe('Gate VP-8 — validateSite round-trips flat VC tree', () => {
   /**
-   * After Task 3 flat-tree migration:
-   *   - New shape: vc.tree = { nodes: Record<string, VCNode>, rootNodeId }
-   *   - Legacy shape (rootNode + childNodes) is auto-converted by convertLegacyVCShape()
-   *     in validateSite before parsing. The output always has the flat tree.
+   * VC tree shape: `vc.tree = { nodes: Record<string, VCNode>, rootNodeId }`.
+   * The legacy `rootNode + childNodes` nested shape was a pre-release-only
+   * shape; the migration shim that handled it has been deleted (no users,
+   * no installed base, no need for backward compatibility).
    */
   it('a VC with flat tree.nodes survives validateSite() with the full nodes map intact', () => {
     const childNode = {
@@ -979,63 +979,6 @@ describe('Gate VP-8 — validateSite round-trips flat VC tree and converts legac
     expect(vcResult.tree.nodes['child-heading'].id).toBe('child-heading')
   })
 
-  it('legacy shape (rootNode + childNodes) is converted to flat tree by validateSite', () => {
-    // Feed old-shape data directly — convertLegacyVCShape() handles it before parsing
-    const legacyVC = {
-      id: 'vc-card-1',
-      name: 'Card',
-      // Old shape: rootNode with nested childNodes (not tree:)
-      rootNode: {
-        id: 'vc-root',
-        moduleId: 'base.container',
-        props: {},
-        children: ['inner-container'],
-        breakpointOverrides: {},
-        classIds: [],
-        childNodes: [
-          {
-            id: 'inner-container',
-            moduleId: 'base.container',
-            props: {},
-            children: ['grand-text'],
-            breakpointOverrides: {},
-            classIds: [],
-            childNodes: [
-              {
-                id: 'grand-text',
-                moduleId: 'base.text',
-                props: { content: 'Hello' },
-                children: [],
-                breakpointOverrides: {},
-                classIds: [],
-              },
-            ],
-          },
-        ],
-      },
-      params: [],
-      breakpoints: [],
-      classIds: [],
-      createdAt: 1000,
-    }
-    const raw = rawSite({ visualComponents: [legacyVC] })
-
-    const site = validateSite(raw) as {
-      visualComponents: Array<{
-        tree: { rootNodeId: string; nodes: Record<string, { id: string }> }
-      }>
-    }
-
-    const vcResult = site.visualComponents[0]
-    expect(vcResult).toBeDefined()
-    // Legacy shape is converted: output has flat tree, not rootNode
-    expect(vcResult.tree).toBeDefined()
-    expect(vcResult.tree.rootNodeId).toBe('vc-root')
-    // All nodes from the nested tree must appear in the flat map
-    expect(vcResult.tree.nodes['vc-root']).toBeDefined()
-    expect(vcResult.tree.nodes['inner-container']).toBeDefined()
-    expect(vcResult.tree.nodes['grand-text']).toBeDefined()
-  })
 })
 
 describe('Gate VP-9 — validateSite preserves propBindings on VC nodes in flat tree', () => {

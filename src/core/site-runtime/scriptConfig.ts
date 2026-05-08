@@ -22,7 +22,7 @@ export interface CollectRuntimeScriptsInput {
   target: SiteRuntimeTarget
 }
 
-export const DEFAULT_SITE_DEPENDENCY_LOCK: SiteDependencyLock = {
+const DEFAULT_SITE_DEPENDENCY_LOCK: SiteDependencyLock = {
   version: 1,
   packages: {},
   updatedAt: 0,

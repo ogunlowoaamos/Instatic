@@ -64,7 +64,7 @@ function resolveVersion(metadata: NpmPackageMetadata, requested: string): string
   return version
 }
 
-export async function resolveRuntimeDependency(
+async function resolveRuntimeDependency(
   name: string,
   requested: string,
   options: ResolveSiteDependencyLockOptions = {},

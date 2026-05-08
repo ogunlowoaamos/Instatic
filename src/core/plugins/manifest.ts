@@ -17,6 +17,14 @@ const PLUGIN_ID_PATTERN = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/
 const PAGE_ID_PATTERN = /^[a-z][a-z0-9-]*$/
 const SEMVERISH_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9a-zA-Z.-]+)?$/
 const SAFE_ASSET_PATH_PATTERN = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[a-zA-Z0-9._/-]+$/
+// `assetBasePath` is server-controlled. The only legitimate shape is
+// `/uploads/plugins/{pluginId}/{version}` (optionally trailing `/`),
+// produced by `writePluginPackageFiles` on zip install. Any other shape
+// — including `..` traversal, empty segments, or non-uploads paths —
+// is rejected at the schema boundary so it can't reach the filesystem
+// sinks (`loadServerPluginModule`, `removePluginAssets`).
+const ASSET_BASE_PATH_PATTERN =
+  /^\/uploads\/plugins\/[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+\/\d+\.\d+\.\d+(?:[-+][0-9a-zA-Z.-]+)?\/?$/
 
 const permissionSchema = Type.Union(
   PLUGIN_PERMISSION_VALUES.map((v) => Type.Literal(v)),
@@ -101,7 +109,7 @@ const manifestSchema = Type.Object({
     editor: Type.Optional(Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source })),
     admin: Type.Optional(Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source })),
   })),
-  assetBasePath: Type.Optional(Type.String()),
+  assetBasePath: Type.Optional(Type.String({ pattern: ASSET_BASE_PATH_PATTERN.source })),
   resources: Type.Array(resourceSchema, { maxItems: 20, default: [] }),
   adminPages: Type.Array(adminPageSchema, { maxItems: 20, default: [] }),
 })
@@ -119,6 +127,20 @@ export function parsePluginManifest(input: unknown): PluginManifest {
   } catch {
     const errors = [...Value.Errors(manifestSchema, input)]
     throw new Error(`Invalid plugin manifest: ${errors[0]?.message ?? 'manifest is malformed'}`)
+  }
+
+  // The schema permits any `/uploads/plugins/{id}/{version}` shape, but the
+  // path must reference *this* plugin's own id+version — anything else would
+  // let one plugin manifest target another plugin's files at the filesystem
+  // sinks (`loadServerPluginModule`, `removePluginAssets`).
+  if (data.assetBasePath) {
+    const expected = `/uploads/plugins/${data.id}/${data.version}`
+    const normalized = data.assetBasePath.replace(/\/+$/, '')
+    if (normalized !== expected) {
+      throw new Error(
+        `Invalid plugin manifest: assetBasePath must equal "${expected}"`,
+      )
+    }
   }
 
   const duplicateResources = new Set<string>()

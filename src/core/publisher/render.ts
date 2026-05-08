@@ -477,7 +477,8 @@ export function renderNode(nodeId: string, ctx: RenderContext): string {
   const output = def.render(safeProps as never, renderedChildren)
 
   // 5. Collect CSS — one entry per moduleId (dedup).
-  //    Sanitize before storage: strip </style> to prevent style-block escape (Constraint #228).
+  //    Sanitize before storage: neutralise any `</style` so the HTML5 RAWTEXT
+  //    tokenizer cannot escape the surrounding <style> block (Constraint #228).
   if (output.css && !ctx.cssMap.has(node.moduleId)) {
     ctx.cssMap.set(node.moduleId, sanitizeModuleCSS(output.css))
   }

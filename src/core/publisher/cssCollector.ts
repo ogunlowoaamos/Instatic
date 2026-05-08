@@ -88,18 +88,26 @@ export function collectClassCSS(site: SiteDocument): string {
 }
 
 /**
- * Strip any `</style>` closing tags from a CSS string before injection.
+ * Neutralise any `</style` sequence in CSS before injection into a `<style>` block.
  *
  * Constraint #228: module CSS is inserted directly between `<style>…</style>` tags.
  * A module that returns `css: 'h1{color:red}</style><script>…</script><style>'`
  * would break out of the style block and inject arbitrary HTML/script.
- * Removing `</style>` (case-insensitive, optional whitespace before `>`) is
- * sufficient to prevent this — valid CSS never contains that sequence.
+ *
+ * The HTML5 RAWTEXT tokenizer recognises an end-tag for `<style>` whenever
+ * `</style` is followed by U+0009/000A/000C/0020 (whitespace), U+002F (`/`),
+ * or U+003E (`>`). A simple `</style\s*>` strip therefore misses the slash
+ * terminator forms `</style/>`, `</style /…>`, `</style/foo>`. Instead we
+ * insert a backslash inside the bigram, turning `</style…` into `<\/style…`.
+ * `<` followed by `\` (not `/`) keeps the parser in RAWTEXT data state, so
+ * the end-tag is never recognised regardless of trailer (`>`, `/`, whitespace,
+ * EOF). CSS string literals resolve `\/` back to `/`, so any author-intended
+ * URL value such as `url("…</style…")` round-trips identically.
  *
  * CWE-79 (XSS via style block escape).
  */
 export function sanitizeModuleCSS(css: string): string {
-  return css.replace(/<\/style\s*>/gi, '')
+  return css.replace(/<\/style/gi, '<\\/style')
 }
 
 export class CssCollector {

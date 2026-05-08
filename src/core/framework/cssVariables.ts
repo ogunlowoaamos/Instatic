@@ -11,7 +11,7 @@ export function formatCssVariableBlock(
   return `${selector} {\n${formatCssVariableDeclarations(variables)}\n}`
 }
 
-export function formatCssVariableDeclarations(
+function formatCssVariableDeclarations(
   variables: ReadonlyArray<CssVariableDeclaration>,
 ): string {
   return variables

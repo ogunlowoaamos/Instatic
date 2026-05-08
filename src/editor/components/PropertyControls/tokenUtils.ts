@@ -54,7 +54,7 @@ interface ScaleGroupLike {
   isDisabled?: boolean
 }
 
-export function expandTokensFromGroups(
+function expandTokensFromGroups(
   groups: ReadonlyArray<ScaleGroupLike> | undefined,
 ): Token[] {
   if (!groups) return []

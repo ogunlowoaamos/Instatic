@@ -5,7 +5,7 @@ import { findUserBySessionHash } from './sessions'
 import { jsonResponse } from '../http'
 import type { AuthUser } from '../repositories/users'
 
-export function readCookie(req: Request, name: string): string {
+function readCookie(req: Request, name: string): string {
   const cookie = req.headers.get('cookie') ?? ''
   for (const part of cookie.split(';')) {
     const [rawKey, ...rawValue] = part.trim().split('=')

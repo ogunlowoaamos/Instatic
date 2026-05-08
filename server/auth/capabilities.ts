@@ -1,6 +1,6 @@
 import { Type, type Static } from '@core/utils/typeboxHelpers'
 
-export const CoreCapabilitySchema = Type.Union([
+const CoreCapabilitySchema = Type.Union([
   Type.Literal('site.read'),
   Type.Literal('site.edit'),
   Type.Literal('pages.edit'),
@@ -21,7 +21,7 @@ export const CoreCapabilitySchema = Type.Union([
 
 export type CoreCapability = Static<typeof CoreCapabilitySchema>
 
-export const CORE_CAPABILITIES: CoreCapability[] = [
+const CORE_CAPABILITIES: CoreCapability[] = [
   'site.read',
   'site.edit',
   'pages.edit',

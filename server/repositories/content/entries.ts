@@ -26,14 +26,11 @@
  */
 import { nanoid } from 'nanoid'
 import type { DbClient } from '../../db/client'
-import type { ContentEntry, ContentUserReference } from '@core/content/schemas'
-import {
-  mapAuthorOption,
-  mapEntry,
-  type ContentAuthorRow,
-  type ContentEntryRow,
-  type UpdateContentEntryCollectionResult,
-} from './rowMapping'
+import type {
+  ContentEntry,
+  ContentEntryStatus,
+  ContentUserReference,
+} from '@core/content/schemas'
 
 interface CreateContentEntryInput {
   id?: string
@@ -64,16 +61,123 @@ interface ListContentEntriesVisibility {
   ownerUserId?: string | null
 }
 
+export type UpdateContentEntryCollectionResult =
+  | { ok: true; entry: ContentEntry }
+  | { ok: false; reason: 'entry_not_found' | 'collection_not_found' | 'slug_conflict' }
+
 /**
- * Tests whether the calling user (`ownerUserId`) is the effective owner of
- * `entry`. The author overrides; if no author is assigned, falls back to the
- * creator. Mirrors the SQL filter previously inlined in `listContentEntries`.
+ * Every column produced by the canonical "fetch entry with hydrated user
+ * references" SELECT. The four user-ref groups (author / created_by /
+ * updated_by / published_by) all share the same five-column shape:
+ * `<group>_user_id`, `<group>_email`, `<group>_display_name`,
+ * `<group>_role_slug`, `<group>_role_name` — exploited by `userRefAt()`.
+ */
+interface ContentEntryRow {
+  id: string
+  collection_id: string
+  title: string
+  slug: string
+  status: ContentEntryStatus
+  body_markdown: string
+  featured_media_id: string | null
+  seo_title: string
+  seo_description: string
+  author_user_id: string | null
+  created_by_user_id: string | null
+  updated_by_user_id: string | null
+  published_by_user_id: string | null
+  author_email?: string | null
+  author_display_name?: string | null
+  author_role_slug?: string | null
+  author_role_name?: string | null
+  created_by_email?: string | null
+  created_by_display_name?: string | null
+  created_by_role_slug?: string | null
+  created_by_role_name?: string | null
+  updated_by_email?: string | null
+  updated_by_display_name?: string | null
+  updated_by_role_slug?: string | null
+  updated_by_role_name?: string | null
+  published_by_email?: string | null
+  published_by_display_name?: string | null
+  published_by_role_slug?: string | null
+  published_by_role_name?: string | null
+  /**
+   * Date in test fakes, ISO string in production (PG adapter normalizes Dates;
+   * SQLite stores TEXT). The mapper converts both via `toIso` below.
+   */
+  created_at: string | Date
+  updated_at: string | Date
+  published_at: string | Date | null
+  deleted_at: string | Date | null
+}
+
+interface ContentAuthorRow {
+  id: string
+  email: string
+  display_name: string | null
+  role_slug: string | null
+  role_name: string | null
+}
+
+type UserJoinPrefix = 'author' | 'created_by' | 'updated_by' | 'published_by'
+
+const toIso = (value: string | Date): string =>
+  typeof value === 'string' ? value : value.toISOString()
+
+/**
+ * Pull the user reference from a row using the column-prefix convention. When
+ * `<prefix>_user_id` is null, no user is assigned.
+ */
+function userRefAt(row: ContentEntryRow, prefix: UserJoinPrefix): ContentUserReference | null {
+  const userId = row[`${prefix}_user_id`]
+  if (!userId) return null
+  const email = row[`${prefix}_email`] ?? ''
+  return {
+    id: userId,
+    email,
+    displayName: row[`${prefix}_display_name`] ?? email ?? userId,
+    roleSlug: row[`${prefix}_role_slug`] ?? null,
+    roleName: row[`${prefix}_role_name`] ?? null,
+  }
+}
+
+function mapEntry(row: ContentEntryRow): ContentEntry {
+  return {
+    id: row.id,
+    collectionId: row.collection_id,
+    title: row.title,
+    slug: row.slug,
+    status: row.status,
+    bodyMarkdown: row.body_markdown,
+    featuredMediaId: row.featured_media_id ?? null,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
+    // `?? null` collapses both null and the undefined that test fakes hand
+    // back when they only populate the columns a given test cares about.
+    authorUserId: row.author_user_id ?? null,
+    createdByUserId: row.created_by_user_id ?? null,
+    updatedByUserId: row.updated_by_user_id ?? null,
+    publishedByUserId: row.published_by_user_id ?? null,
+    author: userRefAt(row, 'author'),
+    createdBy: userRefAt(row, 'created_by'),
+    updatedBy: userRefAt(row, 'updated_by'),
+    publishedBy: userRefAt(row, 'published_by'),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    publishedAt: row.published_at ? toIso(row.published_at) : null,
+    deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
+  }
+}
+
+/**
+ * Tests whether the calling user is the effective owner of `entry`. The author
+ * overrides; if no author is assigned, falls back to the creator. Mirrors the
+ * SQL filter previously inlined in `listContentEntries`.
  */
 function isOwnedByUser(entry: ContentEntry, ownerUserId: string): boolean {
   if (entry.authorUserId === ownerUserId) return true
-  if (entry.authorUserId === undefined || entry.authorUserId === null) {
-    return entry.createdByUserId === ownerUserId
-  }
+  if (entry.authorUserId === null) return entry.createdByUserId === ownerUserId
   return false
 }
 
@@ -204,10 +308,13 @@ export async function listContentAuthorOptions(db: DbClient): Promise<ContentUse
       and users.status = ${'active'}
     order by users.display_name asc, users.email asc
   `
-  return rows.flatMap((row) => {
-    const ref = mapAuthorOption(row)
-    return ref ? [ref] : []
-  })
+  return rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name ?? row.email ?? row.id,
+    roleSlug: row.role_slug,
+    roleName: row.role_name,
+  }))
 }
 
 export async function createContentEntry(

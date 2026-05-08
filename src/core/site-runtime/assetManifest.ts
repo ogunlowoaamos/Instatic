@@ -13,7 +13,7 @@ function escapeAttribute(value: string): string {
     .replace(/'/g, '&#x27;')
 }
 
-export function isSelfHostedRuntimeAssetUrl(src: string): boolean {
+function isSelfHostedRuntimeAssetUrl(src: string): boolean {
   const trimmed = src.trim()
   if (!trimmed) return false
   if (trimmed.startsWith('//')) return false
@@ -24,7 +24,7 @@ export function isSelfHostedRuntimeAssetUrl(src: string): boolean {
   return pathOnly.split('/').every((segment) => segment !== '..')
 }
 
-export function runtimeScriptsForPlacement(
+function runtimeScriptsForPlacement(
   runtimeAssets: PublishedPageRuntimeAssets | undefined,
   placement: SiteScriptPlacement,
 ): PublishedRuntimeScriptAsset[] {

@@ -17,7 +17,7 @@ import { Type, Value, type Static, withFallback } from '@core/utils/typeboxHelpe
 // ---------------------------------------------------------------------------
 
 /** Maps prop key → { paramId } for render-time VC parameter substitution. */
-export const PropBindingSchema = Type.Object({ paramId: Type.String() })
+const PropBindingSchema = Type.Object({ paramId: Type.String() })
 
 // ---------------------------------------------------------------------------
 // BaseNodeSchema — shared structural schema for PageNode and VCNode

@@ -52,6 +52,7 @@ import styles from './TreeNode.module.css'
 interface TreeNodeProps {
   nodeId: string
   depth: number
+  editable?: boolean
 }
 
 interface ContextMenuState {
@@ -59,7 +60,7 @@ interface ContextMenuState {
   y: number
 }
 
-export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps) {
+export const TreeNode = memo(function TreeNode({ nodeId, depth, editable = true }: TreeNodeProps) {
   // ── Per-node selectors — only THIS node re-renders on its own changes ──────
   const node = useEditorStore(
     useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null, [nodeId]),
@@ -120,7 +121,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
     isDragging,
   } = useDraggable({
     id: nodeId,
-    disabled: !node || isRoot || node.locked || isRenaming,
+    disabled: !editable || !node || isRoot || node.locked || isRenaming,
   })
 
   const setRowNodeRef = useCallback((element: HTMLDivElement | null) => {
@@ -171,6 +172,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         if (!isRoot && expanded) toggleExpanded(nodeId)
         break
       case 'F2':
+        if (!editable) return
         e.preventDefault()
         openRename()
         break
@@ -179,6 +181,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
 
   // ── Inline rename ─────────────────────────────────────────────────────────
   const openRename = () => {
+    if (!editable) return
     setRenameValue(node.label ?? displayName)
     setIsRenaming(true)
     setContextMenu(null)
@@ -187,6 +190,10 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
   }
 
   const commitRename = () => {
+    if (!editable) {
+      setIsRenaming(false)
+      return
+    }
     const trimmed = renameValue.trim()
     if (trimmed && trimmed !== displayName) {
       renameNode(nodeId, trimmed)
@@ -274,6 +281,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => {
           e.preventDefault(); e.stopPropagation()
+          if (!editable) return
           // Right-click on a node already in the multi-selection keeps the set;
           // otherwise replace with just this node. Matches the canvas + Figma.
           const currentIds = useEditorStore.getState().selectedNodeIds
@@ -382,7 +390,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
 
       {/* Children — role="group" as required by WAI-ARIA tree pattern */}
       {hasChildren && expanded && (
-        <ChildrenGroup nodeId={nodeId} depth={depth} />
+        <ChildrenGroup nodeId={nodeId} depth={depth} editable={editable} />
       )}
 
       {/* Context menu — rendered via portal at document.body to escape the
@@ -390,7 +398,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
           Without the portal, position:fixed inside a transformed ancestor is
           positioned relative to that ancestor, not the viewport, causing the
           menu to appear ~40px below the cursor (Task #413). */}
-      {contextMenu && createPortal(
+      {editable && contextMenu && createPortal(
         <LayerNodeContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -424,7 +432,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
 
 import { useEditorStore as useStore } from '@core/editor-store/store'
 
-function ChildrenGroup({ nodeId, depth }: { nodeId: string; depth: number }) {
+function ChildrenGroup({ nodeId, depth, editable }: { nodeId: string; depth: number; editable: boolean }) {
   const children = useStore(
     useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId]?.children ?? [], [nodeId]),
   )
@@ -432,7 +440,7 @@ function ChildrenGroup({ nodeId, depth }: { nodeId: string; depth: number }) {
   return (
     <div role="group">
       {children.map((childId) => (
-        <TreeNode key={childId} nodeId={childId} depth={depth + 1} />
+        <TreeNode key={childId} nodeId={childId} depth={depth + 1} editable={editable} />
       ))}
     </div>
   )

@@ -30,7 +30,7 @@
 
 export type PreferenceCategory = 'editor' | 'layers' | 'canvas' | 'properties'
 
-export const PREFERENCE_CATEGORIES: ReadonlyArray<{
+const PREFERENCE_CATEGORIES: ReadonlyArray<{
   id: PreferenceCategory
   label: string
   description?: string
@@ -112,7 +112,7 @@ interface DynamicSelectPreferenceDef {
   default: string
 }
 
-export type PreferenceDef =
+type PreferenceDef =
   | BooleanPreferenceDef
   | SelectPreferenceDef
   | DynamicSelectPreferenceDef
@@ -273,7 +273,7 @@ export type SelectCatalogDef = Extract<
 >
 
 /** Union of every preference id, narrowed to literal strings via `as const`. */
-export type PreferenceId = CatalogPreferenceDef['id']
+type PreferenceId = CatalogPreferenceDef['id']
 
 /** Subset of ids whose value is a boolean. */
 export type BooleanPreferenceId = BooleanCatalogDef['id']
@@ -289,7 +289,7 @@ const CATALOG_BY_ID: ReadonlyMap<PreferenceId, CatalogPreferenceDef> = new Map(
   PREFERENCE_CATALOG.map((p) => [p.id, p]),
 )
 
-export function getPreferenceDef(id: PreferenceId): CatalogPreferenceDef {
+function getPreferenceDef(id: PreferenceId): CatalogPreferenceDef {
   const def = CATALOG_BY_ID.get(id)
   if (!def) throw new Error(`[preferences] unknown preference id: ${id}`)
   return def

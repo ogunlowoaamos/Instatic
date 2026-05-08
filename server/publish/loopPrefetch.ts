@@ -21,8 +21,8 @@ import { loopSourceRegistry } from '@core/loops/registry'
 import { firstImagePathFromMarkdown } from '@core/markdown/renderContentMarkdown'
 import { normalizeRouteBase } from '@core/templates/templateMatching'
 import { publicContentUserFromParts } from '@core/content/publicContentUser'
+import type { PublishedContentEntry } from '@core/content/schemas'
 import type { DbClient } from '../db/client'
-import type { PublishedContentEntry } from '../repositories/content'
 
 /**
  * Resolved loop data for a single loop node on a page.
@@ -153,7 +153,7 @@ export function readLoopProps(node: PageNode): LoopProps {
  * `?loop_<nodeId>_page=2`. Multiple loops on a single page each get their
  * own param so they paginate independently.
  */
-export function loopPageQueryKey(loopNodeId: string): string {
+function loopPageQueryKey(loopNodeId: string): string {
   return `loop_${loopNodeId}_page`
 }
 

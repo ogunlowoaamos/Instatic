@@ -10,8 +10,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import AdminLayout from '../../admin/AdminLayout'
+import { AdminSessionProvider } from '../../admin/session'
 import { useEditorStore } from '@core/editor-store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
+import type { CmsCurrentUser } from '@core/persistence'
 import '../../modules/base/index'
 
 const LAYOUT_STORAGE_KEY = 'pb-editor-layout-v1'
@@ -51,11 +53,46 @@ function resetStore() {
   } as Parameters<typeof useEditorStore.setState>[0])
 }
 
-function renderEditorLayout({ preloadSite = true }: { preloadSite?: boolean } = {}) {
+const now = '2026-05-07T10:00:00.000Z'
+
+function currentUser(capabilities: string[]): CmsCurrentUser {
+  return {
+    id: 'current-user',
+    email: 'current@example.com',
+    displayName: 'Current User',
+    status: 'active',
+    role: {
+      id: 'custom',
+      slug: 'custom',
+      name: 'Custom',
+      description: '',
+      isSystem: false,
+      capabilities,
+    },
+    capabilities,
+    lastLoginAt: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+function renderEditorLayout({
+  preloadSite = true,
+  user = null,
+}: {
+  preloadSite?: boolean
+  user?: CmsCurrentUser | null
+} = {}) {
   if (preloadSite && !useEditorStore.getState().site) {
     loadSiteWithSelectedHeading()
   }
-  render(<AdminLayout />)
+  render(user ? (
+    <AdminSessionProvider user={user}>
+      <AdminLayout />
+    </AdminSessionProvider>
+  ) : (
+    <AdminLayout />
+  ))
 }
 
 function loadSiteWithSelectedHeading() {
@@ -199,6 +236,39 @@ describe('AdminLayout — persisted panel layout', () => {
 })
 
 describe('AdminLayout — permanent panel rail', () => {
+  it('renders site-read users in a read-only editor shell', () => {
+    renderEditorLayout({ user: currentUser(['site.read']) })
+
+    const canvas = screen.getByTestId('canvas-root')
+    expect(within(canvas).queryByRole('button', { name: /add text/i })).toBeNull()
+    expect(within(canvas).queryByRole('button', { name: /add container/i })).toBeNull()
+    expect(screen.queryByTestId('right-sidebar-panel-slot')).toBeNull()
+
+    const sidebar = screen.getByTestId('left-sidebar')
+    const rail = within(sidebar).getByRole('navigation', { name: /panel dock/i })
+    expect(within(rail).getByRole('button', { name: /close layers panel/i })).toBeDefined()
+    expect(within(rail).queryByRole('button', { name: /open site panel/i })).toBeNull()
+    expect(within(rail).queryByRole('button', { name: /open media panel/i })).toBeNull()
+
+    const tree = within(sidebar).getByRole('tree', { name: /page element tree/i })
+    const treeRows = within(tree).getAllByRole('treeitem')
+    const selectedTreeRow =
+      treeRows.find((row) => row.getAttribute('aria-selected') === 'true') ??
+      treeRows[0]
+    if (!selectedTreeRow) throw new Error('Expected at least one DOM tree row')
+    fireEvent.keyDown(selectedTreeRow, { key: 'F2' })
+    expect(within(selectedTreeRow).queryByRole('textbox')).toBeNull()
+    fireEvent.contextMenu(selectedTreeRow, { clientX: 12, clientY: 12 })
+    expect(screen.queryByRole('menu')).toBeNull()
+
+    const beforeNodeIds = Object.keys(useEditorStore.getState().site?.pages[0]?.nodes ?? {})
+    fireEvent.keyDown(canvas, { key: 'Backspace' })
+    expect(Object.keys(useEditorStore.getState().site?.pages[0]?.nodes ?? {})).toEqual(beforeNodeIds)
+
+    fireEvent.keyDown(document, { key: 'E', ctrlKey: true, shiftKey: true })
+    expect(useEditorStore.getState().siteExplorerPanelOpen).toBe(false)
+  })
+
   it('does not render the deferred timeline shell or rail button', () => {
     renderEditorLayout()
 

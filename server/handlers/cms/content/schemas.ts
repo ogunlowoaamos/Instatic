@@ -54,9 +54,5 @@ export const EntryCollectionBodySchema = Type.Object({
   collectionId: Type.String(),
 })
 
-export type CollectionCreateBody = Static<typeof CollectionCreateBodySchema>
 export type CollectionPatchBody = Static<typeof CollectionPatchBodySchema>
 export type EntryUpsertBody = Static<typeof EntryUpsertBodySchema>
-export type EntryStatusBody = Static<typeof EntryStatusBodySchema>
-export type EntryAuthorBody = Static<typeof EntryAuthorBodySchema>
-export type EntryCollectionBody = Static<typeof EntryCollectionBodySchema>

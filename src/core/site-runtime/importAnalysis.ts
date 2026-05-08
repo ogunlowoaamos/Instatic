@@ -253,7 +253,7 @@ export function packageNameFromImportSpecifier(specifier: string): string | null
   return parts[0] ?? null
 }
 
-export function isNodeBuiltinImportSpecifier(specifier: string): boolean {
+function isNodeBuiltinImportSpecifier(specifier: string): boolean {
   const withoutProtocol = specifier.startsWith('node:') ? specifier.slice('node:'.length) : specifier
   const packageName = packageNameFromImportSpecifier(withoutProtocol) ?? withoutProtocol
   return NODE_BUILTIN_PACKAGES.has(packageName)

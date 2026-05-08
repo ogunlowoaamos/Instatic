@@ -33,7 +33,7 @@ import { safeParseJson } from '@core/utils/jsonValidate'
 export const CLIPBOARD_STORAGE_KEY = 'pb-clipboard-v1'
 export const CLIPBOARD_VERSION = 2
 
-export const ClipboardPayloadSchema = Type.Object({
+const ClipboardPayloadSchema = Type.Object({
   version: Type.Literal(CLIPBOARD_VERSION),
   /**
    * Ordered root node ids INSIDE `nodes`. A single-node copy uses a 1-length

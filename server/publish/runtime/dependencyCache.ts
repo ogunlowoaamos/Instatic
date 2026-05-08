@@ -47,14 +47,14 @@ const INSTALL_SENTINEL_FILE = '.pb-install-complete'
  * to exhaust install capacity. The cap is generous for legitimate sites
  * (sites typically use 1–20 runtime packages).
  */
-export const DEFAULT_MAX_RUNTIME_PACKAGES = 100
+const DEFAULT_MAX_RUNTIME_PACKAGES = 100
 
 /**
  * Hard upper bound on the time a single `bun install` invocation may run.
  * Without this, a stuck registry lookup or hung child process pins the request
  * and ties up server capacity indefinitely.
  */
-export const DEFAULT_INSTALL_TIMEOUT_MS = 60_000
+const DEFAULT_INSTALL_TIMEOUT_MS = 60_000
 
 function sortedExactDependencies(lock: SiteDependencyLock): Record<string, string> {
   return Object.fromEntries(

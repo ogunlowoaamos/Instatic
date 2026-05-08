@@ -39,7 +39,7 @@ const DEFAULT_COLOR_VARIANTS: ColorVariantOptions = { enabled: true, count: 4 }
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-export function ensureFrameworkColors(
+function ensureFrameworkColors(
   site: SiteDocument,
 ): NonNullable<SiteSettings['framework']>['colors'] {
   if (!site.settings.framework) {

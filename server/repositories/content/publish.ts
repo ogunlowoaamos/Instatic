@@ -13,26 +13,109 @@
  */
 import { nanoid } from 'nanoid'
 import type { DbClient } from '../../db/client'
-import type { ContentEntry } from '@core/content/schemas'
+import type {
+  ContentEntry,
+  ContentEntryRedirect,
+  ContentEntryVersion,
+  PublishedContentEntry,
+} from '@core/content/schemas'
 import { normalizeRouteBase } from '@core/templates/templateMatching'
-import {
-  mapPublishedEntry,
-  mapRedirect,
-  publicContentPath,
-  type ContentEntryRedirect,
-  type ContentEntryRedirectRow,
-  type ContentEntryVersion,
-  type PreviousPublishedRouteRow,
-  type PublishedContentEntry,
-  type PublishedContentEntryRow,
-} from './rowMapping'
 import { getContentEntry } from './entries'
 
-export type { PublishedContentEntry, ContentEntryRedirect } from './rowMapping'
+interface PublishedContentEntryRow {
+  id: string
+  entry_id: string
+  collection_id: string
+  collection_slug: string
+  collection_route_base: string
+  version_number: number
+  title: string
+  slug: string
+  body_markdown: string
+  featured_media_id: string | null
+  // Optional rather than `string | null` because joined / nullable columns
+  // are missing entirely when test fakes only populate the keys a given
+  // test cares about. The mapper coerces undefined → null at the boundary.
+  featured_media_path?: string | null
+  seo_title: string
+  seo_description: string
+  author_user_id?: string | null
+  author_display_name?: string | null
+  author_role_slug?: string | null
+  author_role_name?: string | null
+  published_by_user_id?: string | null
+  published_by_display_name?: string | null
+  published_by_role_slug?: string | null
+  published_by_role_name?: string | null
+  /** Date in test fakes, ISO string in production. */
+  published_at: string | Date
+  created_at: string | Date
+}
+
+interface PreviousPublishedRouteRow {
+  previous_slug: string
+  previous_route_base: string
+}
+
+interface ContentEntryRedirectRow {
+  id: string
+  from_route_base: string
+  from_slug: string
+  target_route_base: string
+  target_slug: string
+}
 
 interface PublishContentEntryResult {
   entry: ContentEntry
   version: ContentEntryVersion
+}
+
+const toIso = (value: string | Date): string =>
+  typeof value === 'string' ? value : value.toISOString()
+
+function publicContentPath(routeBase: string, slug: string): string {
+  const normalizedBase = normalizeRouteBase(routeBase)
+  return `${normalizedBase === '/' ? '' : normalizedBase}/${slug}`
+}
+
+function mapPublishedEntry(row: PublishedContentEntryRow): PublishedContentEntry {
+  const publishedAt = toIso(row.published_at)
+  // `?? null` collapses both null and the undefined that test fakes hand back
+  // when they only populate the columns a given test cares about.
+  return {
+    id: row.id,
+    entryId: row.entry_id,
+    collectionId: row.collection_id,
+    collectionSlug: row.collection_slug,
+    collectionRouteBase: row.collection_route_base
+      ? normalizeRouteBase(row.collection_route_base)
+      : normalizeRouteBase(row.collection_slug),
+    versionNumber: Number(row.version_number),
+    title: row.title,
+    slug: row.slug,
+    bodyMarkdown: row.body_markdown,
+    featuredMediaId: row.featured_media_id ?? null,
+    featuredMediaPath: row.featured_media_path ?? null,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
+    authorUserId: row.author_user_id ?? null,
+    authorName: row.author_display_name ?? null,
+    authorRoleSlug: row.author_role_slug ?? null,
+    authorRoleName: row.author_role_name ?? null,
+    publishedByUserId: row.published_by_user_id ?? null,
+    publishedByName: row.published_by_display_name ?? null,
+    publishedByRoleSlug: row.published_by_role_slug ?? null,
+    publishedByRoleName: row.published_by_role_name ?? null,
+    publishedAt,
+    createdAt: toIso(row.created_at),
+  }
+}
+
+function mapRedirect(row: ContentEntryRedirectRow): ContentEntryRedirect | null {
+  const fromPath = publicContentPath(row.from_route_base, row.from_slug)
+  const targetPath = publicContentPath(row.target_route_base, row.target_slug)
+  if (fromPath === targetPath) return null
+  return { id: row.id, fromPath, targetPath }
 }
 
 export async function publishContentEntry(
@@ -109,14 +192,23 @@ export async function publishContentEntry(
     const publishedEntry = await getContentEntry(tx, entry.id)
     if (!publishedEntry) throw new Error('content entry could not be re-read after publish')
 
+    const publishedAt = publishedEntry.publishedAt ?? new Date().toISOString()
     return {
       entry: publishedEntry,
-      version: buildVersionRecord({
-        versionId,
+      version: {
+        id: versionId,
+        entryId: publishedEntry.id,
         versionNumber,
-        publisherUserId,
-        entry: publishedEntry,
-      }),
+        title: publishedEntry.title,
+        slug: publishedEntry.slug,
+        bodyMarkdown: publishedEntry.bodyMarkdown,
+        featuredMediaId: publishedEntry.featuredMediaId,
+        seoTitle: publishedEntry.seoTitle,
+        seoDescription: publishedEntry.seoDescription,
+        publishedByUserId: publisherUserId,
+        publishedAt,
+        createdAt: publishedAt,
+      },
     }
   })
 }
@@ -154,29 +246,6 @@ function previousRouteChanged(previous: PreviousPublishedRouteRow, currentSlug: 
     publicContentPath(previous.previous_route_base, previous.previous_slug) !==
       publicContentPath(previous.previous_route_base, currentSlug)
   )
-}
-
-function buildVersionRecord(args: {
-  versionId: string
-  versionNumber: number
-  publisherUserId: string
-  entry: ContentEntry
-}): ContentEntryVersion {
-  const publishedAt = args.entry.publishedAt ?? new Date().toISOString()
-  return {
-    id: args.versionId,
-    entryId: args.entry.id,
-    versionNumber: args.versionNumber,
-    title: args.entry.title,
-    slug: args.entry.slug,
-    bodyMarkdown: args.entry.bodyMarkdown,
-    featuredMediaId: args.entry.featuredMediaId,
-    seoTitle: args.entry.seoTitle,
-    seoDescription: args.entry.seoDescription,
-    publishedByUserId: args.publisherUserId,
-    publishedAt,
-    createdAt: publishedAt,
-  }
 }
 
 export async function getPublishedContentEntryByRoute(

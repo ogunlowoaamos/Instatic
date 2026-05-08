@@ -49,7 +49,7 @@ export interface BuildSiteRuntimeScriptsInput {
  * Pathological imports or very large script trees should fail fast rather
  * than tying up server capacity indefinitely.
  */
-export const DEFAULT_BUNDLE_TIMEOUT_MS = 30_000
+const DEFAULT_BUNDLE_TIMEOUT_MS = 30_000
 
 function toPosixPath(path: string): string {
   return path.split(sep).join('/')

@@ -193,12 +193,10 @@ function makeFakeDb() {
       if (session) session.revoked_at = new Date().toISOString()
       return { rows: [], rowCount: session ? 1 : 0 }
     }
-    if (normalized.includes('update users') && normalized.includes('last_login_at')) {
-      const user = users.find((candidate) => candidate.id === values[0])
-      if (user) user.last_login_at = new Date().toISOString()
-      return { rows: [], rowCount: user ? 1 : 0 }
-    }
-    if (normalized.includes('update users') && normalized.includes('role_id')) {
+    // The full updateUser path (`set email, ..., role_id, updated_at`) must
+    // be matched BEFORE the `last_login_at` matcher because the RETURNING
+    // clause of this SQL also mentions `last_login_at`.
+    if (normalized.includes('update users') && normalized.includes('set email =')) {
       const userId = values[6]
       const user = users.find((candidate) => candidate.id === userId && candidate.deleted_at == null)
       if (!user) return { rows: [], rowCount: 0 }
@@ -212,6 +210,17 @@ function makeFakeDb() {
         updated_at: new Date().toISOString(),
       })
       return { rows: [user as Row], rowCount: 1 }
+    }
+    if (normalized.includes('update users') && normalized.includes('set deleted_at')) {
+      const user = users.find((candidate) => candidate.id === values[0] && candidate.deleted_at == null)
+      if (!user) return { rows: [], rowCount: 0 }
+      user.deleted_at = new Date().toISOString()
+      return { rows: [], rowCount: 1 }
+    }
+    if (normalized.includes('update users') && normalized.includes('last_login_at')) {
+      const user = users.find((candidate) => candidate.id === values[0])
+      if (user) user.last_login_at = new Date().toISOString()
+      return { rows: [], rowCount: user ? 1 : 0 }
     }
     if (normalized.includes('insert into audit_events')) {
       auditEvents.push({
@@ -433,6 +442,98 @@ describe('CMS handlers', () => {
     const selfDemoteRes = await handleCmsRequest(selfDemoteReq, db)
     expect(selfDemoteRes.status).toBe(409)
     expect(await json(selfDemoteRes)).toEqual({ error: 'Owner cannot change their own role' })
+  })
+
+  it('prevents a non-owner admin from mutating the Owner row (password / email / delete)', async () => {
+    // Regression test for F-0001: any actor with `users.manage` (admin role)
+    // must NOT be able to PATCH the Owner row's password (Owner-takeover
+    // primitive) or DELETE it. Only the Owner themself may mutate the Owner
+    // row.
+    const db = makeFakeDb()
+    await handleCmsRequest(new Request('http://localhost/admin/api/cms/setup', {
+      method: 'POST',
+      body: JSON.stringify({ siteName: 'Example', email: 'real-owner@example.com', password: 'long-enough-password' }),
+      headers: { 'content-type': 'application/json' },
+    }), db)
+    const ownerLogin = await handleCmsRequest(new Request('http://localhost/admin/api/cms/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'real-owner@example.com', password: 'long-enough-password' }),
+      headers: { 'content-type': 'application/json' },
+    }), db)
+    const ownerCookie = (ownerLogin.headers.get('set-cookie') ?? '').split(';')[0]
+
+    // Owner creates an admin co-worker.
+    const createAdminReq = new Request('http://localhost/admin/api/cms/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'rogue-admin@example.com',
+        displayName: 'Rogue Admin',
+        password: 'rogue-admin-password',
+        roleId: 'admin',
+      }),
+      headers: { 'content-type': 'application/json' },
+    })
+    createAdminReq.headers.set('cookie', ownerCookie)
+    const createAdminRes = await handleCmsRequest(createAdminReq, db)
+    expect(createAdminRes.status).toBe(201)
+
+    const adminLogin = await handleCmsRequest(new Request('http://localhost/admin/api/cms/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'rogue-admin@example.com', password: 'rogue-admin-password' }),
+      headers: { 'content-type': 'application/json' },
+    }), db)
+    const adminCookie = (adminLogin.headers.get('set-cookie') ?? '').split(';')[0]
+
+    const ownerId = String(db.users.find((user) => user.role_id === 'owner')?.id)
+    const ownerHashBefore = db.users.find((user) => user.role_id === 'owner')?.password_hash
+
+    // Admin tries to overwrite the Owner's password — must be rejected with 403.
+    const passwordPatchReq = new Request(`http://localhost/admin/api/cms/users/${ownerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password: 'attacker-chosen-password' }),
+      headers: { 'content-type': 'application/json' },
+    })
+    passwordPatchReq.headers.set('cookie', adminCookie)
+    const passwordPatchRes = await handleCmsRequest(passwordPatchReq, db)
+    expect(passwordPatchRes.status).toBe(403)
+    expect(await json(passwordPatchRes)).toEqual({ error: 'Only the owner can modify the owner account' })
+
+    // Owner's password_hash must not have been touched.
+    expect(db.users.find((user) => user.role_id === 'owner')?.password_hash).toBe(ownerHashBefore)
+
+    // Admin tries to rewrite the Owner's email — also rejected.
+    const emailPatchReq = new Request(`http://localhost/admin/api/cms/users/${ownerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ email: 'hijacked@example.com' }),
+      headers: { 'content-type': 'application/json' },
+    })
+    emailPatchReq.headers.set('cookie', adminCookie)
+    const emailPatchRes = await handleCmsRequest(emailPatchReq, db)
+    expect(emailPatchRes.status).toBe(403)
+    expect(db.users.find((user) => user.role_id === 'owner')?.email).toBe('real-owner@example.com')
+
+    // Admin tries to delete the Owner — also rejected with 403, NOT the
+    // "last active owner" 409 (we want the row-level guard to fire first
+    // so the surface stays closed even if multi-owner is added later).
+    const deleteReq = new Request(`http://localhost/admin/api/cms/users/${ownerId}`, {
+      method: 'DELETE',
+    })
+    deleteReq.headers.set('cookie', adminCookie)
+    const deleteRes = await handleCmsRequest(deleteReq, db)
+    expect(deleteRes.status).toBe(403)
+    expect(await json(deleteRes)).toEqual({ error: 'Only the owner can delete the owner account' })
+    expect(db.users.find((user) => user.role_id === 'owner')?.deleted_at).toBeNull()
+
+    // The Owner themself may still update their own row (e.g. rotate
+    // password) — sanity check we didn't over-rotate.
+    const selfPatchReq = new Request(`http://localhost/admin/api/cms/users/${ownerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password: 'owner-rotated-password' }),
+      headers: { 'content-type': 'application/json' },
+    })
+    selfPatchReq.headers.set('cookie', ownerCookie)
+    const selfPatchRes = await handleCmsRequest(selfPatchReq, db)
+    expect(selfPatchRes.status).toBe(200)
   })
 
   // ─── Secure cookie flag ─────────────────────────────────────────────────

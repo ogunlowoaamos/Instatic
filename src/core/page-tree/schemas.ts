@@ -29,7 +29,7 @@ import { SiteFontsSettingsSchema, parseSiteFontsSettings } from '../fonts/schema
 // Breakpoint
 // ---------------------------------------------------------------------------
 
-export const BreakpointSchema = Type.Object({
+const BreakpointSchema = Type.Object({
   id: Type.String(),
   /** Display label e.g. "Mobile", "Tablet", "Desktop" */
   label: Type.String(),
@@ -58,21 +58,21 @@ export type Breakpoint = Static<typeof BreakpointSchema>
  *   single-entry template, this lets a node refer to the outer template
  *   entry (e.g. "Related to {parentEntry.title}").
  */
-export const DynamicBindingSourceSchema = Type.Union([
+const DynamicBindingSourceSchema = Type.Union([
   Type.Literal('currentEntry'),
   Type.Literal('parentEntry'),
 ])
-export type DynamicBindingSource = Static<typeof DynamicBindingSourceSchema>
+type DynamicBindingSource = Static<typeof DynamicBindingSourceSchema>
 
-export const DynamicBindingFormatSchema = Type.Union([
+const DynamicBindingFormatSchema = Type.Union([
   Type.Literal('plain'),
   Type.Literal('html'),
   Type.Literal('url'),
   Type.Literal('media'),
 ])
-export type DynamicBindingFormat = Static<typeof DynamicBindingFormatSchema>
+type DynamicBindingFormat = Static<typeof DynamicBindingFormatSchema>
 
-export const DynamicPropBindingSchema = Type.Object({
+const DynamicPropBindingSchema = Type.Object({
   source: DynamicBindingSourceSchema,
   field: Type.String({ minLength: 1 }),
   /** Valid format tag; silently dropped if unrecognised or absent — handled in parseDynamicPropBinding. */
@@ -87,19 +87,18 @@ export type DynamicPropBinding = Static<typeof DynamicPropBindingSchema>
 // Page template configuration
 // ---------------------------------------------------------------------------
 
-export const TemplateContextSchema = Type.Literal('entry')
-export type TemplateContext = Static<typeof TemplateContextSchema>
+const TemplateContextSchema = Type.Literal('entry')
 
-export const TemplateConditionSchema = Type.Object({
+const TemplateConditionSchema = Type.Object({
   id: Type.String(),
   field: Type.String(),
   operator: Type.Literal('equals'),
   value: Type.String(),
 })
 
-export type TemplateCondition = Static<typeof TemplateConditionSchema>
+type TemplateCondition = Static<typeof TemplateConditionSchema>
 
-export const PageTemplateConfigSchema = Type.Object({
+const PageTemplateConfigSchema = Type.Object({
   enabled: Type.Literal(true),
   context: TemplateContextSchema,
   collectionId: Type.String({ minLength: 1 }),
@@ -212,7 +211,7 @@ export const DEFAULT_BREAKPOINTS: Breakpoint[] = [
 //     coercing bad values here would be redundant and misleading.
 // ---------------------------------------------------------------------------
 
-export const CSSPropertyBagSchema = Type.Object({
+const CSSPropertyBagSchema = Type.Object({
   // Typography
   fontFamily: Type.Optional(Type.String()),
   fontSize: Type.Optional(Type.String()),
@@ -429,7 +428,7 @@ export type CSSClass = Static<typeof CSSClassSchema>
  * For tolerant parsing (with fallbacks for invalid sub-fields), use
  * `parseSiteSettings` instead of `parseValue(SiteSettingsSchema, raw)`.
  */
-export const SiteSettingsSchema = Type.Object({
+const SiteSettingsSchema = Type.Object({
   metaTitle: Type.Optional(Type.String()),
   metaDescription: Type.Optional(Type.String()),
   faviconUrl: Type.Optional(Type.String()),
@@ -475,7 +474,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
  *   files — invalid entries are silently dropped
  *   visualComponents — invalid entries are silently dropped
  */
-export const SiteDocumentSchema = Type.Object({
+const SiteDocumentSchema = Type.Object({
   id: Type.String(),
   name: Type.String(),
   /** At least one page is required */

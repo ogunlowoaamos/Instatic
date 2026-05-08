@@ -36,7 +36,7 @@ import type { VisualComponent } from './schemas'
  *
  * Returns an empty array when the VC has no slot-outlets.
  */
-export function extractSlotNamesFromVCTree(vc: VisualComponent): string[] {
+function extractSlotNamesFromVCTree(vc: VisualComponent): string[] {
   const result: string[] = []
   const seen = new Set<string>()
   const stack: string[] = [vc.tree.rootNodeId]

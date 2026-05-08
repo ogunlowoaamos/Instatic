@@ -274,6 +274,16 @@ export interface SiteSliceHelpers {
    */
   mutateActiveTree: (fn: (tree: NodeTree<PageNode>) => void) => void
 
+  /**
+   * Mutate the active node tree AND the surrounding site — auto-snapshots
+   * history first. Same active-document routing as `mutateActiveTree`, plus
+   * a `SiteDocument` draft so callers can also mutate site-level state
+   * (e.g. `site.classes` for scoped-class cloning) in one atomic recipe.
+   */
+  mutateActiveTreeAndSite: (
+    fn: (tree: NodeTree<PageNode>, site: SiteDocument) => void,
+  ) => void
+
   /** Mutate the site — auto-snapshots history first. */
   mutateSite: (fn: (site: SiteDocument) => void) => void
 }

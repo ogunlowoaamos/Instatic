@@ -53,7 +53,7 @@ export type CmsSetupStatus = Static<typeof CmsSetupStatusSchema>
 // cmsMedia.ts
 // ---------------------------------------------------------------------------
 
-export const CmsMediaAssetSchema = Type.Object({
+const CmsMediaAssetSchema = Type.Object({
   id: Type.String(),
   filename: Type.String(),
   mimeType: Type.String(),
@@ -125,7 +125,7 @@ export const CmsSiteEnvelopeSchema = Type.Object(
 // fonts API — bundled Google directory + install/uninstall envelopes
 // ---------------------------------------------------------------------------
 
-export const GoogleFontFamilySchema = Type.Object({
+const GoogleFontFamilySchema = Type.Object({
   family: Type.String(),
   category: Type.String(),
   subsets: Type.Array(Type.String()),

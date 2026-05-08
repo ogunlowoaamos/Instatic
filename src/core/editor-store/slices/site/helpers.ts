@@ -30,7 +30,7 @@ import type { SiteSliceHelpers, SiteSliceImmerRecipe } from './types'
  *
  * MUST be called inside an Immer producer (operates on draft state).
  */
-export function reconcileVCRefsForVc(
+function reconcileVCRefsForVc(
   state: { site: SiteDocument | null },
   vcId: string,
 ): void {
@@ -188,5 +188,44 @@ export function buildSiteHelpers(
     })
   }
 
-  return { set, get, pushHistory, mutatePage, mutateActiveTree, mutateSite }
+  /**
+   * Mutate the active node tree AND the surrounding site — auto-snapshots
+   * history first. Same active-document routing as `mutateActiveTree`, but
+   * also hands the recipe a `SiteDocument` draft so it can read or write
+   * site-level state alongside the tree mutation in one transaction.
+   *
+   * Used by duplicate operations that must clone scoped classes (which live
+   * on `site.classes`) atomically with the node duplication. Without this
+   * the duplicate's `classIds` would point at the source's scoped classes,
+   * silently coupling per-node CSS across both nodes.
+   */
+  function mutateActiveTreeAndSite(
+    fn: (tree: NodeTree<PageNode>, site: SiteDocument) => void,
+  ): void {
+    pushHistory()
+    set((state) => {
+      if (!state.site) return
+      const { activeDocument } = state
+
+      if (activeDocument?.kind === 'visualComponent') {
+        const vc = state.site.visualComponents.find((v) => v.id === activeDocument.vcId)
+        if (!vc) return
+        fn(vc.tree as NodeTree<PageNode>, state.site)
+        state.site.updatedAt = Date.now()
+        state.hasUnsavedChanges = true
+        // Mirror mutateActiveTree's slot-outlet propagation contract.
+        reconcileVCRefsForVc(state, vc.id)
+        return
+      }
+
+      const pageId = activeDocument?.kind === 'page' ? activeDocument.pageId : state.activePageId
+      const page = state.site.pages.find((p) => p.id === pageId)
+      if (!page) return
+      fn(page, state.site)
+      state.site.updatedAt = Date.now()
+      state.hasUnsavedChanges = true
+    })
+  }
+
+  return { set, get, pushHistory, mutatePage, mutateActiveTree, mutateActiveTreeAndSite, mutateSite }
 }

@@ -1,15 +1,16 @@
 /**
  * Public surface of the content repository.
  *
- * The repository is split into three modules by responsibility:
+ * Split into three modules by responsibility:
  *
  *   collections.ts — content_collections CRUD
  *   entries.ts     — content_entries CRUD (drafts, status, author, move, delete)
  *   publish.ts     — content_entry_versions + redirects + public-route lookups
  *
- * Common row mappers, shared types, and tiny utilities live in `rowMapping.ts`.
- * Importers should keep using `import { ... } from '<path>/repositories/content'`
- * — this barrel re-exports everything they need.
+ * Domain types (`ContentEntry`, `ContentCollection`, `PublishedContentEntry`,
+ * `ContentEntryRedirect`, `ContentEntryVersion`, `ContentUserReference`)
+ * are TypeBox schemas in `@core/content/schemas` — import them from there.
+ * Row shapes and mappers stay co-located with the queries that produce them.
  */
 export {
   listContentCollections,
@@ -34,5 +35,4 @@ export {
   publishContentEntry,
   getPublishedContentEntryByRoute,
   getContentEntryRedirectByRoute,
-  type PublishedContentEntry,
 } from './publish'

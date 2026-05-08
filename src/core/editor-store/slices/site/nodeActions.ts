@@ -10,9 +10,11 @@
  * `src/__tests__/architecture/no-vc-mode-branches-in-mutations.test.ts`.
  */
 
+import { nanoid } from 'nanoid'
 import { registry } from '@core/module-engine/registry'
 import { wouldCreateCycle } from '@core/visualComponents/recursionGuard'
 import {
+  cloneScopedClassesForNodeMap,
   createNode,
   insertNode,
   deleteNode,
@@ -28,6 +30,7 @@ import {
   wrapNode,
   wrapNodes,
 } from '@core/page-tree'
+import type { NodeTree, PageNode, SiteDocument } from '@core/page-tree'
 import { syncSlotInstances, applySlotSyncResult } from '@core/visualComponents/slotSync'
 import { depthInTree } from './helpers'
 import type { SiteSlice, SiteSliceHelpers } from './types'
@@ -54,8 +57,53 @@ export type NodeActions = Pick<
   | 'clearNodeDynamicBinding'
 >
 
+/**
+ * Build the oldId → newId map for the entire subtree rooted at `nodeId`.
+ * Pre-computed so callers can clone scoped classes (which key on
+ * `scope.nodeId`) against the same id remap that the duplicate mutation will
+ * apply to the nodes themselves.
+ */
+function buildSubtreeIdMap(
+  tree: NodeTree<PageNode>,
+  nodeId: string,
+): Map<string, string> {
+  const idMap = new Map<string, string>()
+  const stack = [nodeId]
+  while (stack.length > 0) {
+    const id = stack.pop()!
+    if (idMap.has(id)) continue
+    const node = tree.nodes[id]
+    if (!node) continue
+    idMap.set(id, nanoid())
+    stack.push(...node.children)
+  }
+  return idMap
+}
+
+/**
+ * Duplicate a node subtree AND clone every per-node scoped class owned by the
+ * subtree. Mirrors the contract used by `clipboardSlice.pasteNode` and
+ * `visualComponentsSlice.clonePageSubtreeToFlatNodes` so the publisher can
+ * never end up with two nodes pointing at the same scoped class — see F-0005.
+ *
+ * Must run inside an Immer producer (mutates `tree` and `site` directly).
+ */
+function duplicateNodeWithScopedClasses(
+  tree: NodeTree<PageNode>,
+  site: SiteDocument,
+  nodeId: string,
+): string {
+  const nodeIdMap = buildSubtreeIdMap(tree, nodeId)
+  if (nodeIdMap.size === 0) return ''
+
+  const { added, classIdRemap } = cloneScopedClassesForNodeMap(nodeIdMap, site.classes)
+  for (const cls of added) site.classes[cls.id] = cls
+
+  return duplicateNode(tree, nodeId, { nodeIdMap, classIdRemap })
+}
+
 export function createNodeActions(helpers: SiteSliceHelpers): NodeActions {
-  const { get, set, mutatePage, mutateActiveTree } = helpers
+  const { get, set, mutatePage, mutateActiveTree, mutateActiveTreeAndSite } = helpers
 
   const actions: NodeActions = {
     insertNode: (moduleId, defaults, parentId, index) => {
@@ -161,20 +209,26 @@ export function createNodeActions(helpers: SiteSliceHelpers): NodeActions {
 
     duplicateNode: (nodeId) => {
       let newId = ''
-      mutateActiveTree((tree) => { newId = duplicateNode(tree, nodeId) })
+      // Per-node "module-style" classes (scope.type === 'node') must be cloned
+      // alongside the node — otherwise the duplicate's classIds carry the
+      // source's class id and editing one node restyles both. F-0005.
+      mutateActiveTreeAndSite((tree, site) => {
+        if (!tree.nodes[nodeId]) return
+        newId = duplicateNodeWithScopedClasses(tree, site, nodeId)
+      })
       return newId
     },
 
     duplicateNodes: (nodeIds) => {
       if (nodeIds.length === 0) return []
       const newIds: string[] = []
-      mutateActiveTree((tree) => {
+      mutateActiveTreeAndSite((tree, site) => {
         for (const id of nodeIds) {
           // Skip the root and any id missing from the tree — duplicateNode
           // throws on the root, and silently skipping orphans matches the
           // delete/move guards.
           if (!tree.nodes[id] || id === tree.rootNodeId) continue
-          newIds.push(duplicateNode(tree, id))
+          newIds.push(duplicateNodeWithScopedClasses(tree, site, id))
         }
       })
       return newIds

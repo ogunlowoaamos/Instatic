@@ -6,6 +6,7 @@ import { strToU8, zipSync } from 'fflate'
 import { SESSION_COOKIE_NAME, hashSessionToken } from '../../../server/auth/tokens'
 import type { DbClient, DbResult } from '../../../server/db'
 import { handleCmsRequest } from '../../../server/handlers/cms'
+import { assertPluginPathWithin } from '../../../server/plugins/runtime'
 
 function makeFakeDb() {
   const admins: Record<string, unknown>[] = [
@@ -285,6 +286,39 @@ describe('CMS plugin handlers', () => {
     expect(db.plugins).toHaveLength(0)
   })
 
+  it('strips caller-supplied assetBasePath from JSON-installed manifests (path-traversal sink)', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+
+    // Attacker-shaped manifest: assetBasePath escapes /uploads/plugins/
+    // via `..` segments. The JSON install path must drop the value before
+    // it is validated/stored — otherwise both filesystem sinks
+    // (loadServerPluginModule, removePluginAssets) would later compose
+    // an arbitrary path.
+    const attackerManifest = {
+      ...mapManifest,
+      id: 'atk.evil',
+      name: 'evil',
+      version: '1.0.0',
+      assetBasePath: '/uploads/plugins/../../etc',
+      entrypoints: { server: 'pwn.js' },
+    }
+
+    const res = await handleCmsRequest(
+      cmsRequest('http://localhost/admin/api/cms/plugins', {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ manifest: attackerManifest }),
+      }),
+      db,
+    )
+
+    expect(res.status).toBe(201)
+    const body = await res.json() as { plugin: { manifest: { assetBasePath?: unknown } } }
+    expect(body.plugin.manifest.assetBasePath).toBeUndefined()
+    expect(db.plugins).toHaveLength(1)
+  })
+
   it('rejects invalid plugin manifests before persistence', async () => {
     const db = makeFakeDb()
     const cookie = await createCookie(db)
@@ -539,6 +573,21 @@ describe('CMS plugin handlers', () => {
       delete (globalThis as typeof globalThis & { __cmsLifecycleEvents?: string[] }).__cmsLifecycleEvents
       await rm(uploadsDir, { recursive: true, force: true })
     }
+  })
+
+  it('assertPluginPathWithin rejects paths that escape the uploads root', () => {
+    const root = '/srv/uploads'
+    // Same root and a child below the root → ok.
+    expect(() => assertPluginPathWithin(root, '/srv/uploads/plugins/atk.evil/1.0.0/x.js'))
+      .not.toThrow()
+    // path.join already normalised these, but we still re-check the resolved value.
+    expect(() => assertPluginPathWithin(root, '/srv/etc'))
+      .toThrow('escapes uploads root')
+    expect(() => assertPluginPathWithin(root, '/srv/uploads/../etc'))
+      .toThrow('escapes uploads root')
+    // The root itself is rejected — there is no legitimate plugin file at exactly the uploads root.
+    expect(() => assertPluginPathWithin(root, '/srv/uploads'))
+      .toThrow('escapes uploads root')
   })
 
   it('stores lifecycle errors for admin diagnostics without losing the plugin row', async () => {

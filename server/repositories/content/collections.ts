@@ -15,14 +15,7 @@ import type {
   ContentCollection,
   ContentCollectionFields,
 } from '@core/content/schemas'
-import { mapCollection, type ContentCollectionRow } from './rowMapping'
 
-/**
- * Repository-level inputs accept the same fields as the public schema, but
- * with `slug`, `singularLabel`, and `pluralLabel` required (the handlers
- * always derive them from `name` if missing) plus optional id and audit
- * columns.
- */
 interface CreateContentCollectionInput {
   id?: string
   name: string
@@ -43,6 +36,47 @@ interface UpdateContentCollectionInput {
   pluralLabel?: string
   fields?: ContentCollectionFields
   updatedByUserId?: string | null
+}
+
+interface ContentCollectionRow {
+  id: string
+  name: string
+  slug: string
+  route_base: string
+  singular_label: string
+  plural_label: string
+  fields_json?: unknown
+  created_by_user_id: string | null
+  updated_by_user_id: string | null
+  /**
+   * The PG adapter normalizes Date instances to ISO strings, and SQLite stores
+   * timestamps as ISO TEXT. Either way the value reaches us as a string in
+   * production. Test fakes, however, hand back raw Date objects, so the
+   * `Date | string` union here keeps the mapper honest across both paths.
+   */
+  created_at: string | Date
+  updated_at: string | Date
+}
+
+const toIso = (value: string | Date): string =>
+  typeof value === 'string' ? value : value.toISOString()
+
+function mapCollection(row: ContentCollectionRow): ContentCollection {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    routeBase: row.route_base ? normalizeRouteBase(row.route_base) : normalizeRouteBase(row.slug),
+    singularLabel: row.singular_label,
+    pluralLabel: row.plural_label,
+    fields: normalizeContentCollectionFields(row.fields_json),
+    // `?? null` collapses both null and the undefined that test fakes hand
+    // back when they only populate the columns a given test cares about.
+    createdByUserId: row.created_by_user_id ?? null,
+    updatedByUserId: row.updated_by_user_id ?? null,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  }
 }
 
 export async function listContentCollections(db: DbClient): Promise<ContentCollection[]> {

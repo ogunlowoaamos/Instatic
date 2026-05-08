@@ -38,7 +38,7 @@ interface LoopProps extends Record<string, unknown> {
   pageSize: number
 }
 
-export const LoopModule: ModuleDefinition<LoopProps> = {
+const LoopModule: ModuleDefinition<LoopProps> = {
   id: 'base.loop',
   name: 'Loop',
   description: 'Iterate a data source and repeat the child template per item.',

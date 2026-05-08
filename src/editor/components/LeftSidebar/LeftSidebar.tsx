@@ -31,14 +31,16 @@ function selectActiveLeftSidebarPanel(state: ReturnType<typeof useEditorStore.ge
 interface LeftSidebarProps {
   workspace?: 'site' | 'content'
   contentPanel?: ReactNode
+  editable?: boolean
 }
 
-export function LeftSidebar({ workspace = 'site', contentPanel }: LeftSidebarProps) {
+export function LeftSidebar({ workspace = 'site', contentPanel, editable = true }: LeftSidebarProps) {
   const sidebarRef = useRef<HTMLElement | null>(null)
   const activePanel = useEditorStore(selectActiveLeftSidebarPanel)
   const leftSidebarWidth = useEditorStore((s) => s.leftSidebarWidth)
   const setLeftSidebarWidth = useEditorStore((s) => s.setLeftSidebarWidth)
-  const panelWidth = activePanel ? leftSidebarWidth : 0
+  const effectiveActivePanel = editable ? activePanel : 'layers'
+  const panelWidth = effectiveActivePanel ? leftSidebarWidth : 0
 
   const style = {
     '--left-sidebar-panel-width': `${panelWidth}px`,
@@ -49,49 +51,53 @@ export function LeftSidebar({ workspace = 'site', contentPanel }: LeftSidebarPro
       ref={sidebarRef}
       className={styles.sidebar}
       data-testid="left-sidebar"
-      data-expanded={activePanel ? 'true' : 'false'}
-      data-active-panel={activePanel ?? 'none'}
+      data-expanded={effectiveActivePanel ? 'true' : 'false'}
+      data-active-panel={effectiveActivePanel ?? 'none'}
       style={style}
     >
-      <PanelRail workspace={workspace} />
+      <PanelRail workspace={workspace} editable={editable} />
 
       <FrameworkChangeConfirmProvider>
         <div
           className={styles.panelSlot}
           data-testid="left-sidebar-panel-slot"
-          aria-hidden={activePanel ? undefined : 'true'}
+          aria-hidden={effectiveActivePanel ? undefined : 'true'}
         >
-          <div className={styles.panelMount} hidden={activePanel !== 'layers'}>
-            <DomPanel variant="docked" />
+          <div className={styles.panelMount} hidden={effectiveActivePanel !== 'layers'}>
+            <DomPanel variant="docked" editable={editable} />
           </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'site'}>
-            {workspace === 'content' ? contentPanel : <SiteExplorerPanel variant="docked" />}
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'selectors'}>
-            <SelectorsPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'colors'}>
-            <ColorsPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'typography'}>
-            <TypographyPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'spacing'}>
-            <SpacingPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'media'}>
-            <MediaExplorerPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'dependencies'}>
-            <DependenciesPanel variant="docked" />
-          </div>
-          <div className={styles.panelMount} hidden={activePanel !== 'agent'}>
-            <AgentPanel variant="docked" />
-          </div>
+          {editable && (
+            <>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'site'}>
+                {workspace === 'content' ? contentPanel : <SiteExplorerPanel variant="docked" />}
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'selectors'}>
+                <SelectorsPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'colors'}>
+                <ColorsPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'typography'}>
+                <TypographyPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'spacing'}>
+                <SpacingPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'media'}>
+                <MediaExplorerPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'dependencies'}>
+                <DependenciesPanel variant="docked" />
+              </div>
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'agent'}>
+                <AgentPanel variant="docked" />
+              </div>
+            </>
+          )}
         </div>
       </FrameworkChangeConfirmProvider>
 
-      {activePanel && (
+      {effectiveActivePanel && (
         <SidebarResizeHandle
           side="left"
           width={leftSidebarWidth}

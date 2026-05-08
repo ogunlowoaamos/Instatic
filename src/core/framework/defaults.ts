@@ -96,14 +96,14 @@ export function buildDefaultSpacingGroup(order = 0): FrameworkSpacingGroup {
   }
 }
 
-export function buildDefaultTypographyClassGenerators(tabId: string): FrameworkTypographyClassGenerator[] {
+function buildDefaultTypographyClassGenerators(tabId: string): FrameworkTypographyClassGenerator[] {
   return [
     { id: nanoid(), tabId, name: 'text-*', property: ['font-size'] },
   ]
 }
 
 /** Verbatim from Core Framework SPACING_CALCULATOR_INITIAL_STATE.classes (sans the leading dot). */
-export function buildDefaultSpacingClassGenerators(tabId: string): FrameworkSpacingClassGenerator[] {
+function buildDefaultSpacingClassGenerators(tabId: string): FrameworkSpacingClassGenerator[] {
   const make = (name: string, property: string[]): FrameworkSpacingClassGenerator => ({
     id: nanoid(),
     tabId,

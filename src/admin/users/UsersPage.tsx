@@ -226,35 +226,48 @@ function metadataString(metadata: Record<string, unknown>, key: string): string 
   return typeof value === 'string' && value.trim() ? value : null
 }
 
+function auditUserLabel(
+  userId: string | null,
+  usersById: Map<string, CmsCurrentUser>,
+  fallback: string | null,
+): string | null {
+  if (!userId) return fallback
+  const user = usersById.get(userId)
+  return user ? displayUserName(user) : fallback ?? userId
+}
+
 function auditActor(event: CmsAuditEvent, usersById: Map<string, CmsCurrentUser>): string {
   if (!event.actorUserId) return 'by system'
-  const actor = usersById.get(event.actorUserId)
-  return `by ${actor ? displayUserName(actor) : event.actorUserId}`
+  return `by ${auditUserLabel(event.actorUserId, usersById, event.actorLabel)}`
 }
 
 function auditTargetUser(event: CmsAuditEvent, usersById: Map<string, CmsCurrentUser>): string {
-  const target = event.targetId ? usersById.get(event.targetId) : null
-  return target ? displayUserName(target) : event.targetId ?? 'Unknown user'
+  return auditUserLabel(event.targetId, usersById, event.targetLabel) ?? 'Unknown user'
 }
 
-function roleName(roleId: string | null, rolesById: Map<string, CmsRole>): string | null {
+function roleName(roleId: string | null, rolesById: Map<string, CmsRole>, fallback: string | null = null): string | null {
   if (!roleId) return null
-  return rolesById.get(roleId)?.name ?? roleId
+  return rolesById.get(roleId)?.name ?? fallback ?? roleId
+}
+
+function auditTargetRole(event: CmsAuditEvent, rolesById: Map<string, CmsRole>): string | null {
+  if (event.targetType !== 'role') return null
+  return roleName(event.targetId, rolesById, event.targetLabel ?? metadataString(event.metadata, 'name') ?? metadataString(event.metadata, 'slug'))
 }
 
 function auditTitle(event: CmsAuditEvent, usersById: Map<string, CmsCurrentUser>, rolesById: Map<string, CmsRole>): string {
   const targetUser = auditTargetUser(event, usersById)
-  const role = roleName(event.targetId, rolesById)
+  const role = auditTargetRole(event, rolesById)
   const email = metadataString(event.metadata, 'email')
   const pluginId = metadataString(event.metadata, 'pluginId') ?? event.targetId ?? 'Plugin'
 
   switch (event.action) {
     case 'login.success':
-      return `${event.actorUserId ? auditTargetUser({ ...event, targetId: event.actorUserId }, usersById) : email ?? 'User'} logged in`
+      return `${event.actorUserId ? auditUserLabel(event.actorUserId, usersById, event.actorLabel) : email ?? 'User'} logged in`
     case 'login.failure':
       return `Failed login for ${email ?? targetUser}`
     case 'logout':
-      return `${event.actorUserId ? auditTargetUser({ ...event, targetId: event.actorUserId }, usersById) : 'User'} logged out`
+      return `${event.actorUserId ? auditUserLabel(event.actorUserId, usersById, event.actorLabel) : 'User'} logged out`
     case 'user.create':
       return `${targetUser} was created`
     case 'user.update':
@@ -294,7 +307,7 @@ function auditDetails(event: CmsAuditEvent, rolesById: Map<string, CmsRole>): st
   const details: string[] = []
   const roleId = metadataString(event.metadata, 'roleId')
   const status = metadataString(event.metadata, 'status')
-  if (roleId) details.push(`Role: ${roleName(roleId, rolesById)}`)
+  if (roleId) details.push(`Role: ${roleName(roleId, rolesById, event.metadataLabels.roleId)}`)
   if (status) details.push(`Status: ${statusLabel(status as CmsCurrentUser['status'])}`)
   if (event.ipAddress && event.ipAddress !== 'unknown') details.push(`IP: ${event.ipAddress}`)
   return details
