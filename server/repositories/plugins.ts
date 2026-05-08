@@ -5,6 +5,7 @@ import type {
   PluginPermission,
   PluginRecord,
 } from '@core/plugin-sdk'
+import { pluginSettingsDefaults } from '@core/plugin-sdk'
 import { parsePluginManifest } from '@core/plugins/manifest'
 import type { DbClient } from '../db/client'
 
@@ -17,6 +18,7 @@ interface InstalledPluginRow {
   last_error?: string | null
   granted_permissions_json?: unknown
   manifest_json: unknown
+  settings_json?: unknown
   installed_at: Date | string
   updated_at: Date | string
 }
@@ -55,6 +57,8 @@ function mapInstalledPlugin(row: InstalledPluginRow): InstalledPlugin {
   const manifest = parsePluginManifest(readManifestJson(row.manifest_json))
   const grantedPermissions = readManifestJson(row.granted_permissions_json)
   const lifecycleStatus = readLifecycleStatus(row.lifecycle_status, Boolean(row.enabled))
+  const storedSettings = readManifestJson(row.settings_json)
+  const settings = mergeSettingsWithDefaults(manifest, storedSettings)
   return {
     id: row.id,
     name: row.name,
@@ -66,9 +70,35 @@ function mapInstalledPlugin(row: InstalledPluginRow): InstalledPlugin {
       ? grantedPermissions as PluginPermission[]
       : manifest.grantedPermissions ?? [],
     manifest,
+    settings,
     installedAt: toIsoString(row.installed_at),
     updatedAt: toIsoString(row.updated_at),
   }
+}
+
+/**
+ * Merge stored values with the manifest's declared defaults. Ensures every
+ * declared setting key has a value (defaults populated on read), and drops
+ * stored keys that the current manifest doesn't declare (cleans up orphans
+ * after a plugin update removes a setting).
+ */
+function mergeSettingsWithDefaults(
+  manifest: PluginManifest,
+  stored: unknown,
+): Record<string, string | number | boolean> {
+  const declared = manifest.settings ?? []
+  const defaults = pluginSettingsDefaults(declared as Parameters<typeof pluginSettingsDefaults>[0])
+  const out: Record<string, string | number | boolean> = { ...defaults }
+  if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+    const declaredIds = new Set(declared.map((s) => s.id))
+    for (const [key, value] of Object.entries(stored as Record<string, unknown>)) {
+      if (!declaredIds.has(key)) continue
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        out[key] = value
+      }
+    }
+  }
+  return out
 }
 
 function readLifecycleStatus(value: unknown, enabled: boolean): PluginLifecycleStatus {
@@ -97,7 +127,7 @@ function mapPluginRecord(row: PluginRecordRow): PluginRecord {
 export async function listInstalledPlugins(db: DbClient): Promise<InstalledPlugin[]> {
   const { rows } = await db<InstalledPluginRow>`
     select id, name, version, enabled, lifecycle_status, last_error,
-           granted_permissions_json, manifest_json, installed_at, updated_at
+           granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
     from installed_plugins
     order by installed_at desc
   `
@@ -107,7 +137,7 @@ export async function listInstalledPlugins(db: DbClient): Promise<InstalledPlugi
 export async function getInstalledPlugin(db: DbClient, id: string): Promise<InstalledPlugin | null> {
   const { rows } = await db<InstalledPluginRow>`
     select id, name, version, enabled, lifecycle_status, last_error,
-           granted_permissions_json, manifest_json, installed_at, updated_at
+           granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
     from installed_plugins
     where id = ${id}
   `
@@ -120,9 +150,14 @@ export async function installPlugin(
   grantedPermissions: PluginPermission[] = manifest.grantedPermissions ?? [],
 ): Promise<InstalledPlugin> {
   const manifestToStore = { ...manifest, grantedPermissions }
+  // Seed settings with the manifest's declared defaults so plugins reading
+  // their own settings on first activate see a complete record.
+  const initialSettings = pluginSettingsDefaults(
+    (manifest.settings ?? []) as Parameters<typeof pluginSettingsDefaults>[0],
+  )
   const { rows } = await db<InstalledPluginRow>`
-    insert into installed_plugins (id, name, version, manifest_json, granted_permissions_json, enabled, lifecycle_status, last_error)
-    values (${manifest.id}, ${manifest.name}, ${manifest.version}, ${writeJson(manifestToStore)}, ${writeJson(grantedPermissions)}, true, 'installed', null)
+    insert into installed_plugins (id, name, version, manifest_json, granted_permissions_json, settings_json, enabled, lifecycle_status, last_error)
+    values (${manifest.id}, ${manifest.name}, ${manifest.version}, ${writeJson(manifestToStore)}, ${writeJson(grantedPermissions)}, ${writeJson(initialSettings)}, true, 'installed', null)
     on conflict (id) do update
       set name = excluded.name,
           version = excluded.version,
@@ -133,7 +168,7 @@ export async function installPlugin(
           last_error = null,
           updated_at = current_timestamp
     returning id, name, version, enabled, lifecycle_status, last_error,
-              granted_permissions_json, manifest_json, installed_at, updated_at
+              granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
   `
   return mapInstalledPlugin(rows[0])
 }
@@ -147,7 +182,7 @@ export async function setPluginEnabled(
     update installed_plugins set enabled = ${enabled}, updated_at = current_timestamp
     where id = ${id}
     returning id, name, version, enabled, lifecycle_status, last_error,
-              granted_permissions_json, manifest_json, installed_at, updated_at
+              granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
   `
   return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
@@ -162,7 +197,7 @@ export async function setPluginLifecycleStatus(
     update installed_plugins set lifecycle_status = ${lifecycleStatus}, last_error = ${lastError}, updated_at = current_timestamp
     where id = ${id}
     returning id, name, version, enabled, lifecycle_status, last_error,
-              granted_permissions_json, manifest_json, installed_at, updated_at
+              granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
   `
   return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
@@ -170,6 +205,22 @@ export async function setPluginLifecycleStatus(
 export async function deletePlugin(db: DbClient, id: string): Promise<boolean> {
   const { rowCount } = await db`delete from installed_plugins where id = ${id}`
   return rowCount > 0
+}
+
+export async function setPluginSettings(
+  db: DbClient,
+  id: string,
+  settings: Record<string, string | number | boolean>,
+): Promise<InstalledPlugin | null> {
+  const { rows } = await db<InstalledPluginRow>`
+    update installed_plugins
+       set settings_json = ${writeJson(settings)},
+           updated_at = current_timestamp
+     where id = ${id}
+    returning id, name, version, enabled, lifecycle_status, last_error,
+              granted_permissions_json, manifest_json, settings_json, installed_at, updated_at
+  `
+  return rows[0] ? mapInstalledPlugin(rows[0]) : null
 }
 
 export async function listPluginRecords(

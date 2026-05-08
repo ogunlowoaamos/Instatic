@@ -149,6 +149,30 @@ export interface PluginManifest {
   adminPages: PluginAdminPage[]
   /** Optional Visual Component / template / class pack. */
   pack?: PluginPackManifest
+  /**
+   * Declarative settings — the host renders a form for them and persists
+   * the user's values in `installed_plugins.settings_json`. Plugin reads
+   * values via `api.cms.settings.*`. The full setting definitions live
+   * in `src/core/plugin-sdk/builders/settings.ts`; we keep the type here
+   * loose (`unknown`) so the SDK builder owns the strict shape.
+   */
+  settings?: ReadonlyArray<{
+    id: string
+    label: string
+    description?: string
+    required?: boolean
+    secret?: boolean
+    type: 'text' | 'textarea' | 'number' | 'toggle' | 'select' | 'color' | 'url' | 'password'
+    default?: string | number | boolean
+    options?: ReadonlyArray<{ label: string; value: string }>
+    placeholder?: string
+    rows?: number
+    min?: number
+    max?: number
+    step?: number
+    unit?: string
+    format?: 'hex' | 'rgba'
+  }>
 }
 
 export interface InstalledPlugin {
@@ -160,6 +184,14 @@ export interface InstalledPlugin {
   lastError: string | null
   grantedPermissions: PluginPermission[]
   manifest: PluginManifest
+  /**
+   * Current user-edited settings values, keyed by setting id. Always
+   * contains every setting declared in `manifest.settings` — defaults
+   * are populated on install. Secret values are masked (`'***'`) when
+   * the plugin row is read by the admin UI; plugins reading their own
+   * settings via `api.cms.settings.get` see the real value.
+   */
+  settings: Record<string, string | number | boolean>
   installedAt: string
   updatedAt: string
 }
@@ -169,6 +201,14 @@ export interface PluginAdminPageRoute extends Omit<PluginAdminPage, 'route'> {
   pluginName: string
   /** Always populated by the host's manifest parser. */
   route: string
+  /**
+   * Snapshot of the plugin's persisted settings at the moment the host
+   * rendered the page. Plugin admin apps read via `api.cms.settings.get(key)`
+   * which returns a value from this snapshot synchronously.
+   */
+  pluginSettings: Record<string, string | number | boolean>
+  /** The full settings schema declared by the plugin manifest. */
+  pluginSettingsSchema: PluginManifest['settings']
 }
 
 export interface CmsPluginsPayload {
@@ -248,6 +288,17 @@ export interface PluginAdminAppApi {
         update: (recordId: string, data: Record<string, unknown>) => Promise<PluginRecord>
         delete: (recordId: string) => Promise<void>
       }
+    }
+    /**
+     * Read/update the plugin's persisted settings from inside its admin
+     * app. The host already renders a Settings form per-plugin, so most
+     * admin apps don't need to call these — they're here for plugins that
+     * want a custom configuration surface.
+     */
+    settings: {
+      get: <T extends string | number | boolean = string>(key: string) => T | undefined
+      getAll: () => Record<string, string | number | boolean>
+      update: (next: Record<string, unknown>) => Promise<Record<string, string | number | boolean>>
     }
   }
 }
@@ -336,6 +387,20 @@ export type LoopEntitySource = {
   preview: (ctx: unknown) => unknown[]
 }
 
+export interface ServerPluginSettingsApi {
+  /** Resolve a single setting value, returning `undefined` if unset. */
+  get: <T extends string | number | boolean = string>(key: string) => T | undefined
+  /** Snapshot of every declared setting, populated with defaults. */
+  getAll: () => Record<string, string | number | boolean>
+  /**
+   * Replace the full settings record. Validated against the plugin's
+   * declared schema before persistence; emits `settings.changed`. Only
+   * the host (admin user) is expected to call this normally — plugins
+   * mutating their own settings is allowed but rare.
+   */
+  replace: (next: Record<string, unknown>) => Promise<void>
+}
+
 export interface ServerPluginApi {
   plugin: {
     id: string
@@ -358,6 +423,13 @@ export interface ServerPluginApi {
        */
       registerSource: (source: LoopEntitySource) => void
     }
+    /**
+     * Read / replace the plugin's persisted settings. The schema declared
+     * via `definePlugin({ settings: [...] })` is the source of truth; the
+     * host populates defaults at install time and validates updates at the
+     * boundary. Emits the `settings.changed` event when values change.
+     */
+    settings: ServerPluginSettingsApi
     storage: {
       collection: (resourceId: string) => {
         list: () => Promise<PluginRecord[]>

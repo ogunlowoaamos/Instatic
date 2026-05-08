@@ -63,9 +63,19 @@ import {
   handleServerPluginRuntimeRequest,
   loadPluginModulePack,
   loadServerPluginModule,
+  refreshPluginSettingsCache,
   runServerPluginLifecycleHook,
   serverPluginRuntime,
 } from '../../plugins/runtime'
+import {
+  validatePluginSettingsRecord,
+  maskSecretSettings,
+  type PluginSettingDefinition,
+} from '@core/plugin-sdk'
+import {
+  setPluginSettings,
+} from '../../repositories/plugins'
+import { hookBus } from '@core/plugins/hookBus'
 import {
   activatePluginModulePack,
   deactivatePluginModulePack,
@@ -568,6 +578,64 @@ async function handlePluginPackInstall(
   }
 }
 
+/**
+ * GET / PUT plugin settings.
+ *   GET  → return the masked settings (secret values become `'***'`)
+ *   PUT  → validate against the plugin's declared schema, persist, refresh
+ *          the runtime cache, fire `settings.changed` so plugin server hooks
+ *          can react.
+ */
+async function handlePluginSettings(
+  req: Request,
+  db: DbClient,
+  user: AuthUser,
+  pluginId: string,
+): Promise<Response> {
+  const plugin = await getInstalledPlugin(db, pluginId)
+  if (!plugin) return PLUGIN_NOT_FOUND
+  const declared = (plugin.manifest.settings ?? []) as PluginSettingDefinition[]
+  if (declared.length === 0) {
+    return badRequest(`Plugin "${pluginId}" does not declare settings`)
+  }
+
+  if (req.method === 'GET') {
+    return jsonResponse({
+      schema: declared,
+      settings: maskSecretSettings(declared, plugin.settings),
+    })
+  }
+
+  if (req.method === 'PUT') {
+    const body = await readJsonObject(req)
+    let cleaned: Record<string, string | number | boolean>
+    try {
+      cleaned = validatePluginSettingsRecord(declared, body.settings ?? body)
+    } catch (err) {
+      return badRequest(err instanceof Error ? err.message : 'Invalid settings payload')
+    }
+    await setPluginSettings(db, pluginId, cleaned)
+    await refreshPluginSettingsCache(db, pluginId)
+    await hookBus.emit('settings.changed', {
+      pluginId,
+      settings: cleaned,
+    } as unknown as Record<string, unknown>)
+    await createAuditEvent(db, {
+      actorUserId: user.id,
+      action: 'plugin.settings.update',
+      targetType: 'plugin',
+      targetId: pluginId,
+      metadata: {
+        pluginId,
+        keys: Object.keys(cleaned),
+      },
+      ...requestAuditContext(req),
+    })
+    return jsonResponse({ settings: maskSecretSettings(declared, cleaned) })
+  }
+
+  return methodNotAllowed()
+}
+
 async function handlePluginRecordsCollection(
   req: Request,
   db: DbClient,
@@ -652,6 +720,7 @@ const PLUGIN_RECORDS_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/resources\
 const PLUGIN_RECORD_ITEM_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/resources\/([^/]+)\/records\/([^/]+)$/
 const PLUGIN_RUNTIME_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/runtime(?:\/.*)?$/
 const PLUGIN_PACK_INSTALL_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/pack\/install$/
+const PLUGIN_SETTINGS_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/settings$/
 
 // ---------------------------------------------------------------------------
 // Dispatcher
@@ -695,6 +764,11 @@ export async function handlePluginsRoutes(
   const packInstallMatch = pathname.match(PLUGIN_PACK_INSTALL_PATTERN)
   if (packInstallMatch) {
     return handlePluginPackInstall(req, db, options, user, decodeURIComponent(packInstallMatch[1]))
+  }
+
+  const settingsMatch = pathname.match(PLUGIN_SETTINGS_PATTERN)
+  if (settingsMatch) {
+    return handlePluginSettings(req, db, user, decodeURIComponent(settingsMatch[1]))
   }
 
   const recordItemMatch = pathname.match(PLUGIN_RECORD_ITEM_PATTERN)

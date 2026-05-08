@@ -145,12 +145,24 @@ export async function buildPlugin(sourceDir: string): Promise<PluginBuildResult>
   if (editorSource) entrypoints.editor = 'editor/index.js'
   const serverSource = await findEntrypoint(absoluteSource, 'server')
   if (serverSource) entrypoints.server = 'server/index.js'
-  const frontendSource = await findEntrypoint(absoluteSource, 'frontend')
+
+  // Frontend entry. Authors can ship either a top-level `frontend.{ts,js}`
+  // (or `frontend/index.{ts,js}`) — both bundle to `frontend/index.js` —
+  // or the conventional `frontend/tracker.{ts,js}` which bundles to
+  // `frontend/tracker.js`. Pick the source AND its destination together
+  // so the manifest entrypoint and the bundled file always match.
+  let frontendSource: string | null = await findEntrypoint(absoluteSource, 'frontend')
+  let frontendOutputPath: string | null = null
   if (frontendSource) {
     entrypoints.frontend = 'frontend/index.js'
+    frontendOutputPath = 'frontend/index.js'
   } else {
     const trackerSource = await findEntrypoint(absoluteSource, 'frontend/tracker')
-    if (trackerSource) entrypoints.frontend = 'frontend/tracker.js'
+    if (trackerSource) {
+      frontendSource = trackerSource
+      entrypoints.frontend = 'frontend/tracker.js'
+      frontendOutputPath = 'frontend/tracker.js'
+    }
   }
 
   const finalManifest = {
@@ -178,7 +190,9 @@ export async function buildPlugin(sourceDir: string): Promise<PluginBuildResult>
   // 3. Editor / server / frontend entrypoints — passthrough bundle.
   if (editorSource) await bundleEntrypoint(editorSource, join(distDir, 'editor', 'index.js'))
   if (serverSource) await bundleEntrypoint(serverSource, join(distDir, 'server', 'index.js'))
-  if (frontendSource) await bundleEntrypoint(frontendSource, join(distDir, entrypoints.frontend!))
+  if (frontendSource && frontendOutputPath) {
+    await bundleEntrypoint(frontendSource, join(distDir, frontendOutputPath))
+  }
 
   // 4. Admin apps — one bundle per declared app entry.
   await bundleAdminApps(absoluteSource, distDir, definition)

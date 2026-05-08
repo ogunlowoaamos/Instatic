@@ -96,6 +96,40 @@ const adminPageSchema = Type.Object({
   content: contentSchema,
 })
 
+// `settings` schema — a discriminated union over the supported types so the
+// host can render the right control without a second parse step.
+const SETTING_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_-]*$/
+const settingTypeSchema = Type.Union([
+  Type.Literal('text'),
+  Type.Literal('textarea'),
+  Type.Literal('number'),
+  Type.Literal('toggle'),
+  Type.Literal('select'),
+  Type.Literal('color'),
+  Type.Literal('url'),
+  Type.Literal('password'),
+])
+const settingDefinitionSchema = Type.Object({
+  id: Type.String({ pattern: SETTING_ID_PATTERN.source }),
+  label: Type.String({ minLength: 1, maxLength: 80 }),
+  type: settingTypeSchema,
+  description: Type.Optional(Type.String({ maxLength: 500 })),
+  required: Type.Optional(Type.Boolean()),
+  secret: Type.Optional(Type.Boolean()),
+  default: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Boolean()])),
+  options: Type.Optional(Type.Array(Type.Object({
+    label: Type.String({ minLength: 1, maxLength: 80 }),
+    value: Type.String({ minLength: 1, maxLength: 80 }),
+  }))),
+  placeholder: Type.Optional(Type.String({ maxLength: 120 })),
+  rows: Type.Optional(Type.Number()),
+  min: Type.Optional(Type.Number()),
+  max: Type.Optional(Type.Number()),
+  step: Type.Optional(Type.Number()),
+  unit: Type.Optional(Type.String({ maxLength: 16 })),
+  format: Type.Optional(Type.Union([Type.Literal('hex'), Type.Literal('rgba')])),
+})
+
 const manifestSchema = Type.Object({
   id: Type.String({ pattern: PLUGIN_ID_PATTERN.source }),
   name: Type.String({ minLength: 1, maxLength: 80 }),
@@ -117,6 +151,7 @@ const manifestSchema = Type.Object({
   pack: Type.Optional(Type.Object({
     path: Type.String({ pattern: SAFE_ASSET_PATH_PATTERN.source }),
   })),
+  settings: Type.Optional(Type.Array(settingDefinitionSchema, { maxItems: 50 })),
 })
 
 type ManifestRaw = Static<typeof manifestSchema>
@@ -192,6 +227,20 @@ export function parsePluginManifest(input: unknown): PluginManifest {
     }
   })
 
+  // Settings — duplicate id check.
+  if (data.settings && data.settings.length > 0) {
+    const seen = new Set<string>()
+    for (const s of data.settings) {
+      if (seen.has(s.id)) {
+        throw new Error(`Invalid plugin manifest: duplicate setting "${s.id}"`)
+      }
+      seen.add(s.id)
+      if (s.type === 'select' && (!s.options || s.options.length === 0)) {
+        throw new Error(`Invalid plugin manifest: setting "${s.id}" of type "select" must declare options`)
+      }
+    }
+  }
+
   return {
     id: data.id,
     name: data.name,
@@ -205,6 +254,7 @@ export function parsePluginManifest(input: unknown): PluginManifest {
     resources,
     adminPages,
     pack: data.pack,
+    settings: data.settings as PluginManifest['settings'],
   }
 }
 
@@ -276,7 +326,7 @@ export function validatePluginRecordData(
 }
 
 export function collectEnabledAdminPages(
-  plugins: Array<Pick<InstalledPlugin, 'enabled' | 'manifest' | 'grantedPermissions'> & Partial<Pick<InstalledPlugin, 'lifecycleStatus'>>>,
+  plugins: Array<Pick<InstalledPlugin, 'enabled' | 'manifest' | 'grantedPermissions'> & Partial<Pick<InstalledPlugin, 'lifecycleStatus' | 'settings'>>>,
 ): PluginAdminPageRoute[] {
   return plugins
     .filter((plugin) => plugin.enabled && plugin.lifecycleStatus !== 'error')
@@ -301,6 +351,8 @@ export function collectEnabledAdminPages(
           // The host parser always populates `route` via `pluginAdminPageRoute`;
           // we re-narrow to a guaranteed string here for the runtime route type.
           route: page.route ?? pluginAdminPageRoute(plugin.manifest.id, page.id),
+          pluginSettings: plugin.settings ?? {},
+          pluginSettingsSchema: plugin.manifest.settings,
         }
       }),
     )

@@ -28,6 +28,10 @@
 import type { PluginManifest, PluginAdminPage, PluginPermission, PluginResource } from '../types'
 import type { PluginModuleDefinition } from '../modules'
 import type { PluginPackContents } from './definePack'
+import {
+  validatePluginSettingsDefinitions,
+  type PluginSettingDefinition,
+} from './settings'
 
 export interface DefinePluginConfig {
   id: string
@@ -64,6 +68,14 @@ export interface DefinePluginConfig {
 
   /** Visual Component / page / class pack from `definePack()`. */
   pack?: PluginPackContents
+
+  /**
+   * Declarative plugin settings — the host renders a form using its
+   * design-system primitives. Plugin reads values via
+   * `api.cms.settings.get(key)` (server / admin app) and
+   * `window.__pb.pluginSettings(id)` (frontend, non-secret values only).
+   */
+  settings?: PluginSettingDefinition[]
 }
 
 /**
@@ -103,6 +115,10 @@ export function definePlugin(config: DefinePluginConfig): PluginDefinition {
     }
   }
 
+  if (config.settings && config.settings.length > 0) {
+    validatePluginSettingsDefinitions(config.id, config.settings)
+  }
+
   const manifest: PluginManifest = {
     id: config.id,
     name: config.name,
@@ -112,6 +128,7 @@ export function definePlugin(config: DefinePluginConfig): PluginDefinition {
     permissions: [...config.permissions],
     resources: config.resources ?? [],
     adminPages: config.adminPages ?? [],
+    settings: config.settings,
   }
   return {
     manifest,

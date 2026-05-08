@@ -138,6 +138,98 @@ What the plugin gets:
 
 The plugin's bundle has **zero React imports**: the host owns the React instance, eliminating duplicate-React mismatches and giving every plugin admin page consistent styling. Cleanup belongs in `useEffect`'s return — there's no separate `cleanup()` hook.
 
+## Plugin Settings
+
+Plugins declare configuration in `definePlugin({ settings })`. The host renders a Settings dialog automatically using the same `pluginAdminUi` primitives, so plugin authors don't ship a settings UI — they describe the schema:
+
+```ts
+import { definePlugin, permissions } from '@pagebuilder/plugin-sdk'
+
+export default definePlugin({
+  id: 'acme.analytics',
+  name: 'Analytics',
+  version: '1.0.0',
+  permissions: [permissions.cmsHooks, permissions.cmsRoutes],
+  settings: [
+    {
+      id: 'apiKey',
+      label: 'API key',
+      type: 'password',
+      secret: true,
+      description: 'Required for the upstream analytics service.',
+    },
+    {
+      id: 'trackOutbound',
+      label: 'Track outbound clicks',
+      type: 'toggle',
+      default: true,
+    },
+    {
+      id: 'sampleRate',
+      label: 'Sample rate',
+      type: 'select',
+      options: [
+        { label: '100%', value: '100' },
+        { label: '50%',  value: '50'  },
+        { label: '10%',  value: '10'  },
+      ],
+      default: '100',
+    },
+  ],
+  server: () => import('./server'),
+})
+```
+
+Setting types:
+
+| `type`     | Renders as                       | Value type |
+| ---------- | -------------------------------- | ---------- |
+| `text`     | text input                       | `string`   |
+| `textarea` | multi-line input                 | `string`   |
+| `number`   | numeric input (with min/max)     | `number`   |
+| `toggle`   | switch                           | `boolean`  |
+| `select`   | dropdown                         | `string`   |
+| `color`    | text input (color string)        | `string`   |
+| `url`      | url input                        | `string`   |
+| `password` | masked input + secret-flag impl. | `string`   |
+
+`secret: true` masks the value as `***` in the form re-render, strips it from frontend bundles, and tells the host to treat it carefully in audit logs.
+
+### Reading settings
+
+**Server (inside `activate()` / hook listeners):**
+
+```ts
+api.cms.settings.get<string>('apiKey')          // typed value
+api.cms.settings.getAll()                        // full record
+await api.cms.settings.replace({ trackOutbound: false }) // emits settings.changed
+```
+
+**Admin app (inside `definePluginAdminApp`):**
+
+```ts
+api.cms.settings.get('apiKey')
+api.cms.settings.getAll()
+await api.cms.settings.update({ sampleRate: '50' })
+```
+
+Reads are synchronous because the host snapshots settings into the admin context at render time. Updates round-trip through the host, then refresh the admin app's snapshot.
+
+### Settings storage
+
+Persisted per-plugin in `installed_plugins.settings_json`. On install, the host populates defaults declared in the schema. On a plugin update that adds a new setting, the host transparently fills in the default; on a setting removal, the host drops the orphan key.
+
+### `settings.changed` event
+
+Whenever an admin saves new values, the host emits `settings.changed` through the hook bus with `{ pluginId, settings }`. Plugin server hooks listening for this event can react in real time:
+
+```ts
+api.cms.hooks.on('settings.changed', (payload) => {
+  if (payload.pluginId !== api.plugin.id) return
+  api.plugin.log('settings updated', payload.settings)
+})
+```
+
 ## Editor Entrypoint
 
 ```js

@@ -26,6 +26,10 @@ import {
   activatePluginModulePack,
   resetPluginModulePacks,
 } from '@core/plugins/modulePackLoader'
+import {
+  validatePluginSettingsRecord,
+  type PluginSettingDefinition,
+} from '@core/plugin-sdk'
 import { jsonResponse, readJsonObject } from '../http'
 import { nanoid } from 'nanoid'
 import { isCoreCapability, type CoreCapability } from '../auth/capabilities'
@@ -33,6 +37,7 @@ import { requireCapability } from '../auth/authz'
 import { hookBus } from '@core/plugins/hookBus'
 import { loopSourceRegistry } from '@core/loops/registry'
 import type { LoopEntitySource as HostLoopEntitySource } from '@core/loops/types'
+import { getInstalledPlugin, setPluginSettings } from '../repositories/plugins'
 
 interface ServerPluginRoute {
   pluginId: string
@@ -203,8 +208,66 @@ function createServerPluginApi(
           serverPluginRuntime.registerLoopSource(manifest.id, source as HostLoopEntitySource)
         },
       },
+      settings: {
+        get<T extends string | number | boolean = string>(key: string): T | undefined {
+          const cached = pluginSettingsCache.get(manifest.id)
+          if (cached) return cached[key] as T | undefined
+          // Cache miss should not happen — `installApiSettingsCache` runs
+          // before activate(). Returning undefined is safe; the host
+          // populates defaults on install.
+          return undefined
+        },
+        getAll() {
+          return { ...(pluginSettingsCache.get(manifest.id) ?? {}) }
+        },
+        async replace(next) {
+          const declared = (manifest.settings ?? []) as PluginSettingDefinition[]
+          const cleaned = validatePluginSettingsRecord(declared, next)
+          await setPluginSettings(db, manifest.id, cleaned)
+          pluginSettingsCache.set(manifest.id, cleaned)
+          await hookBus.emit(`settings.changed`, {
+            pluginId: manifest.id,
+            settings: cleaned,
+          } as unknown as Record<string, unknown>)
+        },
+      },
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// Settings cache — keyed by plugin id, populated on activation so plugins
+// can read settings synchronously inside `activate()` without an async hop.
+// Refreshed when the host PUTs new values via the settings route.
+// ---------------------------------------------------------------------------
+
+const pluginSettingsCache = new Map<string, Record<string, string | number | boolean>>()
+
+/** Update the in-memory settings cache for one plugin. */
+export function updatePluginSettingsCache(
+  pluginId: string,
+  settings: Record<string, string | number | boolean>,
+): void {
+  pluginSettingsCache.set(pluginId, settings)
+}
+
+/** Drop a plugin's cached settings (on disable / uninstall). */
+export function clearPluginSettingsCache(pluginId: string): void {
+  pluginSettingsCache.delete(pluginId)
+}
+
+/**
+ * Refresh a single plugin's cached settings from the DB. Called by the
+ * settings PUT route after a successful update so subsequent reads from
+ * inside the plugin server runtime see the new values without restart.
+ */
+export async function refreshPluginSettingsCache(
+  db: DbClient,
+  pluginId: string,
+): Promise<void> {
+  const plugin = await getInstalledPlugin(db, pluginId)
+  if (!plugin) return
+  pluginSettingsCache.set(pluginId, plugin.settings)
 }
 
 export async function activateServerPlugin(
@@ -314,6 +377,10 @@ export async function activateInstalledServerPlugins(
       grantedPermissions: plugin.grantedPermissions,
     }
     if (!manifest.assetBasePath) continue
+
+    // Settings — load cache before `activate()` so plugins can read
+    // settings synchronously inside their server lifecycle hook.
+    pluginSettingsCache.set(manifest.id, plugin.settings)
 
     // Module pack — register first so server plugin lifecycle hooks (and
     // anything they call) can already resolve the new modules.

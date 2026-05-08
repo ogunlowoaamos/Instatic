@@ -30,6 +30,7 @@ import AdminLayout from "@admin/AdminLayout";
 import { SettingsButton } from "@site/toolbar/SettingsButton";
 import { notifyCmsPluginsChanged } from "./utils/pluginEvents";
 import { CMS_SITE_RELOAD_EVENT } from "@site/hooks/usePersistence";
+import { PluginSettingsDialog } from "./components/PluginSettingsDialog/PluginSettingsDialog";
 import styles from "./PluginsPage.module.css";
 
 function notifyCmsSiteReload(): void {
@@ -83,6 +84,7 @@ export function PluginsPage() {
   const [pendingInstall, setPendingInstall] = useState<PendingInstall | null>(
     null,
   );
+  const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
 
   async function loadPlugins() {
     setLoading(true);
@@ -401,6 +403,17 @@ export function PluginsPage() {
                       </div>
 
                       <div className={styles.pluginActions}>
+                        {plugin.manifest.settings && plugin.manifest.settings.length > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={busyPluginId === plugin.id}
+                            onClick={() => setSettingsPluginId(plugin.id)}
+                            aria-label={`Edit settings for ${plugin.name}`}
+                          >
+                            <span>Settings</span>
+                          </Button>
+                        )}
                         {plugin.manifest.pack &&
                           plugin.grantedPermissions.includes("visualComponents.register") && (
                             <Button
@@ -443,6 +456,21 @@ export function PluginsPage() {
                 })
               )}
             </div>
+
+            {settingsPluginId && (
+              <PluginSettingsDialog
+                pluginId={settingsPluginId}
+                pluginName={
+                  payload.plugins.find((p) => p.id === settingsPluginId)?.name ??
+                  settingsPluginId
+                }
+                onClose={() => setSettingsPluginId(null)}
+                onSaved={() => {
+                  notifyCmsPluginsChanged();
+                  void loadPlugins();
+                }}
+              />
+            )}
           </section>
         </main>
       }
