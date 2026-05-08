@@ -298,6 +298,9 @@ export function collectEnabledAdminPages(
           pluginName: plugin.manifest.name,
           ...page,
           content,
+          // The host parser always populates `route` via `pluginAdminPageRoute`;
+          // we re-narrow to a guaranteed string here for the runtime route type.
+          route: page.route ?? pluginAdminPageRoute(plugin.manifest.id, page.id),
         }
       }),
     )

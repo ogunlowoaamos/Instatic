@@ -1,8 +1,20 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+} from 'react'
 import { Button } from '@ui/components/Button'
 import { Checkbox } from '@ui/components/Checkbox'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import type {
+  PluginAdminAppRenderFn,
+  PluginAdminH,
+  PluginAdminHooks,
   PluginAdminPageRoute,
   PluginPageContent,
   PluginRecord,
@@ -10,7 +22,8 @@ import type {
   PluginResourceField,
 } from '@core/plugin-sdk'
 import {
-  renderPluginAdminApp,
+  createAdminPluginApi,
+  loadPluginAdminAppModule,
   type PluginAdminAppImport,
 } from '@core/plugins/adminRuntime'
 import {
@@ -18,6 +31,7 @@ import {
   deleteCmsPluginResourceRecord,
   loadCmsPluginResource,
 } from '@core/persistence'
+import { pluginAdminUi } from '../PluginAdminUi'
 import styles from '../../PluginsPage.module.css'
 
 interface PluginPageRendererProps {
@@ -100,6 +114,51 @@ function PluginPageContent({ page, importModule }: PluginPageRendererProps) {
   )
 }
 
+/**
+ * `pluginHooks` — the curated React hook surface handed to plugin admin
+ * apps. Plugins receive this via the `hooks` argument of their render
+ * function so they can share the host's React instance without importing
+ * React themselves.
+ */
+const pluginHooks: PluginAdminHooks = {
+  useState: useState as PluginAdminHooks['useState'],
+  useEffect: useEffect as PluginAdminHooks['useEffect'],
+  useMemo: useMemo as PluginAdminHooks['useMemo'],
+  useCallback: useCallback as PluginAdminHooks['useCallback'],
+  useRef: useRef as PluginAdminHooks['useRef'],
+}
+
+const pluginH: PluginAdminH = createElement as PluginAdminH
+
+/**
+ * Inner component that calls the plugin's render function on every React
+ * render — this means hooks declared inside the plugin's function are
+ * subject to the regular React rules of hooks (stable order). Wrapping
+ * the plugin's element in our own component lets the editor's
+ * ErrorBoundary catch render-time exceptions cleanly.
+ */
+function PluginReactSubtree({
+  render,
+  page,
+}: {
+  render: PluginAdminAppRenderFn
+  page: AppPluginPageRoute
+}): ReactElement {
+  const api = useMemo(() => createAdminPluginApi(page.pluginId), [page.pluginId])
+  return render({
+    page,
+    api,
+    ui: pluginAdminUi,
+    h: pluginH,
+    hooks: pluginHooks,
+  })
+}
+
+type LoadState =
+  | { kind: 'loading' }
+  | { kind: 'react'; render: PluginAdminAppRenderFn }
+  | { kind: 'error'; message: string }
+
 function PluginAppPage({
   page,
   importModule,
@@ -107,66 +166,38 @@ function PluginAppPage({
   page: AppPluginPageRoute
   importModule?: PluginAdminAppImport
 }) {
-  const rootRef = useRef<HTMLDivElement | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Track the page identity that produced the current `loadState`. When
+  // the page changes (different plugin or different page id), the next
+  // render emits `loading` immediately while the effect below imports
+  // the new plugin module. Threading a `key` through state means we can
+  // discard the stale `loaded` payload if a new page arrived first,
+  // without doing a `setState` inside useEffect's body (cascade renders).
+  const pageKey = `${page.pluginId}:${page.id}`
+  const [loadState, setLoadState] = useState<LoadState & { key?: string }>({
+    kind: 'loading',
+    key: pageKey,
+  })
+  const visibleState: LoadState = loadState.key === pageKey
+    ? loadState
+    : { kind: 'loading' }
 
   useEffect(() => {
-    const currentHost = rootRef.current
-    if (!currentHost) return
-    const host: HTMLDivElement = currentHost
-
-    let disposed = false
-    let cleanupApp: (() => void | Promise<void>) | null = null
-    const appRoot = document.createElement('div')
-
-    appRoot.dataset.pluginAdminAppRoot = `${page.pluginId}:${page.id}`
-    host.replaceChildren(appRoot)
-
-    function cleanupVisibleApp() {
-      if (cleanupApp) {
-        const cleanup = cleanupApp
-        cleanupApp = null
-        void Promise.resolve(cleanup()).catch((err) => {
-          console.error('Plugin admin app cleanup failed', err)
+    let cancelled = false
+    void loadPluginAdminAppModule(page, importModule)
+      .then((loaded) => {
+        if (cancelled) return
+        setLoadState({ kind: 'react', render: loaded.render, key: pageKey })
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setLoadState({
+          kind: 'error',
+          message: err instanceof Error ? err.message : 'Could not load plugin app',
+          key: pageKey,
         })
-      }
-      if (appRoot.parentElement === host) {
-        host.replaceChildren()
-      }
-    }
-
-    async function loadApp() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const cleanup = await renderPluginAdminApp({
-          page,
-          root: appRoot,
-          importModule,
-        })
-        if (disposed) {
-          void Promise.resolve(cleanup()).catch((err) => {
-            console.error('Plugin admin app cleanup failed', err)
-          })
-          return
-        }
-        cleanupApp = cleanup
-      } catch (err) {
-        if (!disposed) setError(err instanceof Error ? err.message : 'Could not load plugin app')
-      } finally {
-        if (!disposed) setLoading(false)
-      }
-    }
-
-    void loadApp()
-
-    return () => {
-      disposed = true
-      cleanupVisibleApp()
-    }
-  }, [importModule, page])
+      })
+    return () => { cancelled = true }
+  }, [importModule, page, pageKey])
 
   return (
     <section className={styles.pluginPage} aria-labelledby="plugin-page-title">
@@ -175,9 +206,15 @@ function PluginAppPage({
         <h1 id="plugin-page-title">{page.content.heading}</h1>
       </header>
 
-      {loading && <p className={styles.emptyState}>Loading plugin app...</p>}
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <div ref={rootRef} className={styles.appMount} />
+      {visibleState.kind === 'loading' && (
+        <p className={styles.emptyState}>Loading plugin app...</p>
+      )}
+      {visibleState.kind === 'error' && (
+        <p className={styles.error} role="alert">{visibleState.message}</p>
+      )}
+      {visibleState.kind === 'react' && (
+        <PluginReactSubtree render={visibleState.render} page={page} />
+      )}
     </section>
   )
 }

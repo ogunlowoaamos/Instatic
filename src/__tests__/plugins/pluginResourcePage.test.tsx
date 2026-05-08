@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { PluginPageRenderer } from '../../admin/plugins/components/PluginPageRenderer/PluginPageRenderer'
-import type { PluginAdminAppModule, PluginAdminPageRoute } from '@core/plugin-sdk'
+import { PluginPageRenderer } from '@plugins/components/PluginPageRenderer/PluginPageRenderer'
+import type {
+  PluginAdminAppRenderFn,
+  PluginAdminPageRoute,
+} from '@core/plugin-sdk'
 
 const originalFetch = globalThis.fetch
 
@@ -100,7 +103,7 @@ describe('PluginPageRenderer resource pages', () => {
     })
   })
 
-  it('mounts packaged JavaScript admin app pages with a plugin-scoped CMS API', async () => {
+  it('mounts packaged admin app pages and threads the plugin-scoped CMS API into the SDK render fn', async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init })
@@ -114,7 +117,7 @@ describe('PluginPageRenderer resource pages', () => {
         },
         records: [{
           id: 'record_1',
-          pluginId: 'acme.workflow',
+          pluginId: 'acme.demo',
           resourceId: 'approvals',
           data: { pageTitle: 'Home', status: 'approved' },
           createdAt: '2026-05-01T10:00:00.000Z',
@@ -126,24 +129,31 @@ describe('PluginPageRenderer resource pages', () => {
     render(
       <PluginPageRenderer
         page={{
-          pluginId: 'acme.workflow',
-          pluginName: 'Workflow Tools',
+          pluginId: 'acme.demo',
+          pluginName: 'Demo Plugin',
           id: 'dashboard',
           title: 'Dashboard',
-          route: '/admin/plugins/acme.workflow/dashboard',
+          route: '/admin/plugins/acme.demo/dashboard',
           content: {
             kind: 'app',
-            heading: 'Workflow Dashboard',
+            heading: 'Demo Dashboard',
             entry: 'admin/dashboard.js',
-            assetPath: '/uploads/plugins/acme.workflow/1.0.0',
+            assetPath: '/uploads/plugins/acme.demo/1.0.0',
           },
         }}
         importModule={async (url) => {
-          expect(url).toBe('/uploads/plugins/acme.workflow/1.0.0/admin/dashboard.js')
+          expect(url).toBe('/uploads/plugins/acme.demo/1.0.0/admin/dashboard.js')
           return {
-            async render({ root, api }) {
-              const records = await api.cms.storage.collection('approvals').list()
-              root.innerHTML = `<strong>Approvals: ${records.length}</strong>`
+            default: ({ h, hooks, api }) => {
+              const [count, setCount] = hooks.useState<number | null>(null)
+              hooks.useEffect(() => {
+                let cancelled = false
+                void api.cms.storage.collection('approvals').list().then((records) => {
+                  if (!cancelled) setCount(records.length)
+                })
+                return () => { cancelled = true }
+              }, [])
+              return h('strong', null, count === null ? 'Loading...' : `Approvals: ${count}`)
             },
           }
         }}
@@ -151,37 +161,32 @@ describe('PluginPageRenderer resource pages', () => {
     )
 
     expect(await screen.findByText('Approvals: 1')).toBeDefined()
-    expect(calls[0]?.input).toBe('/admin/api/cms/plugins/acme.workflow/resources/approvals/records')
+    expect(calls[0]?.input).toBe('/admin/api/cms/plugins/acme.demo/resources/approvals/records')
   })
 
-  it('keeps stale async admin app renders from duplicating the visible plugin UI', async () => {
+  it('keeps stale async admin app loads from duplicating the visible plugin UI', async () => {
     const appPage: PluginAdminPageRoute = {
-      pluginId: 'acme.workflow',
-      pluginName: 'Workflow Tools',
+      pluginId: 'acme.demo',
+      pluginName: 'Demo Plugin',
       id: 'dashboard',
       title: 'Dashboard',
-      route: '/admin/plugins/acme.workflow/dashboard',
+      route: '/admin/plugins/acme.demo/dashboard',
       content: {
         kind: 'app',
-        heading: 'Workflow Dashboard',
+        heading: 'Demo Dashboard',
         entry: 'admin/dashboard.js',
-        assetPath: '/uploads/plugins/acme.workflow/1.0.0',
+        assetPath: '/uploads/plugins/acme.demo/1.0.0',
       },
     }
 
-    const imports: Array<(mod: PluginAdminAppModule) => void> = []
+    type Resolver = (mod: { default: PluginAdminAppRenderFn }) => void
+    const imports: Resolver[] = []
     const importModule = async () =>
-      await new Promise<PluginAdminAppModule>((resolve) => {
+      await new Promise<{ default: PluginAdminAppRenderFn }>((resolve) => {
         imports.push(resolve)
       })
 
-    const appModule: PluginAdminAppModule = {
-      render({ root }: { root: HTMLElement }) {
-        const marker = document.createElement('strong')
-        marker.textContent = 'Workflow dashboard app'
-        root.appendChild(marker)
-      },
-    }
+    const renderFn: PluginAdminAppRenderFn = ({ h }) => h('strong', null, 'Plugin dashboard subtree')
 
     const { rerender } = render(<PluginPageRenderer page={{ ...appPage }} importModule={importModule} />)
 
@@ -196,12 +201,12 @@ describe('PluginPageRenderer resource pages', () => {
     })
 
     await act(async () => {
-      imports[0](appModule)
-      imports[1](appModule)
+      imports[0]({ default: renderFn })
+      imports[1]({ default: renderFn })
     })
 
     await waitFor(() => {
-      expect(screen.getAllByText('Workflow dashboard app')).toHaveLength(1)
+      expect(screen.getAllByText('Plugin dashboard subtree')).toHaveLength(1)
     })
   })
 })

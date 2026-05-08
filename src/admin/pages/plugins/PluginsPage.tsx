@@ -389,7 +389,10 @@ export function PluginsPage() {
                         {plugin.manifest.adminPages.length > 0 && (
                           <div className={styles.pageLinks}>
                             {plugin.manifest.adminPages.map((page) => (
-                              <Link key={page.id} to={page.route}>
+                              <Link
+                                key={page.id}
+                                to={page.route ?? `/admin/plugins/${plugin.id}/${page.id}`}
+                              >
                                 {page.navLabel ?? page.title}
                               </Link>
                             ))}

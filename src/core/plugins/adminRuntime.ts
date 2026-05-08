@@ -4,32 +4,29 @@ import {
   deleteCmsPluginResourceRecord,
   listCmsPluginResourceRecords,
   updateCmsPluginResourceRecord,
-} from '../persistence/cmsPluginRecords'
+} from '@core/persistence/cmsPluginRecords'
 import { parseJsonResponse } from '@core/utils/jsonValidate'
 import type {
   PluginAdminAppApi,
-  PluginAdminAppContext,
-  PluginAdminAppModule,
+  PluginAdminAppRenderFn,
   PluginAdminPageRoute,
-} from '../plugin-sdk'
+} from '@core/plugin-sdk'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
-export type PluginAdminAppImport = (url: string) => Promise<PluginAdminAppModule>
+/**
+ * Loaded plugin admin app module shape — `mod.default` is the
+ * SDK render function from `definePluginAdminApp`. There is no other
+ * supported shape.
+ */
+export type LoadedAdminAppModule = { default: PluginAdminAppRenderFn }
 
-interface RenderPluginAdminAppOptions {
-  page: PluginAdminPageRoute
-  root: HTMLElement
-  fetchImpl?: FetchLike
-  importModule?: PluginAdminAppImport
-}
-
-const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
+export type PluginAdminAppImport = (url: string) => Promise<LoadedAdminAppModule>
 
 const defaultImportModule: PluginAdminAppImport = async (url) =>
-  await import(/* @vite-ignore */ url) as PluginAdminAppModule
+  await import(/* @vite-ignore */ url) as LoadedAdminAppModule
 
-function appEntrypointUrl(assetPath: string, entrypoint: string): string {
+export function pluginAdminAssetUrl(assetPath: string, entrypoint: string): string {
   return `${assetPath.replace(/\/+$/g, '')}/${entrypoint.replace(/^\/+/g, '')}`
 }
 
@@ -38,7 +35,12 @@ function runtimePath(pluginId: string, path: string): string {
   return `/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/runtime/${normalized}`
 }
 
-function createAdminPluginApi(pluginId: string, fetchImpl: FetchLike): PluginAdminAppApi {
+const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
+
+export function createAdminPluginApi(
+  pluginId: string,
+  fetchImpl: FetchLike = defaultFetch,
+): PluginAdminAppApi {
   return {
     cms: {
       routes: {
@@ -71,34 +73,27 @@ function createAdminPluginApi(pluginId: string, fetchImpl: FetchLike): PluginAdm
   }
 }
 
-export async function renderPluginAdminApp({
-  page,
-  root,
-  fetchImpl = defaultFetch,
-  importModule = defaultImportModule,
-}: RenderPluginAdminAppOptions): Promise<() => void | Promise<void>> {
+/**
+ * Resolve a plugin admin page's entrypoint module via dynamic `import()`.
+ * Throws if the module doesn't default-export a `definePluginAdminApp`
+ * render function.
+ */
+export async function loadPluginAdminAppModule(
+  page: PluginAdminPageRoute,
+  importModule: PluginAdminAppImport = defaultImportModule,
+): Promise<{ render: PluginAdminAppRenderFn }> {
   if (page.content.kind !== 'app') {
-    throw new Error('Plugin admin app renderer requires app page content')
+    throw new Error('Plugin admin app loader requires app page content')
   }
   if (!page.content.assetPath) {
     throw new Error(`Plugin admin app "${page.pluginId}:${page.id}" is missing an asset path`)
   }
-
-  root.replaceChildren()
-  const mod = await importModule(appEntrypointUrl(page.content.assetPath, page.content.entry))
-  if (typeof mod.render !== 'function') {
-    throw new Error(`Plugin admin app "${page.pluginId}:${page.id}" does not export render()`)
+  const mod = await importModule(pluginAdminAssetUrl(page.content.assetPath, page.content.entry))
+  const render = (mod as { default?: unknown }).default
+  if (typeof render !== 'function') {
+    throw new Error(
+      `Plugin admin app "${page.pluginId}:${page.id}" must default-export a definePluginAdminApp() render function.`,
+    )
   }
-
-  const context: PluginAdminAppContext = {
-    root,
-    page,
-    api: createAdminPluginApi(page.pluginId, fetchImpl),
-  }
-  await mod.render(context)
-
-  return async () => {
-    if (mod.cleanup) await mod.cleanup(context)
-    root.replaceChildren()
-  }
+  return { render: render as PluginAdminAppRenderFn }
 }

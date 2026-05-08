@@ -108,16 +108,35 @@ const records = await items.list()
 
 ## Admin Apps
 
-Admin app pages use manifest content kind `app` and export `render`:
+Admin app pages use manifest content kind `app` and default-export a render function. The plugin doesn't import React — the host passes a curated UI namespace, a hyperscript factory `h`, and a hooks bag, so plugin admin pages match the CMS design system without inventing their own:
 
-```js
-export async function render({ root, api }) {
-  const res = await api.cms.routes.fetch('status')
-  root.textContent = JSON.stringify(await res.json())
-}
+```ts
+import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
 
-export function cleanup() {}
+export default definePluginAdminApp(({ ui, h, hooks, api }) => {
+  const [count, setCount] = hooks.useState(0)
+  return h(ui.Card, {}, [
+    h(ui.Heading, { level: 2, key: 'h' }, 'Counter'),
+    h(ui.Stack, { gap: 12, key: 's' }, [
+      h(ui.Text, { variant: 'muted', key: 't' }, `Total clicks: ${count}`),
+      h(ui.Button, {
+        variant: 'primary',
+        onClick: () => setCount(count + 1),
+        key: 'b',
+      }, 'Increment'),
+    ]),
+  ])
+})
 ```
+
+What the plugin gets:
+
+- **`ui`** — the design-system surface: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `SearchBar`, `Stack`, `Card`, `Heading`, `Text`, `Separator`, `EmptyState`, `Alert`, `Code`. Each is a thin wrapper around the host's primitives — the props are the stable plugin-facing API.
+- **`h`** — `React.createElement`, used as `h(component, props, ...children)`.
+- **`hooks`** — `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`. Same React rules of hooks apply.
+- **`api`** — `cms.routes.fetch / json` and `cms.storage.collection(resourceId)` for backend access.
+
+The plugin's bundle has **zero React imports**: the host owns the React instance, eliminating duplicate-React mismatches and giving every plugin admin page consistent styling. Cleanup belongs in `useEffect`'s return — there's no separate `cleanup()` hook.
 
 ## Editor Entrypoint
 

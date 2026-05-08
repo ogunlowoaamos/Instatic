@@ -115,7 +115,13 @@ export interface PluginAdminPage {
   title: string
   navLabel?: string
   icon?: string
-  route: string
+  /**
+   * Optional admin route override. The host derives the final route from
+   * the plugin id + page id at install time (`/admin/plugins/:pluginId/:pageId`),
+   * so plugin authors never need to set it. Kept on the type for forward
+   * compatibility (e.g. nested plugin pages).
+   */
+  route?: string
   content: PluginPageContent
 }
 
@@ -158,9 +164,11 @@ export interface InstalledPlugin {
   updatedAt: string
 }
 
-export interface PluginAdminPageRoute extends PluginAdminPage {
+export interface PluginAdminPageRoute extends Omit<PluginAdminPage, 'route'> {
   pluginId: string
   pluginName: string
+  /** Always populated by the host's manifest parser. */
+  route: string
 }
 
 export interface CmsPluginsPayload {
@@ -242,17 +250,6 @@ export interface PluginAdminAppApi {
       }
     }
   }
-}
-
-export interface PluginAdminAppContext {
-  root: HTMLElement
-  page: PluginAdminPageRoute
-  api: PluginAdminAppApi
-}
-
-export interface PluginAdminAppModule {
-  render: (context: PluginAdminAppContext) => void | Promise<void>
-  cleanup?: (context: PluginAdminAppContext) => void | Promise<void>
 }
 
 export type RouteMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'

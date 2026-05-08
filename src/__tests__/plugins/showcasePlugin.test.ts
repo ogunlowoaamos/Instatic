@@ -1,64 +1,68 @@
 /**
- * End-to-end smoke test for the showcase example plugin.
+ * Smoke test for the showcase example plugin (TypeScript-first migration).
  *
- * Reads `examples/plugins/showcase/plugin.json` from disk, validates the
- * manifest with the host parser, and runs each entrypoint file through a
- * sanity check (parsing, default-export shape) to make sure the example
- * stays in sync with the SDK shape after refactors.
+ * Imports the plugin's pb-plugin.config.ts directly so we verify the
+ * SDK output shape — including the new React-based admin app dashboard —
+ * stays in lockstep with the host's runtime types.
  */
 import { describe, expect, it } from 'bun:test'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { parsePluginManifest } from '@core/plugins/manifest'
 
-const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
-const showcaseRoot = join(repoRoot, 'examples', 'plugins', 'showcase')
+const showcaseConfigPath = '../../../examples/plugins/showcase/pb-plugin.config'
 
-describe('showcase example plugin', () => {
-  it('parses against the canonical manifest schema', async () => {
-    const raw = JSON.parse(await readFile(join(showcaseRoot, 'plugin.json'), 'utf-8'))
-    const manifest = parsePluginManifest(raw)
-    expect(manifest.id).toBe('acme.showcase')
-    expect(manifest.permissions).toContain('admin.navigation')
-    expect(manifest.permissions).toContain('cms.hooks')
-    expect(manifest.permissions).toContain('modules.register')
-    expect(manifest.permissions).toContain('frontend.scripts')
-    expect(manifest.permissions).toContain('frontend.tracker')
-    expect(manifest.permissions).toContain('visualComponents.register')
-    expect(manifest.entrypoints?.modules).toBe('modules/index.js')
-    expect(manifest.entrypoints?.frontend).toBe('frontend/tracker.js')
-    expect(manifest.pack?.path).toBe('pack/site.json')
-    expect(manifest.adminPages.map((p) => p.id)).toEqual(['dashboard', 'events'])
+describe('showcase example plugin (TypeScript source)', () => {
+  it('definePlugin produces a valid PluginManifest with every SDK surface', async () => {
+    const { default: definition } = await import(showcaseConfigPath) as {
+      default: import('@core/plugin-sdk').PluginDefinition
+    }
+
+    expect(definition.manifest.id).toBe('acme.showcase')
+    expect(definition.manifest.permissions).toContain('admin.navigation')
+    expect(definition.manifest.permissions).toContain('cms.hooks')
+    expect(definition.manifest.permissions).toContain('modules.register')
+    expect(definition.manifest.permissions).toContain('frontend.scripts')
+    expect(definition.manifest.permissions).toContain('frontend.tracker')
+    expect(definition.manifest.permissions).toContain('visualComponents.register')
+    expect(definition.manifest.adminPages.map((p) => p.id)).toEqual(['dashboard', 'events'])
   })
 
-  it('module pack default-exports an array (or callable returning one)', async () => {
-    const text = await readFile(join(showcaseRoot, 'modules/index.js'), 'utf-8')
-    expect(text).toMatch(/export default/)
-    expect(text).toContain('pluginId')
-    expect(text).toContain('Callout')
-    expect(text).toContain('Event Counter')
+  it('admin app entrypoint is a TypeScript file using definePluginAdminApp', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const path = '../../../examples/plugins/showcase/admin/dashboard.ts'
+    const url = new URL(path, import.meta.url)
+    const text = await readFile(url, 'utf-8')
+    expect(text).toContain('definePluginAdminApp')
+    expect(text).toContain('ui.Button')
+    expect(text).toContain('ui.Card')
+    expect(text).toContain('hooks.useState')
+    // No raw DOM API in actual code (the JSDoc may mention it).
+    expect(text).not.toMatch(/document\.createElement\(/)
   })
 
-  it('server entrypoint exports activate that wires hooks and routes', async () => {
-    const text = await readFile(join(showcaseRoot, 'server/index.js'), 'utf-8')
-    expect(text).toMatch(/export function activate/)
-    expect(text).toContain("api.cms.routes.get('/status'")
-    expect(text).toContain("api.cms.hooks.on('tracker.event'")
-    expect(text).toContain("api.cms.hooks.filter('publish.html'")
+  it('every canvas module renders escaped HTML when given its defaults', async () => {
+    const { default: definition } = await import(showcaseConfigPath) as {
+      default: import('@core/plugin-sdk').PluginDefinition
+    }
+    expect(definition.modules.length).toBeGreaterThanOrEqual(2)
+    for (const mod of definition.modules) {
+      const out = mod.render(mod.defaults, [])
+      expect(typeof out.html).toBe('string')
+      expect(out.html.length).toBeGreaterThan(0)
+      const hostile = mod.render(
+        { ...mod.defaults, heading: '<script>alert(1)</script>' },
+        [],
+      )
+      expect(hostile.html).not.toContain('<script>alert(1)</script>')
+    }
   })
 
-  it('frontend tracker entrypoint subscribes to host runtime hooks', async () => {
-    const text = await readFile(join(showcaseRoot, 'frontend/tracker.js'), 'utf-8')
-    expect(text).toContain('window.__pb')
-    expect(text).toContain("pb.hooks.on('page-view'")
-    expect(text).toContain("pb.tracker.sendFor('acme.showcase'")
-  })
-
-  it('pack file declares Visual Components and namespaced classes', async () => {
-    const pack = JSON.parse(await readFile(join(showcaseRoot, 'pack/site.json'), 'utf-8'))
-    expect(pack.visualComponents).toHaveLength(1)
-    expect(pack.visualComponents[0].id).toBe('acme.showcase/hero')
-    expect(pack.classes[0].id).toBe('acme.showcase/hero-root')
+  it('pack ships exactly one Visual Component with a namespaced id', async () => {
+    const { default: definition } = await import(showcaseConfigPath) as {
+      default: import('@core/plugin-sdk').PluginDefinition
+    }
+    if (!definition.pack) throw new Error('Pack missing')
+    expect(definition.pack.visualComponents).toHaveLength(1)
+    expect(definition.pack.visualComponents[0].id).toBe('acme.showcase/hero')
+    expect(definition.pack.classes[0].id).toBe('acme.showcase/hero-root')
+    expect(/^[A-Za-z_][A-Za-z0-9_-]*$/.test(definition.pack.classes[0].name)).toBe(true)
   })
 })
