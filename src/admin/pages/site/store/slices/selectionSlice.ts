@@ -169,6 +169,33 @@ export const createSelectionSlice: EditorStoreSliceCreator<SelectionSlice> = (se
 })
 
 // ---------------------------------------------------------------------------
+// Mutation helpers for use inside immer producers
+// ---------------------------------------------------------------------------
+
+/**
+ * Clear canvas selection + hover from an immer draft.
+ *
+ * Use this from any mutation that switches the active document (page swap,
+ * VC mode entry/exit, site reload, node deletion) — anywhere a previously
+ * valid selection becomes stale because the underlying nodes either no
+ * longer exist in the active tree or live in a different tree entirely.
+ *
+ * Why a helper exists: `selectedNodeIds` is the source of truth (the
+ * `BreakpointSelectionOverlay` subscribes to it via `useShallow`) and
+ * `selectedNodeId` is the anchor mirror (= last item of the array). Forgetting
+ * to clear the array — a recurring bug — left phantom selection rings on the
+ * canvas after every page swap. Funnel all "drop stale selection" paths
+ * through this helper so they stay in lock-step.
+ */
+export function clearCanvasSelectionDraft(state: EditorStore): void {
+  state.selectedNodeIds = []
+  state.selectedNodeId = null
+  state.hoveredNodeId = null
+  state.hoveredBreakpointId = null
+  state.activeClassId = null
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

@@ -11,6 +11,7 @@ import {
   cloneSiteRuntimeConfig,
   DEFAULT_SITE_RUNTIME,
 } from '@core/site-runtime'
+import { clearCanvasSelectionDraft } from '../selectionSlice'
 import { createDefaultSiteDocument } from './defaults'
 import { reconcileFrameworkClasses } from './framework/reconcile'
 import type { SiteSlice, SiteSliceHelpers } from './types'
@@ -77,7 +78,7 @@ export function createLifecycleActions({
         state.activePageId = null
         // Reset activeDocument — without a site there can be no active doc.
         state.activeDocument = null
-        state.selectedNodeId = null
+        clearCanvasSelectionDraft(state)
         state._historyPast = []
         state._historyFuture = []
         state.canUndo = false
