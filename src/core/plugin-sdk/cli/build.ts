@@ -46,8 +46,8 @@ export async function readPluginDefinition(sourceDir: string): Promise<PluginDef
 }
 
 /**
- * Externals for plugin browser bundles (admin pages, editor entrypoints,
- * canvas modules, frontend scripts).
+ * Externals for plugin **admin/editor** bundles (admin pages, editor
+ * entrypoints, canvas modules).
  *
  * Bun.build leaves these names as bare imports. At runtime, the host's
  * import map (`index.html`) resolves them to the host's React instance,
@@ -56,10 +56,16 @@ export async function readPluginDefinition(sourceDir: string): Promise<PluginDef
  * copy. This is what gives plugin bundles ~kilobyte sizes and keeps
  * the editor's design-system contract stable across plugin upgrades.
  *
- * Server entrypoints DO NOT use this list — they're loaded by the host's
- * Bun worker and don't need a browser host runtime.
+ * Two bundle modes that DO NOT externalize:
+ *   - `serverSide: true` — server entrypoints load in the host's Bun
+ *     worker; no browser host runtime there.
+ *   - `frontendBundle: true` — frontend scripts run on PUBLISHED pages,
+ *     which never load the editor's import map. A bare `import 'react'`
+ *     in a frontend bundle would crash at runtime ("Failed to resolve
+ *     module specifier"). Frontend scripts must either bundle React
+ *     themselves or stick to `window.__pb` and vanilla DOM.
  */
-const BROWSER_EXTERNALS = [
+const HOST_RUNTIME_EXTERNALS = [
   'react',
   'react/jsx-runtime',
   'react/jsx-dev-runtime',
@@ -70,8 +76,15 @@ const BROWSER_EXTERNALS = [
 ]
 
 interface BundleOptions {
-  /** When true, omit the browser externals — use this for server-side bundles. */
+  /** When true, omit all externals — use for server-side bundles. */
   serverSide?: boolean
+  /**
+   * When true, omit the host-runtime externals — use for `frontend.scripts`
+   * bundles. Published pages don't have the host import map, so frontend
+   * code can't rely on bare `react` / `@pagebuilder/*` imports being
+   * resolved. Bundle locally (or stick to `window.__pb`).
+   */
+  frontendBundle?: boolean
 }
 
 async function bundleEntrypoint(
@@ -79,13 +92,16 @@ async function bundleEntrypoint(
   outFile: string,
   options: BundleOptions = {},
 ): Promise<void> {
+  const external = options.serverSide || options.frontendBundle
+    ? []
+    : HOST_RUNTIME_EXTERNALS
   const result = await Bun.build({
     entrypoints: [sourcePath],
     target: 'browser',
     format: 'esm',
     splitting: false,
     minify: false,
-    external: options.serverSide ? [] : BROWSER_EXTERNALS,
+    external,
   })
   if (!result.success) {
     const messages = result.logs.map((l) => l.message).join('\n')
@@ -229,7 +245,11 @@ export async function buildPlugin(
     await bundleEntrypoint(serverSource, join(distDir, 'server', 'index.js'), { serverSide: true })
   }
   if (frontendSource && frontendOutputPath) {
-    await bundleEntrypoint(frontendSource, join(distDir, frontendOutputPath))
+    await bundleEntrypoint(
+      frontendSource,
+      join(distDir, frontendOutputPath),
+      { frontendBundle: true },
+    )
   }
 
   // 4. Admin apps — one bundle per declared app entry.

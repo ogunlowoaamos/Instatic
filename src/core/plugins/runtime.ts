@@ -8,11 +8,13 @@ import {
 import type {
   EditorPluginApi,
   EditorPluginModule,
+  PluginCanvasOverlay,
   PluginCommand,
   PluginCommandResult,
   PluginEditorPanel,
   PluginManifest,
   PluginToolbarButton,
+  RegisteredPluginCanvasOverlay,
   RegisteredPluginEditorPanel,
   RegisteredPluginToolbarButton,
 } from '@core/plugin-sdk'
@@ -36,6 +38,7 @@ class PluginRuntime {
   private commands = new Map<string, PluginCommand & { pluginId: string }>()
   private toolbarButtons = new Map<string, RegisteredPluginToolbarButton>()
   private panels = new Map<string, PanelRecord>()
+  private canvasOverlays = new Map<string, RegisteredPluginCanvasOverlay>()
   private pluginSettings = new Map<string, Record<string, string | number | boolean>>()
   private listeners = new Set<RuntimeListener>()
 
@@ -48,6 +51,7 @@ class PluginRuntime {
    */
   private toolbarButtonsSnapshot: RegisteredPluginToolbarButton[] | null = null
   private panelsSnapshot: RegisteredPluginEditorPanel[] | null = null
+  private canvasOverlaysSnapshot: RegisteredPluginCanvasOverlay[] | null = null
 
   subscribe(listener: RuntimeListener): () => void {
     this.listeners.add(listener)
@@ -60,9 +64,11 @@ class PluginRuntime {
     this.commands.clear()
     this.toolbarButtons.clear()
     this.panels.clear()
+    this.canvasOverlays.clear()
     this.pluginSettings.clear()
     this.toolbarButtonsSnapshot = null
     this.panelsSnapshot = null
+    this.canvasOverlaysSnapshot = null
     this.emit()
   }
 
@@ -115,6 +121,22 @@ class PluginRuntime {
   }
 
   /**
+   * Register a canvas overlay on behalf of a plugin. Caller MUST have
+   * already asserted the `editor.canvas` permission. The overlay id must
+   * be namespace-locked under the plugin id (`<pluginId>.<rest>`).
+   */
+  registerCanvasOverlay(pluginId: string, overlay: PluginCanvasOverlay): void {
+    if (!overlay.id.startsWith(`${pluginId}.`)) {
+      throw new Error(
+        `Plugin "${pluginId}" cannot register canvas overlay "${overlay.id}" — id must start with "${pluginId}.".`,
+      )
+    }
+    this.canvasOverlays.set(overlay.id, { ...overlay, pluginId })
+    this.canvasOverlaysSnapshot = null
+    this.emit()
+  }
+
+  /**
    * Returns the cached toolbar-button array. Stable reference across calls
    * until a `register*` / `reset()` mutation invalidates the cache. Required
    * for `useSyncExternalStore` consumers (PanelRail, Toolbar).
@@ -152,6 +174,18 @@ class PluginRuntime {
     return this.panels.get(panelId)?.manifest
   }
 
+  /**
+   * Returns the cached canvas overlays array. Stable reference until a
+   * mutation invalidates the cache — same `useSyncExternalStore` shape as
+   * `getPanels()` / `getToolbarButtons()`.
+   */
+  getCanvasOverlays(): RegisteredPluginCanvasOverlay[] {
+    if (this.canvasOverlaysSnapshot === null) {
+      this.canvasOverlaysSnapshot = [...this.canvasOverlays.values()]
+    }
+    return this.canvasOverlaysSnapshot
+  }
+
   async runCommand(commandId: string): Promise<PluginCommandResult> {
     const command = this.commands.get(commandId)
     if (!command) throw new Error(`Plugin command "${commandId}" is not registered`)
@@ -187,6 +221,12 @@ function createEditorPluginApi(
         register(panel) {
           assertPluginPermission(manifest, 'editor.panels')
           pluginRuntime.registerPanel(manifest, panel)
+        },
+      },
+      canvas: {
+        registerOverlay(overlay) {
+          assertPluginPermission(manifest, 'editor.canvas')
+          pluginRuntime.registerCanvasOverlay(manifest.id, overlay)
         },
       },
       store: {

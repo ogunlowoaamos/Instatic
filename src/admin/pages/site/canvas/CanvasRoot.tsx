@@ -36,6 +36,7 @@ import { CanvasModeToggle } from './CanvasModeToggle'
 import { CanvasBreakpointSelector } from './CanvasBreakpointSelector'
 import { CanvasSelectionContext } from './CanvasContexts'
 import { ClassStyleInjector } from './ClassStyleInjector'
+import { PluginCanvasOverlayLayer } from './PluginCanvasOverlayLayer'
 import { LayerNodeContextMenu } from '@site/panels/DomPanel/LayerNodeContextMenu'
 import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import { useEditorPreference } from '@site/preferences/editorPreferences'
@@ -459,6 +460,14 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
             />
           )}
         </ErrorBoundary>
+
+        {/*
+          Plugin-registered canvas overlays. Mounted after the transform
+          layer so they paint above rendered nodes. Only active in design
+          (editable) mode — preview-mode canvases don't need overlays and
+          plugin code shouldn't paint over the visitor preview.
+        */}
+        {!isPreview && editable && <PluginCanvasOverlayLayer />}
 
         {!isPreview && editable && contextMenu && createPortal(
           <LayerNodeContextMenu

@@ -20,6 +20,11 @@ import {
   Text,
 } from '@pagebuilder/host-ui'
 import {
+  useCanvasNodeRect,
+  useEditorStore,
+} from '@pagebuilder/host-hooks'
+import {
+  definePluginCanvasOverlay,
   definePluginPanel,
   type EditorPluginApi,
   type EditorPluginModule,
@@ -53,6 +58,39 @@ const reviewPanel = definePluginPanel({
   component: ShowcasePanel,
 })
 
+/**
+ * Sample canvas overlay — paints a subtle pin above the currently
+ * selected node. Demonstrates how plugins use `useCanvasNodeRect` to
+ * position children relative to canvas-rendered nodes regardless of
+ * pan/zoom.
+ */
+function SelectedNodePin() {
+  const selectedId = useEditorStore((s) => s.selectedNodeId)
+  const rect = useCanvasNodeRect(selectedId)
+  if (!rect) return null
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: rect.top - 22,
+        left: rect.left + rect.width / 2 - 6,
+        width: 12,
+        height: 12,
+        borderRadius: 999,
+        background: '#8ee6c8',
+        boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 8px rgba(142, 230, 200, 0.5)',
+        pointerEvents: 'none',
+      }}
+      aria-hidden="true"
+    />
+  )
+}
+
+const selectionPin = definePluginCanvasOverlay({
+  id: 'acme.showcase.selection-pin',
+  component: SelectedNodePin,
+})
+
 const mod: EditorPluginModule = {
   activate(api: EditorPluginApi) {
     api.editor.commands.register({
@@ -68,6 +106,7 @@ const mod: EditorPluginModule = {
     })
 
     api.editor.panels.register(reviewPanel)
+    api.editor.canvas.registerOverlay(selectionPin)
   },
 }
 

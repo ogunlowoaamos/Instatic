@@ -301,12 +301,21 @@ export interface InstalledPlugin {
 export interface PluginAdminPageRoute extends Omit<PluginAdminPage, 'route'> {
   pluginId: string
   pluginName: string
+  /** Plugin manifest version — surfaced to plugin code via `usePluginContext()`. */
+  pluginVersion: string
+  /**
+   * Row-level timestamp from the plugin install. Used by the host as a
+   * cache-buster suffix for the plugin's admin app entrypoint URL — the
+   * browser caches stably across editor visits but refetches on upgrade
+   * or re-install.
+   */
+  pluginUpdatedAt: string
   /** Always populated by the host's manifest parser. */
   route: string
   /**
    * Snapshot of the plugin's persisted settings at the moment the host
-   * rendered the page. Plugin admin apps read via `api.cms.settings.get(key)`
-   * which returns a value from this snapshot synchronously.
+   * rendered the page. Plugin admin apps read via the `usePluginSettings`
+   * hook which returns this snapshot synchronously.
    */
   pluginSettings: Record<string, string | number | boolean>
   /** The full settings schema declared by the plugin manifest. */
@@ -375,6 +384,33 @@ export interface RegisteredPluginEditorPanel extends PluginEditorPanel {
   pluginId: string
 }
 
+/**
+ * Canvas overlay registered by a plugin via `editor.canvas.registerOverlay`.
+ * Mounts inside the editor's canvas overlay layer — a positioned div that
+ * sits on top of the rendered canvas and receives no pointer events by
+ * default (children can opt in via `pointer-events: auto`).
+ *
+ * Plugins use the host's `useCanvasNodeRect(nodeId)` hook to position
+ * children relative to specific nodes. Common use cases:
+ *   • Comment / annotation pins (Figma-style design review)
+ *   • Custom selection adornments (a11y outlines, contrast warnings)
+ *   • Measurement / ruler tools
+ *   • Live data badges over rendered nodes
+ *
+ * The component receives an `overlay` prop with the registration metadata
+ * so plugins that ship multiple overlays can branch on `overlay.id`.
+ */
+export interface PluginCanvasOverlay {
+  id: string
+  component: import('react').ComponentType<{
+    overlay: { id: string; pluginId: string }
+  }>
+}
+
+export interface RegisteredPluginCanvasOverlay extends PluginCanvasOverlay {
+  pluginId: string
+}
+
 export interface EditorPluginApi {
   editor: {
     commands: {
@@ -391,6 +427,15 @@ export interface EditorPluginApi {
        * registration time.
        */
       register: (panel: PluginEditorPanel) => void
+    }
+    canvas: {
+      /**
+       * Register a canvas overlay React component that mounts on top of
+       * the rendered canvas. Requires the `editor.canvas` permission.
+       * Overlay id MUST start with `<pluginId>.` — namespace-locked at
+       * registration time.
+       */
+      registerOverlay: (overlay: PluginCanvasOverlay) => void
     }
     store: {
       read: () => EditorStore

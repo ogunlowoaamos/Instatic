@@ -5,12 +5,13 @@
  * (`src/ui/components/ErrorBoundary/`) at every architectural seam where a
  * render-time failure could blank a tree the user expects to be independent:
  *
- *   - admin-shell          — last-resort, full-page (src/admin/main.tsx)
- *   - admin-route          — per-section route wrapper (src/admin/router.tsx)
- *   - canvas               — editor canvas transform layer (CanvasRoot.tsx)
- *   - node-renderer        — per-module isolation in the canvas (NodeRenderer.tsx)
- *   - plugin-page          — third-party plugin admin page renderer
- *   - plugin-editor-panel  — third-party plugin editor sidebar panel
+ *   - admin-shell           — last-resort, full-page (src/admin/main.tsx)
+ *   - admin-route           — per-section route wrapper (src/admin/router.tsx)
+ *   - canvas                — editor canvas transform layer (CanvasRoot.tsx)
+ *   - node-renderer         — per-module isolation in the canvas (NodeRenderer.tsx)
+ *   - plugin-page           — third-party plugin admin page renderer
+ *   - plugin-editor-panel   — third-party plugin editor sidebar panel
+ *   - plugin-canvas-overlay — third-party plugin canvas overlay slot
  *
  * Plus the React 19 root-level error callbacks on the single `createRoot`
  * call in `src/admin/main.tsx`:
@@ -49,6 +50,10 @@ const REQUIRED_BOUNDARIES: BoundaryPlacement[] = [
   {
     file: 'admin/pages/site/panels/PluginEditorPanel/PluginEditorPanel.tsx',
     location: 'plugin-editor-panel',
+  },
+  {
+    file: 'admin/pages/site/canvas/PluginCanvasOverlayLayer/PluginCanvasOverlayLayer.tsx',
+    location: 'plugin-canvas-overlay',
   },
 ]
 

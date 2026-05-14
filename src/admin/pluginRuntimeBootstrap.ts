@@ -53,6 +53,8 @@ import {
 // Host hooks surface — useEditorStore, usePluginSettings, etc.
 import {
   PluginContext,
+  useCanvasNodeRect,
+  useCanvasViewport,
   useEditorCommand,
   useEditorStore,
   usePluginContext,
@@ -70,6 +72,7 @@ import {
   definePack,
   definePlugin,
   definePluginAdminApp,
+  definePluginCanvasOverlay,
   definePluginPanel,
   escapeHtml,
   h,
@@ -95,15 +98,29 @@ declare global {
 let installed = false
 
 export function installPluginRuntime(): void {
-  if (installed) return
+  if (installed) {
+    // Defensive single-React check — if the runtime was already installed
+    // and the React module reference has somehow drifted, fail loudly. This
+    // catches the worst class of plugin bug (a plugin author accidentally
+    // bundled their own React) before it produces opaque hook crashes.
+    const existing = globalThis.__pagebuilder
+    if (existing && existing.React !== React) {
+      throw new Error(
+        '[@pagebuilder/runtime] Detected a second React instance during plugin runtime bootstrap. ' +
+        `Host React: ${React.version}; existing React: ${existing.React.version}. ` +
+        'Plugin authors must build with `pb-plugin build` so React is externalized.',
+      )
+    }
+    return
+  }
   installed = true
 
-  globalThis.__pagebuilder = {
+  const runtime = {
     React,
     ReactJsxRuntime,
     ReactJsxDevRuntime,
     ReactDOM,
-    hostUi: {
+    hostUi: Object.freeze({
       Alert,
       Button,
       Card,
@@ -119,18 +136,21 @@ export function installPluginRuntime(): void {
       Switch,
       Text,
       Textarea,
-    },
-    hostHooks: {
+    }),
+    hostHooks: Object.freeze({
       PluginContext,
       useEditorStore,
       usePluginSettings,
       usePluginContext,
       usePluginRoutes,
       useEditorCommand,
-    },
-    pluginSdk: {
+      useCanvasNodeRect,
+      useCanvasViewport,
+    }),
+    pluginSdk: Object.freeze({
       PLUGIN_API_VERSION,
       definePluginPanel,
+      definePluginCanvasOverlay,
       definePluginAdminApp,
       definePlugin,
       defineModule,
@@ -145,6 +165,12 @@ export function installPluginRuntime(): void {
       createNamespace,
       h,
       vc,
-    },
+    }),
   }
+
+  // Freeze the top-level so a plugin (or stray third-party script) cannot
+  // overwrite `__pagebuilder.hostUi` etc. and substitute components.
+  // The shim files in `public/runtime/*.js` rely on these references being
+  // stable for the lifetime of the page.
+  globalThis.__pagebuilder = Object.freeze(runtime)
 }

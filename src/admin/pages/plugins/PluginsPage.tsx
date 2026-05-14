@@ -346,25 +346,12 @@ export function PluginsPage() {
     }
   }
 
-  const toolbarRightSlot = (
-    <Button
-      variant="primary"
-      size="sm"
-      disabled={uploading}
-      onClick={() => fileInputRef.current?.click()}
-    >
-      <UploadIcon size={14} aria-hidden="true" />
-      <span>{uploading ? "Uploading" : "Upload Plugin"}</span>
-    </Button>
-  );
-
   return (
     <AdminPageLayout
       workspace="plugins"
       title="Plugins"
       titleId="plugins-title"
       description="Install admin extensions and control what they add to the CMS."
-      toolbarRightSlot={toolbarRightSlot}
       actions={(
         <>
           <Button

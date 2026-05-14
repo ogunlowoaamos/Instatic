@@ -645,6 +645,55 @@ describe('CMS plugin handlers', () => {
     }
   })
 
+  it('refuses to re-sync a disabled plugin\'s pack into the site', async () => {
+    // Regression: pre-fix, POST /admin/api/cms/plugins/:id/pack/install
+    // would happily merge a disabled plugin's bundled VCs / pages / classes
+    // into the user's draft site — the opposite of what "disabled" should
+    // mean. The endpoint now gates on `plugin.enabled` and returns 400.
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+
+    // Seed a plugin row directly so we don't need real pack files on disk
+    // — the gate fires before `loadPluginPackFile` runs.
+    db.plugins.push({
+      id: 'acme.with-pack',
+      name: 'Pack Plugin',
+      version: '1.0.0',
+      enabled: false,
+      lifecycle_status: 'disabled',
+      last_error: null,
+      manifest_json: JSON.stringify({
+        id: 'acme.with-pack',
+        name: 'Pack Plugin',
+        version: '1.0.0',
+        apiVersion: 1,
+        permissions: ['visualComponents.register'],
+        adminPages: [],
+        resources: [],
+        pack: { path: 'pack/site.json' },
+        assetBasePath: '/uploads/plugins/acme.with-pack/1.0.0',
+      }),
+      granted_permissions_json: JSON.stringify(['visualComponents.register']),
+      settings_json: '{}',
+      installed_at: '2026-05-01T10:00:00.000Z',
+      updated_at: '2026-05-01T10:00:00.000Z',
+    })
+
+    const res = await handleCmsRequest(
+      cmsRequest('http://localhost/admin/api/cms/plugins/acme.with-pack/pack/install', {
+        method: 'POST',
+        headers: { cookie },
+      }),
+      db,
+      { uploadsDir: '/tmp/unused-because-gate-fires-first' },
+    )
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      error: expect.stringContaining('disabled'),
+    })
+  })
+
   it('assertPluginPathWithin rejects paths that escape the uploads root', () => {
     const root = '/srv/uploads'
     // Same root and a child below the root → ok.

@@ -372,7 +372,10 @@ export function validatePluginRecordData(
 }
 
 export function collectEnabledAdminPages(
-  plugins: Array<Pick<InstalledPlugin, 'enabled' | 'manifest' | 'grantedPermissions'> & Partial<Pick<InstalledPlugin, 'lifecycleStatus' | 'settings'>>>,
+  plugins: Array<
+    Pick<InstalledPlugin, 'enabled' | 'manifest' | 'grantedPermissions'>
+    & Partial<Pick<InstalledPlugin, 'lifecycleStatus' | 'settings' | 'updatedAt'>>
+  >,
 ): PluginAdminPageRoute[] {
   return plugins
     .filter((plugin) => plugin.enabled && plugin.lifecycleStatus !== 'error')
@@ -392,6 +395,8 @@ export function collectEnabledAdminPages(
         return {
           pluginId: plugin.manifest.id,
           pluginName: plugin.manifest.name,
+          pluginVersion: plugin.manifest.version,
+          pluginUpdatedAt: plugin.updatedAt ?? '',
           ...page,
           content,
           // The host parser always populates `route` via `pluginAdminPageRoute`;

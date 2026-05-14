@@ -405,6 +405,64 @@ text-start-t
 
 Unknown names render with a generic box icon — request an icon by opening an issue and we'll add the import.
 
+## Canvas Overlays (`editor.canvas`)
+
+Plugins can paint React components on top of the editor canvas — annotation pins, selection adornments, measurement tools, contrast warnings, comment markers. The overlay layer sits above the rendered canvas, fills the canvas viewport, and ignores pointer events by default (children opt in via `pointer-events: auto`).
+
+```tsx
+// editor/index.tsx
+import {
+  definePluginCanvasOverlay,
+  type EditorPluginApi,
+  type EditorPluginModule,
+} from '@pagebuilder/plugin-sdk'
+import { useCanvasNodeRect, useEditorStore } from '@pagebuilder/host-hooks'
+
+function SelectedNodePin() {
+  const selectedId = useEditorStore((s) => s.selectedNodeId)
+  const rect = useCanvasNodeRect(selectedId)
+  if (!rect) return null
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: rect.top - 22,
+        left: rect.left + rect.width / 2 - 6,
+        width: 12,
+        height: 12,
+        borderRadius: 999,
+        background: '#8ee6c8',
+      }}
+      aria-hidden="true"
+    />
+  )
+}
+
+const overlay = definePluginCanvasOverlay({
+  id: 'acme.review.pin',     // MUST start with `<pluginId>.`
+  component: SelectedNodePin,
+})
+
+const mod: EditorPluginModule = {
+  activate(api: EditorPluginApi) {
+    api.editor.canvas.registerOverlay(overlay)
+  },
+}
+export default mod
+```
+
+Geometry hooks from `@pagebuilder/host-hooks`:
+
+- **`useCanvasNodeRect(nodeId)`** — returns `{ top, left, width, height }` in coordinates relative to the overlay layer. Updates on layout / resize / pan / zoom. Returns `null` if the node isn't rendered or `nodeId` is `null`.
+- **`useCanvasViewport()`** — returns `{ width, height }` of the visible canvas area. Useful for floating overlays in a fixed corner.
+
+The overlay layer:
+
+- Renders only in **design mode** (preview-mode canvases never load plugin overlays — published-page output stays plugin-free).
+- Wraps each registered overlay in its own ErrorBoundary, so a render-time crash in one plugin's overlay leaves the canvas + other plugins running.
+- Uses `pointer-events: none` by default. Plugin children that want to be clickable add `pointer-events: 'auto'` to their own elements.
+- Lives **outside** the transform layer in screen coordinates. `useCanvasNodeRect` already maps node positions through any pan/zoom transform — overlays "follow" the node visually.
+
 ## Canvas Modules (`modules.register`)
 
 `modules/index.js` default-exports an array of plugin module definitions. The host wraps each into a host `ModuleDefinition` and registers it with the canvas registry. Module ids must start with `<pluginId>.`.
@@ -437,6 +495,8 @@ export default ({ pluginId }) => [
 Same `render(props, children)` runs on the publisher (server) and inside the editor canvas preview, so the markup you ship is exactly what visitors see.
 
 ## Frontend Tracker (`frontend.scripts` + `frontend.tracker`)
+
+> **Important — frontend scripts are NOT a React surface.** Published pages don't load the editor, the host's React, or the import map. A `frontend.scripts` bundle that imports `react` or `@pagebuilder/host-ui` will crash the visitor's browser at runtime. Use vanilla JS, the DOM API, and `window.__pb` for analytics or widget code. If you genuinely need a frontend React widget, bundle React yourself — but most use cases (analytics, click tracking, A/B testing) don't need it. `pb-plugin build` enforces this by NOT externalizing host packages for frontend bundles, so a stray `import` becomes a build-time bundling cost (your React copy ships per visitor) rather than a runtime resolution failure.
 
 The host injects a tiny tracker runtime into every published page when any installed plugin has `frontend.scripts` or `frontend.tracker` granted. The runtime exposes `window.__pb`:
 

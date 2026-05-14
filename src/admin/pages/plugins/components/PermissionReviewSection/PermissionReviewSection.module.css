@@ -1,0 +1,136 @@
+/*
+ * Permission review banner — shown before installing or upgrading a plugin.
+ *
+ * For an UPGRADE we render permission rows with a diff badge:
+ *   • status="new"      — new in this update (warning tint, prominent badge)
+ *   • status="existing" — already approved on the prior install
+ *   • status="dropped"  — previously granted but no longer requested
+ *
+ * The visual hierarchy puts NEW rows first so a permission expansion is
+ * impossible to miss before clicking "Update".
+ */
+.review {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--editor-surface);
+    border: 1px solid var(--editor-border);
+    border-radius: var(--editor-radius);
+    margin-bottom: 16px;
+}
+
+.review h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--editor-text-bright);
+    margin: 0 0 6px;
+}
+
+.review p {
+    color: var(--editor-text-secondary);
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: var(--editor-radius-sm);
+    background: var(--editor-warning-bg);
+    border: 1px solid var(--editor-warning-border);
+    color: var(--editor-warning-text);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: var(--editor-radius-sm);
+    background: var(--editor-bg-subtle);
+    border: 1px solid transparent;
+}
+
+.row[data-status="new"] {
+    background: var(--editor-warning-bg);
+    border-color: var(--editor-warning-border);
+}
+
+.row[data-status="dropped"] {
+    background: transparent;
+    border-color: var(--editor-border-med);
+    opacity: 0.6;
+}
+
+.label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.label strong {
+    font-weight: 600;
+    color: var(--editor-text-bright);
+    font-size: 13px;
+}
+
+.row[data-status="dropped"] .label strong {
+    text-decoration: line-through;
+}
+
+.description {
+    color: var(--editor-text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+
+.badgeNew {
+    background: var(--editor-warning);
+    color: var(--editor-bg);
+}
+
+.badgeExisting {
+    background: var(--editor-bg-subtle);
+    color: var(--editor-text-secondary);
+    border: 1px solid var(--editor-border-med);
+}
+
+.badgeDropped {
+    background: transparent;
+    color: var(--editor-text-muted);
+    border: 1px solid var(--editor-border-med);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}

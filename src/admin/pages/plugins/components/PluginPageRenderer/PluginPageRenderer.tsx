@@ -20,6 +20,7 @@ import {
   loadPluginAdminAppComponent,
   type PluginAdminAppImport,
 } from '@core/plugins/adminRuntime'
+import { pluginCacheKey } from '@core/plugins/cacheBuster'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
@@ -114,13 +115,13 @@ function PluginReactSubtree({
 }) {
   const contextValue = useMemo<PluginContextValue>(() => ({
     pluginId: page.pluginId,
-    pluginVersion: '',
+    pluginVersion: page.pluginVersion,
     surfaceId: page.id,
     surfaceLabel: page.title,
     settings: page.pluginSettings,
     routes: buildPluginRoutesHelper(page.pluginId),
     runCommand: (commandId) => pluginRuntime.runCommand(commandId),
-  }), [page.id, page.pluginId, page.pluginSettings, page.title])
+  }), [page.id, page.pluginId, page.pluginVersion, page.pluginSettings, page.title])
 
   return (
     <PluginContext.Provider value={contextValue}>
@@ -158,7 +159,11 @@ function PluginAppPage({
 
   useEffect(() => {
     let cancelled = false
-    void loadPluginAdminAppComponent(page, importModule)
+    const cacheKey = pluginCacheKey({
+      version: page.pluginVersion,
+      updatedAt: page.pluginUpdatedAt,
+    })
+    void loadPluginAdminAppComponent(page, importModule, cacheKey)
       .then((loaded) => {
         if (cancelled) return
         setLoadState({ kind: 'react', Component: loaded.Component, key: pageKey })

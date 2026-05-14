@@ -61,6 +61,8 @@
     --editor-danger-border: rgba(239, 68, 68, 0.2);
     --editor-warning: #f59e0b;
     --editor-warning-text: #fde68a; /* amber-200 — warning badge text */
+    --editor-warning-bg: rgba(245, 158, 11, 0.1);
+    --editor-warning-border: rgba(245, 158, 11, 0.3);
     --editor-success-green: #34d399; /* emerald-400 — saved / ok indicator */
     --editor-success-bright: #4ade80; /* green-400 — agent tool success */
     --editor-success-text: #d1fae5; /* emerald-100 — success/mint badge text */

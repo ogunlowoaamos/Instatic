@@ -904,6 +904,13 @@ async function handlePluginPackInstall(
 
   const plugin = await getInstalledPlugin(db, pluginId)
   if (!plugin) return PLUGIN_NOT_FOUND
+  // A disabled plugin pushing pack content (Visual Components, pages,
+  // classes) into the user's draft site contradicts the user's intent in
+  // disabling the plugin. Reject the action explicitly so the API matches
+  // the UI gate (see PluginsPage `Re-sync pack` button).
+  if (!plugin.enabled) {
+    return badRequest(`Plugin "${pluginId}" is disabled — enable it before re-syncing its pack`)
+  }
   if (!plugin.grantedPermissions.includes('visualComponents.register')) {
     return badRequest(`Plugin "${pluginId}" requires the visualComponents.register permission to install a pack`)
   }

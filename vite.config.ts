@@ -188,6 +188,15 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // Public-site runtime endpoints — frontend tracker POSTs, loop
+      // pagination GETs, runtime asset / CSS bundles. Must be in this
+      // explicit `proxy:` map (not just the GET-only middleware) because
+      // the tracker uses POST and the GET-only `publicSiteDevProxyPlugin`
+      // would otherwise drop those requests.
+      '/_pb': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 })

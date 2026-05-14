@@ -19,6 +19,7 @@ import type {
   PluginAdminAppComponent,
   PluginAdminPageRoute,
 } from '@core/plugin-sdk'
+import { withPluginCacheBuster } from './cacheBuster'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -30,21 +31,10 @@ const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
  */
 export type LoadedAdminAppModule = { default: PluginAdminAppComponent }
 
-export type PluginAdminAppImport = (url: string) => Promise<LoadedAdminAppModule>
+export type PluginAdminAppImport = (url: string, cacheKey?: string) => Promise<LoadedAdminAppModule>
 
-/**
- * Append a cache-buster query string to plugin entrypoint URLs. The
- * browser otherwise pins each `/uploads/.../<entry>.js` forever within
- * a session — when `pb-plugin dev` rewrites the file (or the user
- * re-uploads), a soft reload would still execute the stale module.
- */
-function bustedImportUrl(url: string): string {
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}v=${Date.now()}`
-}
-
-const defaultImportModule: PluginAdminAppImport = async (url) =>
-  await import(/* @vite-ignore */ bustedImportUrl(url)) as LoadedAdminAppModule
+const defaultImportModule: PluginAdminAppImport = async (url, cacheKey) =>
+  await import(/* @vite-ignore */ withPluginCacheBuster(url, cacheKey ?? '')) as LoadedAdminAppModule
 
 export function pluginAdminAssetUrl(assetPath: string, entrypoint: string): string {
   return `${assetPath.replace(/\/+$/g, '')}/${entrypoint.replace(/^\/+/g, '')}`
@@ -91,10 +81,15 @@ export function buildPluginRoutesHelper(
 /**
  * Resolve a plugin admin page's entrypoint module via dynamic `import()`.
  * Throws if the module doesn't default-export a `PluginAdminAppComponent`.
+ *
+ * `cacheKey` is the plugin's `<version>-<updatedAt>` — appended to the
+ * import URL via `withPluginCacheBuster` so the browser refetches when
+ * the plugin is upgraded or re-installed but caches stably otherwise.
  */
 export async function loadPluginAdminAppComponent(
   page: PluginAdminPageRoute,
   importModule: PluginAdminAppImport = defaultImportModule,
+  cacheKey?: string,
 ): Promise<{ Component: PluginAdminAppComponent }> {
   if (page.content.kind !== 'app') {
     throw new Error('Plugin admin app loader requires app page content')
@@ -102,7 +97,10 @@ export async function loadPluginAdminAppComponent(
   if (!page.content.assetPath) {
     throw new Error(`Plugin admin app "${page.pluginId}:${page.id}" is missing an asset path`)
   }
-  const mod = await importModule(pluginAdminAssetUrl(page.content.assetPath, page.content.entry))
+  const mod = await importModule(
+    pluginAdminAssetUrl(page.content.assetPath, page.content.entry),
+    cacheKey,
+  )
   const Component = (mod as { default?: unknown }).default
   if (typeof Component !== 'function' && typeof Component !== 'object') {
     throw new Error(
