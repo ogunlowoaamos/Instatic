@@ -70,6 +70,7 @@ function makeFakeDb() {
   const sessions: Record<string, unknown>[] = []
   const pages: Record<string, unknown>[] = []
   const auditEvents: Record<string, unknown>[] = []
+  const loginAttempts: Record<string, unknown>[] = []
 
   function joinedUser(user: Record<string, unknown>) {
     const role = roles.find((candidate) => candidate.id === user.role_id) ?? roles[0]
@@ -122,12 +123,42 @@ function makeFakeDb() {
         status: values[5],
         role_id: values[6],
         last_login_at: null,
+        failed_login_count: 0,
+        locked_until: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted_at: null,
       }
       users.push(row)
       return { rows: [row as Row], rowCount: 1 }
+    }
+    // recordFailedLoginAttempt — increments counter and sets locked_until.
+    // Bind shape: values[0]=lockedUntil (Date|null), values[1]=userId.
+    if (normalized.includes('update users') && normalized.includes('failed_login_count = failed_login_count + 1')) {
+      const lockedUntil = values[0] as Date | null
+      const userId = values[1]
+      const user = users.find((candidate) => candidate.id === userId && candidate.deleted_at == null)
+      if (!user) return { rows: [], rowCount: 0 }
+      user.failed_login_count = Number(user.failed_login_count ?? 0) + 1
+      user.locked_until = lockedUntil ? lockedUntil.toISOString() : null
+      user.updated_at = new Date().toISOString()
+      return {
+        rows: [{ failed_login_count: user.failed_login_count, locked_until: user.locked_until } as Row],
+        rowCount: 1,
+      }
+    }
+    // recordLoginAttempt — append-only audit. Bind shape:
+    // values[0]=id, values[1]=emailNorm, values[2]=ip, values[3]=userId, values[4]=result.
+    if (normalized.includes('insert into login_attempts')) {
+      loginAttempts.push({
+        id: values[0],
+        email_norm: values[1],
+        ip_address: values[2],
+        user_id: values[3],
+        result: values[4],
+        attempted_at: new Date().toISOString(),
+      })
+      return { rows: [], rowCount: 1 }
     }
     // saveDraftSite pages (siteRepository.ts, via transaction) — values[0..4]=id, title, slug, page, index
     if (normalized.includes('insert into pages')) {
@@ -173,10 +204,34 @@ function makeFakeDb() {
         expires_at: values[2],
         ip_address: values[3],
         user_agent: values[4],
+        device_label: values[5] ?? '',
         created_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
         revoked_at: null,
+        step_up_expires_at: null,
       })
+      return { rows: [], rowCount: 1 }
+    }
+    // getSessionStepUpExpiresAt — `select step_up_expires_at from sessions
+    // where id_hash = $1 and revoked_at is null`. Bind: values[0] = idHash.
+    if (normalized.includes('select step_up_expires_at') && normalized.includes('from sessions')) {
+      const session = sessions.find((candidate) =>
+        candidate.id_hash === values[0] && candidate.revoked_at == null,
+      )
+      const row = session ? { step_up_expires_at: session.step_up_expires_at ?? null } : null
+      return { rows: row ? [row as Row] : [], rowCount: row ? 1 : 0 }
+    }
+    // markSessionStepUpFresh — `update sessions set step_up_expires_at = $1
+    // where id_hash = $2 and revoked_at is null`. Bind: values[0] = expiresAt,
+    // values[1] = idHash.
+    if (normalized.includes('update sessions') && normalized.includes('step_up_expires_at')) {
+      const session = sessions.find((candidate) =>
+        candidate.id_hash === values[1] && candidate.revoked_at == null,
+      )
+      if (!session) return { rows: [], rowCount: 0 }
+      session.step_up_expires_at = values[0] instanceof Date
+        ? values[0].toISOString()
+        : (values[0] as string | null)
       return { rows: [], rowCount: 1 }
     }
     if (normalized.includes('from sessions') && normalized.includes('join users')) {
@@ -218,8 +273,17 @@ function makeFakeDb() {
       return { rows: [], rowCount: 1 }
     }
     if (normalized.includes('update users') && normalized.includes('last_login_at')) {
-      const user = users.find((candidate) => candidate.id === values[0])
-      if (user) user.last_login_at = new Date().toISOString()
+      // Bind shape now: values[0]=null (for locked_until clear), values[1]=userId.
+      // Match by trying each value as a candidate user id; production code passes
+      // userId last but tests should not depend on which slot it occupies.
+      const user = users.find((candidate) =>
+        values.some((v) => v === candidate.id),
+      )
+      if (user) {
+        user.last_login_at = new Date().toISOString()
+        user.failed_login_count = 0
+        user.locked_until = null
+      }
       return { rows: [], rowCount: user ? 1 : 0 }
     }
     if (normalized.includes('insert into audit_events')) {
@@ -241,7 +305,7 @@ function makeFakeDb() {
   handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
     cb(handle as unknown as DbClient)
 
-  return Object.assign(handle as DbClient, { site, users, roles, sessions, pages, auditEvents })
+  return Object.assign(handle as DbClient, { site, users, roles, sessions, pages, auditEvents, loginAttempts })
 }
 
 async function json(res: Response) {
@@ -512,7 +576,18 @@ describe('CMS handlers', () => {
     expect(emailPatchRes.status).toBe(403)
     expect(db.users.find((user) => user.role_id === 'owner')?.email).toBe('real-owner@example.com')
 
-    // Admin tries to delete the Owner — also rejected with 403, NOT the
+    // Admin opens a step-up window so the next delete reaches the
+    // owner-protection guard instead of bouncing on the step-up gate.
+    const adminStepUpReq = new Request('http://localhost/admin/api/cms/auth/step-up', {
+      method: 'POST',
+      body: JSON.stringify({ password: 'rogue-admin-password' }),
+      headers: { 'content-type': 'application/json' },
+    })
+    adminStepUpReq.headers.set('cookie', adminCookie)
+    const adminStepUpRes = await handleCmsRequest(adminStepUpReq, db)
+    expect(adminStepUpRes.status).toBe(200)
+
+    // Admin tries to delete the Owner — rejected with 403, NOT the
     // "last active owner" 409 (we want the row-level guard to fire first
     // so the surface stays closed even if multi-owner is added later).
     const deleteReq = new Request(`http://localhost/admin/api/cms/users/${ownerId}`, {
@@ -689,15 +764,20 @@ describe('CMS handlers', () => {
         expect(res.status).toBe(401)
       }
 
-      // Successful login resets the quota.
+      // Successful login resets BOTH the rate-limit bucket and the
+      // per-account failed-login counter (markUserLoggedIn sets the column to
+      // 0 and clears locked_until).
       const ok = await handleCmsRequest(
         loginRequest(email, 'long-enough-password', xff),
         db,
       )
       expect(ok.status).toBe(200)
 
-      // Now another 5 wrong attempts must still be allowed (counter was reset).
-      for (let i = 0; i < 5; i++) {
+      // Now four more wrong attempts must still be allowed (rate-limit
+      // bucket was cleared, lockout counter was zeroed). The 5th wrong
+      // attempt would trigger the per-account lockout — that's a separate
+      // concern covered by authLockoutLogin.test.ts.
+      for (let i = 0; i < 4; i++) {
         const res = await handleCmsRequest(
           loginRequest(email, 'wrong-password', xff),
           db,

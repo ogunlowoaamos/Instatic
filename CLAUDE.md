@@ -141,7 +141,7 @@ The shared component library lives in `src/ui/components/`. Every interactive co
 - **`Input`, `Switch`, `Select`, `SearchBar`, `ColorInput`, `FileUpload`, `Separator`, `ContextMenu`, `FilterBar`** — for the corresponding control type.
 - **`Tree*`** (`src/editor/ui/Tree/`) — for tree rows in DOM/site panels.
 - **Icons:** `pixel-art-icons/icons/<name>`. Each icon is its own TSX file in the `pixel-art-icons` package; deep-import for tree-shaking, never barrel-import. No `lucide-react`, no inline SVG strings — gated by `no-third-party-icons.test.ts`.
-- **Class composition:** `cn` from `@ui/cn`. **Do not import `clsx` directly outside `src/ui/lib/utils.ts`.**
+- **Class composition:** `cn` from `@ui/cn` — an in-house 3-line helper. **Do not** add `clsx`, `tailwind-merge`, `class-variance-authority`, or `@radix-ui/*` to dependencies. This codebase uses CSS Modules, not Tailwind. Gated by `no-tailwind-deps.test.ts`.
 
 ### CSS rules
 

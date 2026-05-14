@@ -15,7 +15,7 @@
  */
 import type { DbClient } from '../../db/client'
 import { hashPassword } from '../../auth/tokens'
-import { requireCapability } from '../../auth/authz'
+import { requireCapability, requireStepUp } from '../../auth/authz'
 import type { AuthUser } from '../../repositories/users'
 import { createAuditEvent } from '../../repositories/audit'
 import {
@@ -235,6 +235,12 @@ async function handleUserDelete(
   actor: AuthUser,
   userId: string,
 ): Promise<Response> {
+  // Step-up gate — deleting another user is one of the highest-blast-radius
+  // actions in the admin. Capability check (`users.manage`) already ran;
+  // this enforces a fresh password re-entry on top.
+  const stepUp = await requireStepUp(req, db)
+  if (stepUp instanceof Response) return stepUp
+
   const target = await findUserById(db, userId)
   if (!target) return userNotFound()
 
