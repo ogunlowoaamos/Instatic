@@ -45,6 +45,10 @@ function makeUser(overrides: Partial<CmsCurrentUser> = {}): CmsCurrentUser {
     lastLoginAt: now,
     failedLoginCount: 0,
     lockedUntil: null,
+    passwordUpdatedAt: null,
+    mfaEnabled: false,
+    mfaEnabledAt: null,
+    mfaRecoveryCodesRemaining: 0,
     avatarMediaId: null,
     avatarUrl: null,
     gravatarHash: '',
@@ -228,7 +232,7 @@ describe('AccountPage', () => {
     expect(screen.getByTestId('account-sessions-sign-out-sess_b')).toBeTruthy()
   })
 
-  it('Security tab renders four placeholder cards with disabled actions', () => {
+  it('Security tab renders active security actions', () => {
     globalThis.fetch = makeAccountFetch((url) => {
       if (url.endsWith('/admin/api/cms/auth/sessions')) return jsonResponse({ sessions: [] })
       return undefined
@@ -240,6 +244,95 @@ describe('AccountPage', () => {
     expect(screen.getByTestId('security-mfa-card')).toBeTruthy()
     expect(screen.getByTestId('security-recovery-card')).toBeTruthy()
     expect(screen.getByTestId('security-connected-card')).toBeTruthy()
+    expect(screen.getByTestId('security-change-password')).toBeTruthy()
+    expect(screen.getByTestId('security-mfa-enable')).toBeTruthy()
+    expect(screen.getByTestId('security-recovery-regenerate')).toBeTruthy()
+  })
+
+  it('Security tab changes password through the shared step-up flow', async () => {
+    let passwordPatchCalls = 0
+    globalThis.fetch = makeAccountFetch((url, init) => {
+      if (url.endsWith('/admin/api/cms/me/password') && init?.method === 'PATCH') {
+        passwordPatchCalls += 1
+        if (passwordPatchCalls === 1) return jsonResponse({ error: 'step_up_required' }, 401)
+        return jsonResponse({ user: makeUser({ passwordUpdatedAt: '2026-05-09T11:00:00.000Z' }) })
+      }
+      if (url.endsWith('/admin/api/cms/auth/step-up')) {
+        return jsonResponse({ ok: true, stepUpExpiresAt: '2026-05-09T11:15:00.000Z' })
+      }
+      return undefined
+    })
+
+    renderWithUser(makeUser())
+    fireEvent.click(screen.getByTestId('account-tab-security'))
+    fireEvent.click(screen.getByTestId('security-change-password'))
+
+    fireEvent.change(screen.getByTestId('security-password-new'), {
+      target: { value: 'new-long-enough-password' },
+    })
+    fireEvent.change(screen.getByTestId('security-password-confirm'), {
+      target: { value: 'new-long-enough-password' },
+    })
+    fireEvent.click(screen.getByTestId('security-password-submit'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-up-dialog')).toBeTruthy()
+    })
+    fireEvent.change(screen.getByTestId('step-up-password'), {
+      target: { value: 'long-enough-password' },
+    })
+    fireEvent.click(screen.getByTestId('step-up-confirm'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Password updated. Other devices were signed out.')).toBeTruthy()
+    })
+    expect(passwordPatchCalls).toBe(2)
+  })
+
+  it('Security tab enables MFA and shows one-time recovery codes', async () => {
+    globalThis.fetch = makeAccountFetch((url, init) => {
+      if (url.endsWith('/admin/api/cms/me/mfa/totp/start') && init?.method === 'POST') {
+        return jsonResponse({
+          secret: 'JBSWY3DPEHPK3PXP',
+          otpauthUrl: 'otpauth://totp/Page%20Builder%20CMS:owner%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Page%20Builder%20CMS',
+        })
+      }
+      if (url.endsWith('/admin/api/cms/me/mfa/totp/enable') && init?.method === 'POST') {
+        return jsonResponse({
+          user: makeUser({
+            mfaEnabled: true,
+            mfaEnabledAt: '2026-05-09T11:00:00.000Z',
+            mfaRecoveryCodesRemaining: 10,
+          }),
+          recoveryCodes: ['aaaa-bbbb-cccc', 'dddd-eeee-ffff'],
+        })
+      }
+      return undefined
+    })
+
+    renderWithUser(makeUser())
+    fireEvent.click(screen.getByTestId('account-tab-security'))
+    fireEvent.click(screen.getByTestId('security-mfa-enable'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('security-mfa-secret').textContent).toContain('JBSWY3DPEHPK3PXP')
+    })
+    await waitFor(() => {
+      const qrCode = screen.getByTestId('security-mfa-qr-code')
+      expect(qrCode.getAttribute('alt')).toBe('Scan this QR code with your authenticator app')
+      expect(qrCode.getAttribute('src')?.startsWith('data:image/')).toBe(true)
+    })
+    expect(screen.getByText('Scan the QR code')).toBeTruthy()
+    fireEvent.change(screen.getByTestId('security-mfa-code'), {
+      target: { value: '123456' },
+    })
+    fireEvent.click(screen.getByTestId('security-mfa-submit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Save these recovery codes now. They will not be shown again.')).toBeTruthy()
+    })
+    expect(screen.getByText('aaaa-bbbb-cccc')).toBeTruthy()
+    expect(screen.getByText('dddd-eeee-ffff')).toBeTruthy()
   })
 
   it('Activity tab shows an empty state when there are no events', async () => {

@@ -366,7 +366,7 @@ export const pgMigrations: Migration[] = [
         user_id text references users(id) on delete set null,
         result text not null
           constraint login_attempts_result_check
-          check (result in ('success', 'bad_password', 'no_user', 'account_disabled', 'locked', 'rate_limited'))
+          check (result in ('success', 'bad_password', 'no_user', 'account_disabled', 'locked', 'rate_limited', 'mfa_failed'))
       );
 
       create index if not exists login_attempts_ip_idx
@@ -395,6 +395,21 @@ export const pgMigrations: Migration[] = [
 
       alter table users
         add column if not exists avatar_media_id text references media_assets(id) on delete set null;
+
+      alter table users
+        add column if not exists password_updated_at timestamptz;
+
+      alter table users
+        add column if not exists mfa_enabled boolean not null default false;
+
+      alter table users
+        add column if not exists mfa_enabled_at timestamptz;
+
+      alter table users
+        add column if not exists mfa_totp_secret text;
+
+      alter table users
+        add column if not exists mfa_recovery_code_hashes_json jsonb not null default '[]'::jsonb;
     `,
   },
   {

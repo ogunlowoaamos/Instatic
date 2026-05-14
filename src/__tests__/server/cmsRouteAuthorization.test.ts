@@ -39,7 +39,7 @@ async function setupOwner(db: DbClient): Promise<string> {
     }),
   })
   expect(res.status).toBe(201)
-  return sessionCookieForUser(db, 'owner@example.com')
+  return stepUp(db, await sessionCookieForUser(db, 'owner@example.com'))
 }
 
 async function sessionCookieForUser(db: DbClient, email: string): Promise<string> {
@@ -54,6 +54,18 @@ async function sessionCookieForUser(db: DbClient, email: string): Promise<string
     userAgent: null,
   })
   return `${SESSION_COOKIE_NAME}=${token}`
+}
+
+async function stepUp(db: DbClient, cookie: string): Promise<string> {
+  const res = await request(db, '/admin/api/cms/auth/step-up', {
+    method: 'POST',
+    cookie,
+    body: JSON.stringify({ password }),
+  })
+  expect(res.status).toBe(200)
+  const steppedCookie = (res.headers.get('set-cookie') ?? '').split(';')[0]
+  expect(steppedCookie.startsWith(`${SESSION_COOKIE_NAME}=`)).toBe(true)
+  return steppedCookie
 }
 
 async function createRole(

@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import type { DbClient } from '../db/client'
 import { normalizeCapabilities, type CoreCapability } from '../auth/capabilities'
 import type { UserRow, UserStatus } from '../types'
+import { Type, filterArray } from '@core/utils/typeboxHelpers'
 
 export interface UserRole {
   id: string
@@ -24,6 +25,10 @@ export interface CmsUser {
   failedLoginCount: number
   lockedUntil: string | null
   avatarMediaId: string | null
+  passwordUpdatedAt: string | null
+  mfaEnabled: boolean
+  mfaEnabledAt: string | null
+  mfaRecoveryCodesRemaining: number
   /** Public path of the uploaded avatar (resolved from media_assets), or null. */
   avatarUrl: string | null
   /** SHA-256 hex of the normalized email — drives the Gravatar fallback URL. */
@@ -34,6 +39,8 @@ export interface CmsUser {
 
 export interface AuthUser extends CmsUser {
   passwordHash: string
+  mfaTotpSecret: string | null
+  mfaRecoveryCodeHashes: string[]
 }
 
 interface JoinedUserRow extends UserRow {
@@ -44,6 +51,8 @@ interface JoinedUserRow extends UserRow {
   role_capabilities_json: unknown
   avatar_public_path: string | null
 }
+
+const RecoveryCodeHashSchema = Type.String()
 
 export class UserMutationError extends Error {
   readonly status: number
@@ -76,6 +85,10 @@ function computeGravatarHash(email: string): string {
 
 export function rowToUser(row: JoinedUserRow): AuthUser {
   const capabilities = normalizeCapabilities(row.role_capabilities_json)
+  const mfaRecoveryCodeHashes = filterArray(
+    RecoveryCodeHashSchema,
+    row.mfa_recovery_code_hashes_json,
+  )
   const role: UserRole = {
     id: row.role_id,
     slug: row.role_slug,
@@ -96,6 +109,12 @@ export function rowToUser(row: JoinedUserRow): AuthUser {
     failedLoginCount: Number(row.failed_login_count ?? 0),
     lockedUntil: dateString(row.locked_until),
     avatarMediaId: row.avatar_media_id ?? null,
+    passwordUpdatedAt: dateString(row.password_updated_at),
+    mfaEnabled: Boolean(row.mfa_enabled),
+    mfaEnabledAt: dateString(row.mfa_enabled_at),
+    mfaTotpSecret: row.mfa_totp_secret ?? null,
+    mfaRecoveryCodeHashes,
+    mfaRecoveryCodesRemaining: mfaRecoveryCodeHashes.length,
     avatarUrl: row.avatar_public_path ?? null,
     gravatarHash: computeGravatarHash(row.email),
     createdAt: dateString(row.created_at)!,
@@ -115,6 +134,10 @@ export function toPublicUser(user: AuthUser): CmsUser {
     failedLoginCount: user.failedLoginCount,
     lockedUntil: user.lockedUntil,
     avatarMediaId: user.avatarMediaId,
+    passwordUpdatedAt: user.passwordUpdatedAt,
+    mfaEnabled: user.mfaEnabled,
+    mfaEnabledAt: user.mfaEnabledAt,
+    mfaRecoveryCodesRemaining: user.mfaRecoveryCodesRemaining,
     avatarUrl: user.avatarUrl,
     gravatarHash: user.gravatarHash,
     createdAt: user.createdAt,
@@ -135,6 +158,11 @@ export async function listUsers(db: DbClient): Promise<CmsUser[]> {
            users.failed_login_count,
            users.locked_until,
            users.avatar_media_id,
+           users.password_updated_at,
+           users.mfa_enabled,
+           users.mfa_enabled_at,
+           users.mfa_totp_secret,
+           users.mfa_recovery_code_hashes_json,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -166,6 +194,11 @@ export async function findUserById(db: DbClient, userId: string): Promise<AuthUs
            users.failed_login_count,
            users.locked_until,
            users.avatar_media_id,
+           users.password_updated_at,
+           users.mfa_enabled,
+           users.mfa_enabled_at,
+           users.mfa_totp_secret,
+           users.mfa_recovery_code_hashes_json,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -198,6 +231,11 @@ export async function findUserByEmail(db: DbClient, email: string): Promise<Auth
            users.failed_login_count,
            users.locked_until,
            users.avatar_media_id,
+           users.password_updated_at,
+           users.mfa_enabled,
+           users.mfa_enabled_at,
+           users.mfa_totp_secret,
+           users.mfa_recovery_code_hashes_json,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -242,7 +280,7 @@ export async function createUser(
   const { rows } = await db<UserRow>`
     insert into users (id, email, email_normalized, display_name, password_hash, status, role_id)
     values (${id}, ${email}, ${emailNormalized}, ${displayName}, ${input.passwordHash}, ${status}, ${input.roleId})
-    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, created_at, updated_at, deleted_at
+    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, created_at, updated_at, deleted_at
   `
   const created = await findUserById(db, rows[0]!.id)
   if (!created) throw new UserMutationError('User was not created', 500)
@@ -272,6 +310,7 @@ export async function updateUser(
   const status = input.status ?? current.status
   const roleId = input.roleId ?? current.role.id
   const passwordHash = input.passwordHash ?? current.passwordHash
+  const passwordUpdatedAt = input.passwordHash === undefined ? current.passwordUpdatedAt : new Date()
 
   const { rows } = await db<UserRow>`
     update users
@@ -279,12 +318,13 @@ export async function updateUser(
         email_normalized = ${emailNormalized},
         display_name = ${displayName},
         password_hash = ${passwordHash},
+        password_updated_at = ${passwordUpdatedAt},
         status = ${status},
         role_id = ${roleId},
         updated_at = current_timestamp
     where id = ${userId}
       and deleted_at is null
-    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, created_at, updated_at, deleted_at
+    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, created_at, updated_at, deleted_at
   `
   if (!rows[0]) return null
   const updated = await findUserById(db, rows[0].id)
@@ -312,6 +352,103 @@ export async function setUserAvatarMediaId(
   if (result.rowCount === 0) return null
   const refreshed = await findUserById(db, userId)
   return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function updateUserPasswordHash(
+  db: DbClient,
+  userId: string,
+  passwordHash: string,
+): Promise<CmsUser | null> {
+  const result = await db`
+    update users
+    set password_hash = ${passwordHash},
+        password_updated_at = current_timestamp,
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
+  `
+  if (result.rowCount === 0) return null
+  const refreshed = await findUserById(db, userId)
+  return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function enableUserTotpMfa(
+  db: DbClient,
+  userId: string,
+  input: {
+    secret: string
+    recoveryCodeHashes: string[]
+  },
+): Promise<CmsUser | null> {
+  const result = await db`
+    update users
+    set mfa_enabled = ${true},
+        mfa_enabled_at = current_timestamp,
+        mfa_totp_secret = ${input.secret},
+        mfa_recovery_code_hashes_json = ${input.recoveryCodeHashes},
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
+  `
+  if (result.rowCount === 0) return null
+  const refreshed = await findUserById(db, userId)
+  return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function disableUserTotpMfa(
+  db: DbClient,
+  userId: string,
+): Promise<CmsUser | null> {
+  const result = await db`
+    update users
+    set mfa_enabled = ${false},
+        mfa_enabled_at = ${null},
+        mfa_totp_secret = ${null},
+        mfa_recovery_code_hashes_json = ${[]},
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
+  `
+  if (result.rowCount === 0) return null
+  const refreshed = await findUserById(db, userId)
+  return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function replaceUserRecoveryCodeHashes(
+  db: DbClient,
+  userId: string,
+  recoveryCodeHashes: string[],
+): Promise<CmsUser | null> {
+  const result = await db`
+    update users
+    set mfa_recovery_code_hashes_json = ${recoveryCodeHashes},
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
+      and mfa_enabled = ${true}
+  `
+  if (result.rowCount === 0) return null
+  const refreshed = await findUserById(db, userId)
+  return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function consumeUserRecoveryCodeHash(
+  db: DbClient,
+  userId: string,
+  usedHash: string,
+): Promise<boolean> {
+  const user = await findUserById(db, userId)
+  if (!user || !user.mfaRecoveryCodeHashes.includes(usedHash)) return false
+  const remaining = user.mfaRecoveryCodeHashes.filter((hash) => hash !== usedHash)
+  const result = await db`
+    update users
+    set mfa_recovery_code_hashes_json = ${remaining},
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
+      and mfa_enabled = ${true}
+  `
+  return result.rowCount > 0
 }
 
 export async function softDeleteUser(db: DbClient, userId: string): Promise<boolean> {

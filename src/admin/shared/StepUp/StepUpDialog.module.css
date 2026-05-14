@@ -35,6 +35,11 @@
     line-height: 1.5;
 }
 
+.form {
+    display: grid;
+    gap: 12px;
+}
+
 .field {
     display: grid;
     gap: 6px;

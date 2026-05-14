@@ -1,0 +1,281 @@
+/**
+ * Integration tests — Account → Security endpoints.
+ *
+ * Covers self-service password changes, TOTP MFA enrollment, MFA-gated
+ * login, and one-time recovery-code login against a real migrated SQLite DB.
+ */
+import { createHmac } from 'node:crypto'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import type { DbClient } from '../../../server/db'
+import { handleCmsRequest } from '../../../server/handlers/cms'
+import { createSession } from '../../../server/auth/sessions'
+import {
+  SESSION_COOKIE_NAME,
+  createSessionToken,
+  hashSessionToken,
+  sessionExpiry,
+  verifyPassword,
+} from '../../../server/auth/tokens'
+import { loginPerIpRateLimit, loginRateLimit, mfaRateLimit } from '../../../server/auth/rateLimit'
+import { findUserByEmail } from '../../../server/repositories/users'
+import { createTestDb } from '../helpers/createTestDb'
+
+const PASSWORD = 'long-enough-password'
+const NEW_PASSWORD = 'new-long-enough-password'
+const EMAIL = 'owner@example.com'
+const IP = '203.0.113.10'
+
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+
+function decodeBase32(secret: string): Buffer {
+  let bits = ''
+  for (const char of secret.replace(/=+$/g, '').toUpperCase()) {
+    const value = BASE32_ALPHABET.indexOf(char)
+    if (value < 0) throw new Error(`Invalid base32 character ${char}`)
+    bits += value.toString(2).padStart(5, '0')
+  }
+  const bytes: number[] = []
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(Number.parseInt(bits.slice(i, i + 8), 2))
+  }
+  return Buffer.from(bytes)
+}
+
+function totpCode(secret: string, now = Date.now()): string {
+  const counter = Math.floor(now / 30_000)
+  const counterBytes = Buffer.alloc(8)
+  counterBytes.writeBigUInt64BE(BigInt(counter))
+  const digest = createHmac('sha1', decodeBase32(secret)).update(counterBytes).digest()
+  const offset = digest[digest.length - 1]! & 0x0f
+  const value = (
+    ((digest[offset]! & 0x7f) << 24)
+    | ((digest[offset + 1]! & 0xff) << 16)
+    | ((digest[offset + 2]! & 0xff) << 8)
+    | (digest[offset + 3]! & 0xff)
+  ) % 1_000_000
+  return value.toString().padStart(6, '0')
+}
+
+async function setup(db: DbClient): Promise<void> {
+  const res = await handleCmsRequest(
+    new Request('http://localhost/admin/api/cms/setup', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ siteName: 'Security Test', email: EMAIL, password: PASSWORD }),
+    }),
+    db,
+  )
+  expect(res.status).toBe(201)
+}
+
+async function login(
+  db: DbClient,
+  password = PASSWORD,
+): Promise<{ cookie: string; body: Record<string, unknown> }> {
+  const res = await handleCmsRequest(
+    new Request('http://localhost/admin/api/cms/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': IP,
+      },
+      body: JSON.stringify({ email: EMAIL, password }),
+    }),
+    db,
+  )
+  expect(res.status).toBe(200)
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const cookie = setCookie.split(';')[0]
+  expect(cookie.startsWith(`${SESSION_COOKIE_NAME}=`)).toBe(true)
+  return { cookie, body: await res.json() as Record<string, unknown> }
+}
+
+function cookieFromSetCookie(res: Response): string {
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const cookie = setCookie.split(';')[0] ?? ''
+  expect(cookie.startsWith(`${SESSION_COOKIE_NAME}=`)).toBe(true)
+  return cookie
+}
+
+async function stepUp(db: DbClient, cookie: string): Promise<string> {
+  const req = new Request('http://localhost/admin/api/cms/auth/step-up', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password: PASSWORD }),
+  })
+  req.headers.set('cookie', cookie)
+  const res = await handleCmsRequest(req, db)
+  expect(res.status).toBe(200)
+  return cookieFromSetCookie(res)
+}
+
+async function enableMfa(
+  db: DbClient,
+  cookie: string,
+): Promise<{ secret: string; recoveryCodes: string[] }> {
+  const steppedCookie = await stepUp(db, cookie)
+  const startReq = new Request('http://localhost/admin/api/cms/me/mfa/totp/start', {
+    method: 'POST',
+  })
+  startReq.headers.set('cookie', steppedCookie)
+  const startRes = await handleCmsRequest(startReq, db)
+  expect(startRes.status).toBe(200)
+  const startBody = await startRes.json() as { secret: string; otpauthUrl: string }
+  expect(startBody.secret).toMatch(/^[A-Z2-7]+$/)
+  expect(startBody.otpauthUrl).toContain(encodeURIComponent(EMAIL))
+
+  const enableReq = new Request('http://localhost/admin/api/cms/me/mfa/totp/enable', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ secret: startBody.secret, code: totpCode(startBody.secret) }),
+  })
+  enableReq.headers.set('cookie', steppedCookie)
+  const enableRes = await handleCmsRequest(enableReq, db)
+  expect(enableRes.status).toBe(200)
+  const enableBody = await enableRes.json() as {
+    user: { mfaEnabled: boolean; mfaRecoveryCodesRemaining: number }
+    recoveryCodes: string[]
+  }
+  expect(enableBody.user.mfaEnabled).toBe(true)
+  expect(enableBody.user.mfaRecoveryCodesRemaining).toBe(10)
+  expect(enableBody.recoveryCodes).toHaveLength(10)
+
+  return { secret: startBody.secret, recoveryCodes: enableBody.recoveryCodes }
+}
+
+function resetLimiters(): void {
+  loginRateLimit.reset(`${IP}|${EMAIL}`)
+  loginRateLimit.reset(`unknown|${EMAIL}`)
+  loginPerIpRateLimit.reset(IP)
+  mfaRateLimit.reset(IP)
+  mfaRateLimit.reset('unknown')
+}
+
+describe('Account security endpoints', () => {
+  let testDb: { db: DbClient; cleanup: () => Promise<void> }
+
+  beforeEach(async () => {
+    testDb = await createTestDb()
+    resetLimiters()
+    await setup(testDb.db)
+  })
+
+  afterEach(async () => {
+    await testDb.cleanup()
+    resetLimiters()
+  })
+
+  it('PATCH /me/password requires step-up, changes the password, and revokes other sessions', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+    const user = await findUserByEmail(db, EMAIL)
+    const otherToken = createSessionToken()
+    const otherIdHash = await hashSessionToken(otherToken)
+    await createSession(db, {
+      idHash: otherIdHash,
+      userId: user!.id,
+      expiresAt: sessionExpiry(),
+      ipAddress: '198.51.100.30',
+      userAgent: null,
+    })
+
+    const blockedReq = new Request('http://localhost/admin/api/cms/me/password', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ newPassword: NEW_PASSWORD }),
+    })
+    blockedReq.headers.set('cookie', cookie)
+    const blockedRes = await handleCmsRequest(blockedReq, db)
+    expect(blockedRes.status).toBe(401)
+    expect(await blockedRes.json()).toEqual({ error: 'step_up_required' })
+
+    const steppedCookie = await stepUp(db, cookie)
+    const changeReq = new Request('http://localhost/admin/api/cms/me/password', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ newPassword: NEW_PASSWORD }),
+    })
+    changeReq.headers.set('cookie', steppedCookie)
+    const changeRes = await handleCmsRequest(changeReq, db)
+    expect(changeRes.status).toBe(200)
+    const body = await changeRes.json() as { user: { passwordUpdatedAt: string } }
+    expect(Date.parse(body.user.passwordUpdatedAt)).not.toBeNaN()
+
+    const updated = await findUserByEmail(db, EMAIL)
+    expect(await verifyPassword(NEW_PASSWORD, updated!.passwordHash)).toBe(true)
+    expect(await verifyPassword(PASSWORD, updated!.passwordHash)).toBe(false)
+
+    const revoked = await db<{ revoked_at: string | null }>`
+      select revoked_at from sessions where id_hash = ${otherIdHash}
+    `
+    expect(revoked.rows[0]?.revoked_at).not.toBeNull()
+  })
+
+  it('enables TOTP MFA and blocks normal authenticated APIs until the second factor verifies', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+    const { secret } = await enableMfa(db, cookie)
+
+    const pending = await login(db)
+    expect(pending.body.mfaRequired).toBe(true)
+
+    const meReq = new Request('http://localhost/admin/api/cms/me', { method: 'GET' })
+    meReq.headers.set('cookie', pending.cookie)
+    const meRes = await handleCmsRequest(meReq, db)
+    expect(meRes.status).toBe(401)
+    expect(await meRes.json()).toEqual({ error: 'mfa_required' })
+
+    const verifyReq = new Request('http://localhost/admin/api/cms/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: totpCode(secret) }),
+    })
+    verifyReq.headers.set('cookie', pending.cookie)
+    const verifyRes = await handleCmsRequest(verifyReq, db)
+    expect(verifyRes.status).toBe(200)
+    expect(await verifyRes.json()).toEqual({ ok: true })
+    const verifiedCookie = cookieFromSetCookie(verifyRes)
+    expect(verifiedCookie).not.toBe(pending.cookie)
+
+    const oldCookieMeReq = new Request('http://localhost/admin/api/cms/me', { method: 'GET' })
+    oldCookieMeReq.headers.set('cookie', pending.cookie)
+    const oldCookieMeRes = await handleCmsRequest(oldCookieMeReq, db)
+    expect(oldCookieMeRes.status).toBe(401)
+
+    const verifiedMeReq = new Request('http://localhost/admin/api/cms/me', { method: 'GET' })
+    verifiedMeReq.headers.set('cookie', verifiedCookie)
+    const verifiedMeRes = await handleCmsRequest(verifiedMeReq, db)
+    expect(verifiedMeRes.status).toBe(200)
+  })
+
+  it('accepts one recovery code during MFA login and burns it after use', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+    const { recoveryCodes } = await enableMfa(db, cookie)
+    const recoveryCode = recoveryCodes[0]!
+
+    const pending = await login(db)
+    const verifyReq = new Request('http://localhost/admin/api/cms/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: recoveryCode }),
+    })
+    verifyReq.headers.set('cookie', pending.cookie)
+    const verifyRes = await handleCmsRequest(verifyReq, db)
+    expect(verifyRes.status).toBe(200)
+    expect(cookieFromSetCookie(verifyRes)).not.toBe(pending.cookie)
+
+    const user = await findUserByEmail(db, EMAIL)
+    expect(user?.mfaRecoveryCodesRemaining).toBe(9)
+
+    const pendingAgain = await login(db)
+    const reuseReq = new Request('http://localhost/admin/api/cms/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: recoveryCode }),
+    })
+    reuseReq.headers.set('cookie', pendingAgain.cookie)
+    const reuseRes = await handleCmsRequest(reuseReq, db)
+    expect(reuseRes.status).toBe(401)
+  })
+})

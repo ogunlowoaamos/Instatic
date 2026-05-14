@@ -18,7 +18,8 @@ import {
 } from '../../auth/tokens'
 import {
   createSession,
-  markSessionStepUpFresh,
+  findUserByPendingMfaSessionHash,
+  rotateSessionToken,
   revokeSessionByHash,
 } from '../../auth/sessions'
 import {
@@ -27,9 +28,11 @@ import {
   revokeSessionByHashForUser,
 } from '../../repositories/sessions'
 import {
+  findUserById,
   findUserByEmail,
   markUserLoggedIn,
   recordFailedLoginAttempt,
+  consumeUserRecoveryCodeHash,
   toPublicUser,
   type AuthUser,
 } from '../../repositories/users'
@@ -45,9 +48,10 @@ import {
   recordLoginAttempt,
   type LoginAttemptResult,
 } from '../../repositories/loginAttempts'
-import { loginPerIpRateLimit, loginRateLimit } from '../../auth/rateLimit'
+import { loginPerIpRateLimit, loginRateLimit, mfaRateLimit } from '../../auth/rateLimit'
 import { evaluateFailedAttempt, evaluateLockState } from '../../auth/lockout'
 import { clientIp } from '../../auth/security'
+import { findMatchingRecoveryCodeHash, verifyTotpCode } from '../../auth/mfa'
 import { jsonResponse, methodNotAllowed, readJsonObject, setCookieHeader } from '../../http'
 import { CMS_API_PREFIX, readString, requestAuditContext } from './shared'
 import { clearSessionCookie, getDummyPasswordHash, sessionCookie } from './session'
@@ -64,6 +68,96 @@ import { clearSessionCookie, getDummyPasswordHash, sessionCookie } from './sessi
 function previouslyLocked(user: AuthUser): boolean {
   if (user.failedLoginCount > 0) return true
   return user.lockedUntil !== null
+}
+
+function retryAfterSeconds(ms: number): string {
+  return String(Math.ceil(ms / 1000))
+}
+
+async function recordStepUpRateLimit(
+  db: DbClient,
+  req: Request,
+  user: AuthUser,
+  ip: string | null,
+  scope: 'ip' | 'tuple',
+  retryAfterMs: number,
+): Promise<Response> {
+  await recordLoginAttempt(db, {
+    emailNorm: user.email.toLowerCase(),
+    ipAddress: ip,
+    userId: user.id,
+    result: 'rate_limited',
+  })
+  await createAuditEvent(db, {
+    actorUserId: user.id,
+    action: 'login.rate_limited',
+    targetType: 'user',
+    targetId: user.id,
+    metadata: { email: user.email.toLowerCase(), scope: `step_up_${scope}` },
+    ...requestAuditContext(req),
+  })
+  return jsonResponse(
+    { error: scope === 'ip' ? 'Too many login attempts from this address. Try again later.' : 'Too many login attempts. Try again later.' },
+    {
+      status: 429,
+      headers: { 'Retry-After': retryAfterSeconds(retryAfterMs) },
+    },
+  )
+}
+
+async function recordStepUpPasswordFailure(
+  db: DbClient,
+  req: Request,
+  user: AuthUser,
+  ip: string | null,
+): Promise<Response> {
+  await recordLoginAttempt(db, {
+    emailNorm: user.email.toLowerCase(),
+    ipAddress: ip,
+    userId: user.id,
+    result: 'bad_password',
+  })
+
+  const lockout = evaluateFailedAttempt(user.failedLoginCount)
+  await recordFailedLoginAttempt(db, user.id, lockout.lockedUntil)
+
+  if (lockout.triggered && lockout.lockedUntil) {
+    await createAuditEvent(db, {
+      actorUserId: user.id,
+      action: 'login.locked',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: {
+        email: user.email.toLowerCase(),
+        lockedUntil: lockout.lockedUntil.toISOString(),
+        failedLoginCount: lockout.failedLoginCount,
+        reason: 'step_up',
+      },
+      ...requestAuditContext(req),
+    })
+  }
+
+  await createAuditEvent(db, {
+    actorUserId: user.id,
+    action: 'login.failure',
+    targetType: 'user',
+    targetId: user.id,
+    metadata: { reason: 'step_up' },
+    ...requestAuditContext(req),
+  })
+
+  if (lockout.triggered && lockout.lockedUntil) {
+    const retryAfterMs = Math.max(0, lockout.lockedUntil.getTime() - Date.now())
+    return jsonResponse(
+      { error: 'Account locked. Try again later.' },
+      {
+        status: 423,
+        headers: { 'Retry-After': retryAfterSeconds(retryAfterMs) },
+      },
+    )
+  }
+
+  return jsonResponse({ error: 'Invalid password' }, { status: 401 })
 }
 
 export async function handleAuthRoutes(req: Request, db: DbClient): Promise<Response | null> {
@@ -243,13 +337,6 @@ export async function handleAuthRoutes(req: Request, db: DbClient): Promise<Resp
     // followed by a correct attempt doesn't continue eating into the quota.
     loginRateLimit.reset(rateLimitKey)
 
-    await recordLoginAttempt(db, {
-      emailNorm: email || null,
-      ipAddress: ip,
-      userId: user.id,
-      result: 'success',
-    })
-
     const wasPreviouslyLocked = previouslyLocked(user)
 
     const token = createSessionToken()
@@ -258,7 +345,22 @@ export async function handleAuthRoutes(req: Request, db: DbClient): Promise<Resp
       idHash: await hashSessionToken(token),
       userId: user.id,
       expiresAt,
+      mfaPassedAt: user.mfaEnabled ? null : new Date(),
       ...requestAuditContext(req),
+    })
+
+    if (user.mfaEnabled) {
+      return setCookieHeader(
+        jsonResponse({ ok: true, mfaRequired: true }),
+        sessionCookie(req, token, expiresAt),
+      )
+    }
+
+    await recordLoginAttempt(db, {
+      emailNorm: email || null,
+      ipAddress: ip,
+      userId: user.id,
+      result: 'success',
     })
     await markUserLoggedIn(db, user.id)
 
@@ -282,7 +384,92 @@ export async function handleAuthRoutes(req: Request, db: DbClient): Promise<Resp
       ...requestAuditContext(req),
     })
 
-    return setCookieHeader(jsonResponse({ ok: true }), sessionCookie(req, token, expiresAt))
+    return setCookieHeader(
+      jsonResponse({ ok: true, mfaRequired: false }),
+      sessionCookie(req, token, expiresAt),
+    )
+  }
+
+  if (url.pathname === `${CMS_API_PREFIX}/auth/mfa/verify`) {
+    if (req.method !== 'POST') return methodNotAllowed()
+    const idHash = await getSessionHash(req)
+    if (!idHash) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const user = await findUserByPendingMfaSessionHash(db, idHash)
+    if (!user) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+
+    const ip = clientIp(req)
+    const rateLimitKey = ip ?? 'unknown'
+    const decision = mfaRateLimit.consume(rateLimitKey)
+    if (!decision.ok) {
+      await recordLoginAttempt(db, {
+        emailNorm: user.email.toLowerCase(),
+        ipAddress: ip,
+        userId: user.id,
+        result: 'rate_limited',
+      })
+      return jsonResponse(
+        { error: 'Too many MFA attempts. Try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(decision.retryAfterMs / 1000)) },
+        },
+      )
+    }
+
+    const body = await readJsonObject(req)
+    const code = readString(body, 'code')
+    const totpOk = user.mfaTotpSecret ? verifyTotpCode(user.mfaTotpSecret, code) : false
+    const recoveryHash = findMatchingRecoveryCodeHash(code, user.mfaRecoveryCodeHashes)
+    if (!totpOk && !recoveryHash) {
+      await recordLoginAttempt(db, {
+        emailNorm: user.email.toLowerCase(),
+        ipAddress: ip,
+        userId: user.id,
+        result: 'mfa_failed',
+      })
+      await createAuditEvent(db, {
+        actorUserId: user.id,
+        action: 'login.failure',
+        targetType: 'user',
+        targetId: user.id,
+        metadata: { reason: 'mfa' },
+        ...requestAuditContext(req),
+      })
+      return jsonResponse({ error: 'Invalid authentication code' }, { status: 401 })
+    }
+
+    if (recoveryHash) {
+      const consumed = await consumeUserRecoveryCodeHash(db, user.id, recoveryHash)
+      if (!consumed) return jsonResponse({ error: 'Invalid authentication code' }, { status: 401 })
+    }
+
+    const nextToken = createSessionToken()
+    const rotatedSession = await rotateSessionToken(db, idHash, {
+      nextIdHash: await hashSessionToken(nextToken),
+      mfaPassedAt: new Date(),
+    })
+    if (!rotatedSession) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+
+    await markUserLoggedIn(db, user.id)
+    await recordLoginAttempt(db, {
+      emailNorm: user.email.toLowerCase(),
+      ipAddress: ip,
+      userId: user.id,
+      result: 'success',
+    })
+    mfaRateLimit.reset(rateLimitKey)
+    await createAuditEvent(db, {
+      actorUserId: user.id,
+      action: 'login.success',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { mfa: true, recoveryCodeUsed: Boolean(recoveryHash) },
+      ...requestAuditContext(req),
+    })
+    return setCookieHeader(
+      jsonResponse({ ok: true }),
+      sessionCookie(req, nextToken, rotatedSession.expiresAt),
+    )
   }
 
   if (url.pathname === `${CMS_API_PREFIX}/logout`) {
@@ -394,31 +581,104 @@ export async function handleAuthRoutes(req: Request, db: DbClient): Promise<Resp
       )
     }
 
+    const ip = clientIp(req)
+    if (ip) {
+      const ipDecision = loginPerIpRateLimit.consume(ip)
+      if (!ipDecision.ok) {
+        return recordStepUpRateLimit(db, req, user, ip, 'ip', ipDecision.retryAfterMs)
+      }
+    }
+
+    const rateLimitKey = `${ip ?? 'unknown'}|${user.email.toLowerCase()}`
+    const decision = loginRateLimit.consume(rateLimitKey)
+    if (!decision.ok) {
+      return recordStepUpRateLimit(db, req, user, ip, 'tuple', decision.retryAfterMs)
+    }
+
     const body = await readJsonObject(req)
     const password = readString(body, 'password')
-    const ip = clientIp(req)
+    const mfaCode = readString(body, 'mfaCode')
     const passwordOk = await verifyPassword(password, user.passwordHash)
     if (!passwordOk) {
-      await recordLoginAttempt(db, {
-        emailNorm: user.email.toLowerCase(),
-        ipAddress: ip,
-        userId: user.id,
-        result: 'bad_password',
-      })
-      await createAuditEvent(db, {
-        actorUserId: user.id,
-        action: 'login.failure',
-        targetType: 'user',
-        targetId: user.id,
-        metadata: { reason: 'step_up' },
-        ...requestAuditContext(req),
-      })
-      return jsonResponse({ error: 'Invalid password' }, { status: 401 })
+      return recordStepUpPasswordFailure(db, req, user, ip)
+    }
+    loginRateLimit.reset(rateLimitKey)
+
+    let refreshedUser = user
+    if (user.mfaEnabled) {
+      if (!mfaCode) {
+        return jsonResponse({ error: 'Authentication code required' }, { status: 401 })
+      }
+
+      const rateLimitKey = ip ?? 'unknown'
+      const mfaDecision = mfaRateLimit.consume(rateLimitKey)
+      if (!mfaDecision.ok) {
+        await recordLoginAttempt(db, {
+          emailNorm: user.email.toLowerCase(),
+          ipAddress: ip,
+          userId: user.id,
+          result: 'rate_limited',
+        })
+        return jsonResponse(
+          { error: 'Too many MFA attempts. Try again later.' },
+          {
+            status: 429,
+            headers: { 'Retry-After': String(Math.ceil(mfaDecision.retryAfterMs / 1000)) },
+          },
+        )
+      }
+
+      const totpOk = (() => {
+        try {
+          return user.mfaTotpSecret ? verifyTotpCode(user.mfaTotpSecret, mfaCode) : false
+        } catch {
+          return false
+        }
+      })()
+      const recoveryHash = findMatchingRecoveryCodeHash(mfaCode, user.mfaRecoveryCodeHashes)
+      if (!totpOk && !recoveryHash) {
+        await recordLoginAttempt(db, {
+          emailNorm: user.email.toLowerCase(),
+          ipAddress: ip,
+          userId: user.id,
+          result: 'mfa_failed',
+        })
+        await createAuditEvent(db, {
+          actorUserId: user.id,
+          action: 'login.failure',
+          targetType: 'user',
+          targetId: user.id,
+          metadata: { reason: 'step_up_mfa' },
+          ...requestAuditContext(req),
+        })
+        return jsonResponse({ error: 'Invalid authentication code' }, { status: 401 })
+      }
+
+      if (recoveryHash) {
+        const consumed = await consumeUserRecoveryCodeHash(db, user.id, recoveryHash)
+        if (!consumed) return jsonResponse({ error: 'Invalid authentication code' }, { status: 401 })
+        refreshedUser = await findUserById(db, user.id) ?? user
+      }
+
+      mfaRateLimit.reset(rateLimitKey)
     }
 
     const expiresAt = new Date(Date.now() + STEP_UP_WINDOW_MS)
-    await markSessionStepUpFresh(db, idHash, expiresAt)
-    return jsonResponse({ ok: true, stepUpExpiresAt: expiresAt.toISOString() })
+    const nextToken = createSessionToken()
+    const rotatedSession = await rotateSessionToken(db, idHash, {
+      nextIdHash: await hashSessionToken(nextToken),
+      stepUpExpiresAt: expiresAt,
+    })
+    if (!rotatedSession) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+
+    return setCookieHeader(
+      jsonResponse({
+        ok: true,
+        stepUpExpiresAt: expiresAt.toISOString(),
+        user: toPublicUser(refreshedUser),
+      }),
+      sessionCookie(req, nextToken, rotatedSession.expiresAt),
+    )
   }
 
   // GET /admin/api/cms/auth/activity — login activity feed for the current

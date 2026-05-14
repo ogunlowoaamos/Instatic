@@ -1,4 +1,4 @@
-import { createContext, type MouseEvent } from 'react'
+import { createContext, type MouseEvent, type RefObject } from 'react'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
 
 interface CanvasSelectionContextValue {
@@ -14,6 +14,14 @@ export const CanvasSelectionContext = createContext<CanvasSelectionContextValue>
   onNodeContextMenu: () => {},
   onNodeDoubleClick: () => {},
 })
+
+export interface CanvasViewportActionsContextValue {
+  canvasRootRef: RefObject<HTMLElement | null>
+  panBy: (dx: number, dy: number) => void
+}
+
+export const CanvasViewportActionsContext =
+  createContext<CanvasViewportActionsContextValue | null>(null)
 
 export const CanvasBreakpointContext = createContext<string | undefined>(undefined)
 export const CanvasTemplateContext = createContext<TemplateRenderDataContext | undefined>(undefined)

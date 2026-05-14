@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import { PropertyControlRenderer } from '@site/property-controls/PropertyControlRenderer'
 import type { PropertyControl } from '@core/module-engine/types'
 import type { CmsMediaAsset } from '@core/persistence/cmsMedia'
@@ -47,10 +47,17 @@ function renderControl(
   )
 }
 
-function installMediaFetchStub(assets: CmsMediaAsset[]): () => void {
+function installMediaFetchStub(
+  assets: CmsMediaAsset[],
+  uploadAsset?: CmsMediaAsset,
+): () => void {
   const originalFetch = globalThis.fetch
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (String(input).endsWith('/admin/api/cms/media')) {
+      if (init?.method === 'POST') {
+        if (!uploadAsset) throw new Error('Unexpected media upload')
+        return new Response(JSON.stringify({ asset: uploadAsset }), { status: 200 })
+      }
       return new Response(JSON.stringify({ assets }), { status: 200 })
     }
     throw new Error(`Unexpected fetch: ${String(input)}`)
@@ -80,6 +87,16 @@ const mediaAssets: CmsMediaAsset[] = [
     createdAt: '2026-01-02T00:00:00.000Z',
   },
 ]
+
+const uploadedImageAsset: CmsMediaAsset = {
+  id: 'asset-uploaded-image',
+  filename: 'uploaded.png',
+  mimeType: 'image/png',
+  sizeBytes: 2048,
+  publicPath: '/uploads/uploaded.png',
+  uploadedByUserId: null,
+  createdAt: '2026-01-03T00:00:00.000Z',
+}
 
 // ---------------------------------------------------------------------------
 // 1 — data-testid and minHeight wrapper (Guideline #221 / WCAG 2.5.5)
@@ -252,6 +269,61 @@ describe('PropertyControlRenderer — type dispatch', () => {
 
       fireEvent.click(imageAsset)
       expect(changes).toContainEqual({ key: 'src', value: '/uploads/hero.png' })
+    } finally {
+      restoreFetch()
+    }
+  })
+
+  it('image → uses the shared SegmentedControl for library and URL modes', async () => {
+    const { readFileSync } = await import('fs')
+    const src = readFileSync(
+      new URL('../../admin/pages/site/property-controls/MediaLibraryControl.tsx', import.meta.url),
+      'utf-8',
+    )
+
+    expect(src).toContain("import { SegmentedControl } from '@ui/components/SegmentedControl'")
+    expect(src).toContain('<SegmentedControl')
+    expect(src).not.toContain('mediaSourceSwitch')
+  })
+
+  it('image → empty library shows a shared empty state action that uploads and selects an image', async () => {
+    const restoreFetch = installMediaFetchStub([], uploadedImageAsset)
+    const changes: Array<{ key: string; value: unknown }> = []
+
+    try {
+      render(
+        <PropertyControlRenderer
+          propKey="src"
+          control={{ type: 'image', label: 'Image Source' }}
+          value=""
+          onChange={(key, value) => changes.push({ key, value })}
+        />,
+      )
+
+      const title = await screen.findByText('No image assets yet')
+      const emptyState = title.closest('[role="status"]')
+      if (!(emptyState instanceof HTMLElement)) {
+        throw new Error('Expected image empty state to use the shared EmptyState role')
+      }
+
+      expect(within(emptyState).getByRole('button', { name: /^upload image$/i })).toBeDefined()
+      expect(screen.queryByRole('button', { name: /open media panel/i })).toBeNull()
+
+      const fileInput = emptyState.querySelector('input[type="file"]')
+      if (!(fileInput instanceof HTMLInputElement)) {
+        throw new Error('Expected image upload action to expose a native file input')
+      }
+
+      expect(fileInput.accept).toBe('image/*')
+
+      fireEvent.change(fileInput, {
+        target: {
+          files: [new File(['image-bytes'], 'uploaded.png', { type: 'image/png' })],
+        },
+      })
+
+      expect(await screen.findByRole('button', { name: /select media uploaded\.png/i })).toBeDefined()
+      expect(changes).toContainEqual({ key: 'src', value: '/uploads/uploaded.png' })
     } finally {
       restoreFetch()
     }

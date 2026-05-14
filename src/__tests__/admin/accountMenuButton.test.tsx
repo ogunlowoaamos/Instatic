@@ -42,6 +42,10 @@ function makeUser(overrides: Partial<CmsCurrentUser> = {}): CmsCurrentUser {
     lastLoginAt: null,
     failedLoginCount: 0,
     lockedUntil: null,
+    passwordUpdatedAt: null,
+    mfaEnabled: false,
+    mfaEnabledAt: null,
+    mfaRecoveryCodesRemaining: 0,
     avatarMediaId: null,
     avatarUrl: null,
     // Empty hash → no Gravatar URL → initials fallback fires. Keeps the

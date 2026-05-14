@@ -26,6 +26,7 @@
  */
 import { useRef, useState, type ReactNode } from 'react'
 import { isStepUpRequiredError, stepUpCms } from '@core/persistence'
+import { useAdminSessionSetter, useCurrentAdminUser } from '@admin/sessionContext'
 import { StepUpDialog } from './StepUpDialog'
 import { StepUpCancelledMessage, StepUpContext, type StepUpContextValue } from './StepUpContext'
 
@@ -36,6 +37,8 @@ interface PendingState<T = unknown> {
 }
 
 export function StepUpProvider({ children }: { children: ReactNode }) {
+  const currentUser = useCurrentAdminUser()
+  const setSessionUser = useAdminSessionSetter()
   // The pending action is held in a ref because the dialog handlers
   // (submit / cancel) must close over the *current* pending entry, not a
   // stale one. The dialog's render state (`open`, `error`, `submitting`)
@@ -49,6 +52,8 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [mfaRequiredOverride, setMfaRequiredOverride] = useState(false)
+  const mfaRequired = currentUser?.mfaEnabled === true || mfaRequiredOverride
 
   function runStepUp<T>(action: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
@@ -70,6 +75,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
             reject,
           }
           setError(null)
+          setMfaRequiredOverride(false)
           setSubmitting(false)
           setOpen(true)
         }
@@ -83,10 +89,11 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
     setOpen(false)
     setError(null)
     setSubmitting(false)
+    setMfaRequiredOverride(false)
     pending?.reject(new Error(StepUpCancelledMessage))
   }
 
-  async function handleSubmit(password: string): Promise<void> {
+  async function handleSubmit(input: { password: string; mfaCode?: string }): Promise<void> {
     const pending = pendingRef.current
     if (!pending) {
       setOpen(false)
@@ -98,10 +105,13 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
       // Re-authenticate. Failure here means the password was wrong (or
       // the account is locked, or the session went away). We surface the
       // server's message inline and let the user retry.
-      await stepUpCms({ password })
+      const result = await stepUpCms(input)
+      if (result.user) setSessionUser(result.user)
     } catch (err) {
       setSubmitting(false)
-      setError(err instanceof Error ? err.message : 'Could not confirm password.')
+      const message = err instanceof Error ? err.message : 'Could not confirm password.'
+      if (message === 'Authentication code required') setMfaRequiredOverride(true)
+      setError(message)
       return
     }
 
@@ -111,6 +121,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
       pendingRef.current = null
       setOpen(false)
       setSubmitting(false)
+      setMfaRequiredOverride(false)
       pending.resolve(result)
     } catch (err) {
       // The action itself failed AFTER step-up (e.g. the target row was
@@ -128,9 +139,10 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
       {children}
       {open && (
         <StepUpDialog
+          mfaRequired={mfaRequired}
           submitting={submitting}
           error={error}
-          onSubmit={(password) => void handleSubmit(password)}
+          onSubmit={(input) => void handleSubmit(input)}
           onCancel={handleCancel}
         />
       )}

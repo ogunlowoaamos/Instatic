@@ -1,7 +1,7 @@
 import type { DbClient } from '../db/client'
 import { SESSION_COOKIE_NAME, hashSessionToken } from './tokens'
 import { roleHasCapability, type CoreCapability } from './capabilities'
-import { findUserBySessionHash, getSessionStepUpExpiresAt } from './sessions'
+import { findUserBySessionHash, getSessionStepUpExpiresAt, sessionRequiresMfa } from './sessions'
 import { jsonResponse } from '../http'
 import type { AuthUser } from '../repositories/users'
 
@@ -34,7 +34,12 @@ export async function requireAuthenticatedUser(
 ): Promise<AuthUser | Response> {
   const idHash = await getSessionHash(req)
   const user = idHash ? await findUserBySessionHash(db, idHash) : null
-  if (!user) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) {
+    if (idHash && await sessionRequiresMfa(db, idHash)) {
+      return jsonResponse({ error: 'mfa_required' }, { status: 401 })
+    }
+    return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+  }
   return user
 }
 

@@ -35,6 +35,7 @@ const RESULT_LABELS: Record<CmsLoginActivityResult, string> = {
   account_disabled: 'Account suspended',
   locked: 'Account locked',
   rate_limited: 'Rate-limited',
+  mfa_failed: 'MFA failed',
 }
 
 function resultClass(result: CmsLoginActivityResult): string {

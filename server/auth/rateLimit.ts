@@ -139,3 +139,16 @@ export const loginPerIpRateLimit = new RateLimiter({
   limit: 30,
   windowMs: 10 * 60 * 1000,
 })
+
+/**
+ * MFA verification limiter.
+ *
+ * Once the password has succeeded, a pending MFA session exists. TOTP codes
+ * are only six digits, so the second-factor endpoint gets its own narrow
+ * bucket. The key is the request IP when available, falling back to
+ * `'unknown'` for local/dev requests.
+ */
+export const mfaRateLimit = new RateLimiter({
+  limit: 10,
+  windowMs: 10 * 60 * 1000,
+})

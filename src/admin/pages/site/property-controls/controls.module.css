@@ -232,12 +232,6 @@
     min-width: 0;
 }
 
-.mediaSourceSwitch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-}
-
 .mediaLibraryBody,
 .mediaUrlBody {
     display: flex;

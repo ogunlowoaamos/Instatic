@@ -46,7 +46,10 @@ export {
 } from './cmsUsers'
 export type { CmsAuditEvent, CmsRole } from './cmsUsers'
 export {
+  changeCurrentUserPassword,
   deleteCurrentUserAvatar,
+  disableCurrentUserTotp,
+  enableCurrentUserTotp,
   getCmsSetupStatus,
   getCurrentCmsUser,
   isStepUpRequiredError,
@@ -55,10 +58,13 @@ export {
   loginCms,
   logoutAllOtherCmsSessions,
   logoutCms,
+  regenerateCurrentUserRecoveryCodes,
   revokeCmsSession,
   setupCms,
+  startCurrentUserTotpSetup,
   stepUpCms,
   uploadCurrentUserAvatar,
+  verifyCmsMfa,
 } from './cmsAuth'
 export type {
   CmsCurrentUser,

@@ -7,8 +7,43 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useEffect, useRef } from 'react'
 import { StepUpCancelledMessage, StepUpProvider, useStepUp } from '@admin/shared/StepUp'
+import { AdminSessionProvider } from '@admin/session'
+import { useCurrentAdminUser } from '@admin/sessionContext'
+import type { CmsCurrentUser } from '@core/persistence'
 
 const originalFetch = globalThis.fetch
+const now = '2026-05-09T10:00:00.000Z'
+
+function makeUser(overrides: Partial<CmsCurrentUser> = {}): CmsCurrentUser {
+  return {
+    id: 'owner_1',
+    email: 'owner@example.com',
+    displayName: 'Olivia Owner',
+    status: 'active',
+    role: {
+      id: 'owner',
+      slug: 'owner',
+      name: 'Owner',
+      description: '',
+      isSystem: true,
+      capabilities: ['site.read'],
+    },
+    capabilities: ['site.read'],
+    lastLoginAt: null,
+    failedLoginCount: 0,
+    lockedUntil: null,
+    passwordUpdatedAt: null,
+    mfaEnabled: false,
+    mfaEnabledAt: null,
+    mfaRecoveryCodesRemaining: 0,
+    avatarMediaId: null,
+    avatarUrl: null,
+    gravatarHash: '',
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  }
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -39,6 +74,11 @@ function Harness({
     runStepUp(action).then(onResult).catch(onError)
   }, [runStepUp, action, onResult, onError])
   return null
+}
+
+function RecoveryCodeCount() {
+  const user = useCurrentAdminUser()
+  return <output data-testid="recovery-code-count">{user?.mfaRecoveryCodesRemaining ?? 0}</output>
 }
 
 describe('StepUpProvider', () => {
@@ -95,6 +135,65 @@ describe('StepUpProvider', () => {
       expect(resolved).toBe('retried')
     })
     expect(screen.queryByTestId('step-up-dialog')).toBeNull()
+    expect(action).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks for an authentication code during step-up when the current user has MFA enabled', async () => {
+    let attempt = 0
+    let stepUpBody: Record<string, unknown> | null = null
+    const action = mock(async () => {
+      attempt += 1
+      if (attempt === 1) throw new Error('step_up_required')
+      return 'retried'
+    })
+    let resolved: unknown = null
+    const updatedUser = makeUser({
+      mfaEnabled: true,
+      mfaEnabledAt: now,
+      mfaRecoveryCodesRemaining: 9,
+    })
+    globalThis.fetch = mock(async (_input, init) => {
+      stepUpBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+      return jsonResponse({
+        ok: true,
+        stepUpExpiresAt: new Date().toISOString(),
+        user: updatedUser,
+      })
+    }) as typeof fetch
+
+    render(
+      <AdminSessionProvider
+        user={makeUser({
+          mfaEnabled: true,
+          mfaEnabledAt: now,
+          mfaRecoveryCodesRemaining: 10,
+        })}
+      >
+        <StepUpProvider>
+          <RecoveryCodeCount />
+          <Harness action={action} onResult={(value) => { resolved = value }} />
+        </StepUpProvider>
+      </AdminSessionProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-up-dialog')).toBeTruthy()
+    })
+    expect(screen.getByTestId('step-up-mfa-code')).toBeTruthy()
+    expect(screen.getByTestId('recovery-code-count').textContent).toBe('10')
+
+    fireEvent.change(screen.getByTestId('step-up-password'), { target: { value: 'long-enough-password' } })
+    fireEvent.change(screen.getByTestId('step-up-mfa-code'), { target: { value: '123456' } })
+    fireEvent.click(screen.getByTestId('step-up-confirm'))
+
+    await waitFor(() => {
+      expect(resolved).toBe('retried')
+    })
+    expect(stepUpBody).toEqual({
+      password: 'long-enough-password',
+      mfaCode: '123456',
+    })
+    expect(screen.getByTestId('recovery-code-count').textContent).toBe('9')
     expect(action).toHaveBeenCalledTimes(2)
   })
 

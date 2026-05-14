@@ -272,10 +272,12 @@ export function usePersistence(
     // The 30s debounce means the last unsaved edit would be dropped without this.
     // Fire-and-forget: beforeunload can't await async work.
     function flushOnUnload() {
-      const site = useEditorStore.getState().site
-      if (!site || !loadedRef.current) return
+      const { site, hasUnsavedChanges } = useEditorStore.getState()
+      if (!site || !loadedRef.current || !hasUnsavedChanges) return
       clearTimeout(timer)
-      void adapterRef.current.saveSite(site)
+      void adapterRef.current.saveSite(site).catch((err) => {
+        console.error('[persistence] beforeunload save failed:', err)
+      })
     }
 
     window.addEventListener('beforeunload', flushOnUnload)

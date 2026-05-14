@@ -29,6 +29,11 @@ import {
   clampZoom,
   incrementalScaleFromPinchMovement,
 } from '@site/canvas/math'
+import {
+  fitContentCanvas,
+  frameOrFitCanvas,
+  frameSelectedNodes,
+} from '@site/canvas/canvasFraming'
 
 interface Transform {
   zoom: number
@@ -169,6 +174,12 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
     scheduleStoreCommit(t)
   }, [scheduleTransformWrite, scheduleStoreCommit])
 
+  const panBy = useCallback((dx: number, dy: number) => {
+    const t = transformRef.current
+    const next = applyPan(t.panX, t.panY, dx, dy)
+    updateTransform({ zoom: t.zoom, ...next })
+  }, [updateTransform])
+
   const resetCanvasView = useCallback(() => {
     resetView()
     transformRef.current = { zoom: 1, panX: 0, panY: 0 }
@@ -285,6 +296,15 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Don't intercept typing — let inputs and contenteditables consume keys.
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) return
+
       // Zoom in/out with +/- keys — zoom around the canvas viewport center
       if (e.key === '=' || e.key === '+') {
         e.preventDefault()
@@ -300,8 +320,23 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
         e.preventDefault()
         resetCanvasView()
       }
-      // Shift+1 → fit to screen / reset view
-      else if (e.key === '1' && e.shiftKey) {
+      // ─── Framing shortcuts (Figma-style) ─────────────────────────────────
+      // `F` or `2`  → Frame the current selection. Falls back to "fit content"
+      //                when nothing is selected so the action never feels
+      //                like a no-op.
+      // `1`         → Fit the entire document into the viewport.
+      // `Shift+1`   → Reset to 100% zoom (was the old "fit-to-screen" behaviour,
+      //                kept as an explicit reset to satisfy muscle memory).
+      else if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        frameSelectedNodes()
+      } else if (e.key === '2' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        frameOrFitCanvas()
+      } else if (e.key === '1' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        fitContentCanvas()
+      } else if (e.key === '1' && e.shiftKey) {
         e.preventDefault()
         resetCanvasView()
       }
@@ -460,6 +495,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
   return {
     bind,
     handleKeyDown,
+    panBy,
     /** Whether a space-pan or middle-mouse drag is in progress */
     isDragging: isDraggingRef,
   }

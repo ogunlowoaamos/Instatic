@@ -58,6 +58,7 @@ interface SegmentedControlProps<T extends string> {
   trailing?: (args: { segmentClassName: string; trailingClassName: string }) => ReactNode
   className?: string
   fullWidth?: boolean
+  disabled?: boolean
   /** Aria-label for the surrounding role="group" wrapper. */
   'aria-label'?: string
   'data-testid'?: string
@@ -72,6 +73,7 @@ export function SegmentedControl<T extends string>({
   trailing,
   className,
   fullWidth = false,
+  disabled = false,
   'aria-label': ariaLabel,
   'data-testid': dataTestId,
 }: SegmentedControlProps<T>) {
@@ -99,6 +101,7 @@ export function SegmentedControl<T extends string>({
             tooltip={isActive && clearable ? `Clear ${label}` : option.tooltip}
             aria-label={label}
             className={styles.segment}
+            disabled={disabled}
             onClick={() => {
               if (isActive) {
                 if (clearable) onClear?.()

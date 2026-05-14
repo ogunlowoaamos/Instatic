@@ -37,7 +37,7 @@ import { CanvasPreviewSurface } from './CanvasPreviewSurface'
 import { CanvasNotch } from './CanvasNotch'
 import { CanvasModeToggle } from './CanvasModeToggle'
 import { CanvasBreakpointSelector } from './CanvasBreakpointSelector'
-import { CanvasSelectionContext } from './CanvasContexts'
+import { CanvasSelectionContext, CanvasViewportActionsContext } from './CanvasContexts'
 import { ClassStyleInjector } from './ClassStyleInjector'
 import { PluginCanvasOverlayLayer } from './PluginCanvasOverlayLayer'
 import { LayerNodeContextMenu } from '@site/panels/DomPanel/LayerNodeContextMenu'
@@ -169,7 +169,7 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   // silently mutating transformRef while in preview, which would otherwise
   // make the design canvas visibly jump on the first interaction after
   // returning from preview.
-  const { bind, handleKeyDown: canvasKeyDown } = useCanvas({
+  const { bind, handleKeyDown: canvasKeyDown, panBy } = useCanvas({
     canvasRootRef: canvasRef,
     transformLayerRef,
     enabled: !isPreview,
@@ -255,6 +255,11 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const selectionContextValue = useMemo(
     () => ({ onNodeClick, onNodeHover, onNodeContextMenu, onNodeDoubleClick }),
     [onNodeClick, onNodeHover, onNodeContextMenu, onNodeDoubleClick],
+  )
+
+  const viewportActionsContextValue = useMemo(
+    () => ({ canvasRootRef: canvasRef, panBy }),
+    [canvasRef, panBy],
   )
 
   // ─── Canvas-level keyboard shortcuts ──────────────────────────────────────
@@ -425,26 +430,27 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const onCanvasClick = isPreview ? undefined : handleCanvasClick
 
   return (
-    <CanvasSelectionContext.Provider value={selectionContextValue}>
-      <div
-        ref={mergedCanvasRef}
-        role="region"
-        aria-label="Canvas — infinite editing surface"
-        tabIndex={0}
-        data-testid="canvas-root"
-        data-canvas-state={canvasPage ? 'canvas-ready' : 'canvas-empty'}
-        data-canvas-view={canvasView}
-        data-vc-mode={activeDocument?.kind === 'visualComponent' ? 'true' : undefined}
-        onKeyDown={onCanvasKeyDown}
-        onClick={onCanvasClick}
-        onFocus={() => setFocusedPanel('canvas')}
-        className={styles.canvas}
-        // Spread gesture handlers from useGesture (wheel, drag, pinch).
-        // Empty in preview mode — see gestureBindings above.
-        {...gestureBindings}
-      >
-        {/* CSS for prefers-reduced-motion — no transitions for accessibility */}
-        <style>{`
+    <CanvasViewportActionsContext.Provider value={viewportActionsContextValue}>
+      <CanvasSelectionContext.Provider value={selectionContextValue}>
+        <div
+          ref={mergedCanvasRef}
+          role="region"
+          aria-label="Canvas — infinite editing surface"
+          tabIndex={0}
+          data-testid="canvas-root"
+          data-canvas-state={canvasPage ? 'canvas-ready' : 'canvas-empty'}
+          data-canvas-view={canvasView}
+          data-vc-mode={activeDocument?.kind === 'visualComponent' ? 'true' : undefined}
+          onKeyDown={onCanvasKeyDown}
+          onClick={onCanvasClick}
+          onFocus={() => setFocusedPanel('canvas')}
+          className={styles.canvas}
+          // Spread gesture handlers from useGesture (wheel, drag, pinch).
+          // Empty in preview mode — see gestureBindings above.
+          {...gestureBindings}
+        >
+          {/* CSS for prefers-reduced-motion — no transitions for accessibility */}
+          <style>{`
           @media (prefers-reduced-motion: reduce) {
             [data-testid="canvas-transform-layer"] {
               transition: none !important;
@@ -452,155 +458,156 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
           }
         `}</style>
 
-        {/* Phase C — CSS class styles injected into document.head */}
-        <ClassStyleInjector />
+          {/* Phase C — CSS class styles injected into document.head */}
+          <ClassStyleInjector />
 
-        {/* Insert toolbar and breakpoint context selector are design-only —
+          {/* Insert toolbar and breakpoint context selector are design-only —
             preview has its own chrome inside CanvasModeToggle. */}
-        {!isPreview && editable && <CanvasNotch />}
+          {!isPreview && editable && <CanvasNotch />}
 
-        {/* Design / Preview view toggle — top-left chrome. In preview mode
+          {/* Design / Preview view toggle — top-left chrome. In preview mode
             this also hosts inline breakpoint switcher buttons. */}
-        <CanvasModeToggle />
+          <CanvasModeToggle />
 
-        {!isPreview && rightSidebarExpanded && (
-          <CanvasBreakpointSelector
-            breakpoints={breakpoints}
-            activeBreakpointId={activeBreakpointId}
-            onBreakpointChange={setActiveBreakpoint}
-          />
-        )}
+          {!isPreview && rightSidebarExpanded && (
+            <CanvasBreakpointSelector
+              breakpoints={breakpoints}
+              activeBreakpointId={activeBreakpointId}
+              onBreakpointChange={setActiveBreakpoint}
+            />
+          )}
 
-        {/*
+          {/*
           A buggy module render must not blank the toolbar / DOM panel /
           properties panel that share the editor shell. Resetting on the
           active page id means switching pages naturally clears stuck
           errors — the user navigates away from a broken module preview
           rather than getting "stuck" on the failure screen.
         */}
-        <ErrorBoundary
-          location="canvas"
-          resetKeys={[canvasPage?.id ?? null, activeDocument?.kind ?? null, canvasView]}
-        >
-          {isPreview ? (
-            <CanvasPreviewSurface
-              page={canvasPage}
-              activeBreakpoint={activeBreakpoint}
-              templateContext={templatePreviewContext}
-            />
-          ) : (
-            <CanvasTransformLayer
-              ref={transformLayerRef}
-              page={canvasPage}
-              breakpoints={breakpoints}
-              activeBreakpointId={activeBreakpointId}
-              dimInactiveBreakpoints={focusActiveBreakpoint}
-              onBreakpointActivate={setActiveBreakpoint}
-              templateContext={templatePreviewContext}
-            />
-          )}
-        </ErrorBoundary>
+          <ErrorBoundary
+            location="canvas"
+            resetKeys={[canvasPage?.id ?? null, activeDocument?.kind ?? null, canvasView]}
+          >
+            {isPreview ? (
+              <CanvasPreviewSurface
+                page={canvasPage}
+                activeBreakpoint={activeBreakpoint}
+                templateContext={templatePreviewContext}
+              />
+            ) : (
+              <CanvasTransformLayer
+                ref={transformLayerRef}
+                page={canvasPage}
+                breakpoints={breakpoints}
+                activeBreakpointId={activeBreakpointId}
+                dimInactiveBreakpoints={focusActiveBreakpoint}
+                onBreakpointActivate={setActiveBreakpoint}
+                templateContext={templatePreviewContext}
+              />
+            )}
+          </ErrorBoundary>
 
-        {/*
+          {/*
           Plugin-registered canvas overlays. Mounted after the transform
           layer so they paint above rendered nodes. Only active in design
           (editable) mode — preview-mode canvases don't need overlays and
           plugin code shouldn't paint over the visitor preview.
         */}
-        {!isPreview && editable && <PluginCanvasOverlayLayer />}
+          {!isPreview && editable && <PluginCanvasOverlayLayer />}
 
-        {!isPreview && editable && contextMenu && createPortal(
-          <LayerNodeContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            nodeId={contextMenu.nodeId}
-            onClose={closeContextMenu}
-            onDelete={() => {
-              const id = contextMenu.nodeId
-              closeContextMenu()
-              requestDeleteNode(id)
-            }}
-            onDuplicate={() => {
-              duplicateNode(contextMenu.nodeId)
-              closeContextMenu()
-            }}
-            onRename={() => {
-              const { nodeId } = contextMenu
-              closeContextMenu()
-              openRenameDialog(nodeId)
-            }}
-            onWrapInContainer={() => {
-              wrapNode(contextMenu.nodeId, 'base.container')
-              closeContextMenu()
-            }}
-            onCopy={() => {
-              copyNode(contextMenu.nodeId)
-              closeContextMenu()
-            }}
-            onCut={() => {
-              cutNode(contextMenu.nodeId)
-              closeContextMenu()
-            }}
-            onPaste={() => {
-              pasteNode(contextMenu.nodeId)
-              closeContextMenu()
-            }}
-          />,
-          document.body,
-        )}
+          {!isPreview && editable && contextMenu && createPortal(
+            <LayerNodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              nodeId={contextMenu.nodeId}
+              onClose={closeContextMenu}
+              onDelete={() => {
+                const id = contextMenu.nodeId
+                closeContextMenu()
+                requestDeleteNode(id)
+              }}
+              onDuplicate={() => {
+                duplicateNode(contextMenu.nodeId)
+                closeContextMenu()
+              }}
+              onRename={() => {
+                const { nodeId } = contextMenu
+                closeContextMenu()
+                openRenameDialog(nodeId)
+              }}
+              onWrapInContainer={() => {
+                wrapNode(contextMenu.nodeId, 'base.container')
+                closeContextMenu()
+              }}
+              onCopy={() => {
+                copyNode(contextMenu.nodeId)
+                closeContextMenu()
+              }}
+              onCut={() => {
+                cutNode(contextMenu.nodeId)
+                closeContextMenu()
+              }}
+              onPaste={() => {
+                pasteNode(contextMenu.nodeId)
+                closeContextMenu()
+              }}
+            />,
+            document.body,
+          )}
 
-        {!isPreview && editable && renameDialog && (
-          <Dialog
-            open
-            onClose={closeRenameDialog}
-            title="Rename element"
-            size="sm"
-            initialFocusRef={renameInputRef}
-            footer={
-              <>
-                <Button variant="secondary" size="sm" type="button" onClick={closeRenameDialog}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  type="button"
-                  onClick={commitRenameDialog}
-                  disabled={!renameDialog.value.trim()}
-                >
-                  Save
-                </Button>
-              </>
-            }
-          >
-            <form className={styles.renameForm} onSubmit={handleRenameSubmit}>
-              <label className={styles.renameField}>
-                <span className={styles.renameLabel}>Name</span>
-                <Input
-                  ref={renameInputRef}
-                  fieldSize="sm"
-                  value={renameDialog.value}
-                  autoComplete="off"
-                  spellCheck={false}
-                  invalid={Boolean(renameDialog.error)}
-                  aria-describedby={renameDialog.error ? 'canvas-rename-error' : undefined}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value
-                    setRenameDialog((current) =>
-                      current ? { ...current, value, error: null } : current,
-                    )
-                  }}
-                />
-              </label>
-              {renameDialog.error && (
-                <p id="canvas-rename-error" role="alert" className={styles.renameError}>
-                  {renameDialog.error}
-                </p>
-              )}
-            </form>
-          </Dialog>
-        )}
-      </div>
-    </CanvasSelectionContext.Provider>
+          {!isPreview && editable && renameDialog && (
+            <Dialog
+              open
+              onClose={closeRenameDialog}
+              title="Rename element"
+              size="sm"
+              initialFocusRef={renameInputRef}
+              footer={
+                <>
+                  <Button variant="secondary" size="sm" type="button" onClick={closeRenameDialog}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="button"
+                    onClick={commitRenameDialog}
+                    disabled={!renameDialog.value.trim()}
+                  >
+                    Save
+                  </Button>
+                </>
+              }
+            >
+              <form className={styles.renameForm} onSubmit={handleRenameSubmit}>
+                <label className={styles.renameField}>
+                  <span className={styles.renameLabel}>Name</span>
+                  <Input
+                    ref={renameInputRef}
+                    fieldSize="sm"
+                    value={renameDialog.value}
+                    autoComplete="off"
+                    spellCheck={false}
+                    invalid={Boolean(renameDialog.error)}
+                    aria-describedby={renameDialog.error ? 'canvas-rename-error' : undefined}
+                    onChange={(event) => {
+                      const value = event.currentTarget.value
+                      setRenameDialog((current) =>
+                        current ? { ...current, value, error: null } : current,
+                      )
+                    }}
+                  />
+                </label>
+                {renameDialog.error && (
+                  <p id="canvas-rename-error" role="alert" className={styles.renameError}>
+                    {renameDialog.error}
+                  </p>
+                )}
+              </form>
+            </Dialog>
+          )}
+        </div>
+      </CanvasSelectionContext.Provider>
+    </CanvasViewportActionsContext.Provider>
   )
 }

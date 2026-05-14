@@ -1,10 +1,11 @@
 /**
  * StepUpDialog — pure presentational dialog used by `StepUpProvider`.
  *
- * Single-input modal that asks the current user to re-enter their password.
- * On submit, the parent provider POSTs to `/admin/api/cms/auth/step-up`
- * and (on success) retries the original sensitive action; on cancel, the
- * provider rejects the pending promise with `step_up_cancelled`.
+ * Modal that asks the current user to re-enter their password, plus an
+ * authenticator/recovery code when MFA is enabled. On submit, the parent
+ * provider POSTs to `/admin/api/cms/auth/step-up` and (on success) retries
+ * the original sensitive action; on cancel, the provider rejects the pending
+ * promise with `step_up_cancelled`.
  *
  * The component is intentionally state-light — `password`, `error`,
  * `submitting` are owned here, but the *flow state* (which action is
@@ -17,29 +18,40 @@
  */
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@ui/components/Button'
+import { Input } from '@ui/components/Input'
 import styles from './StepUpDialog.module.css'
+
+interface StepUpSubmitInput {
+  password: string
+  mfaCode?: string
+}
 
 interface StepUpDialogProps {
   /** Why the action requires re-auth — shown above the password field. */
   reason?: string
+  /** True when the current user must also provide their MFA code. */
+  mfaRequired: boolean
   /** True while a step-up POST or the original action is in flight. */
   submitting: boolean
   /** Last error message to render under the input (wrong password, etc.). */
   error: string | null
-  onSubmit: (password: string) => void
+  onSubmit: (input: StepUpSubmitInput) => void
   onCancel: () => void
 }
 
 export function StepUpDialog({
   reason,
+  mfaRequired,
   submitting,
   error,
   onSubmit,
   onCancel,
 }: StepUpDialogProps) {
   const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
   const titleId = useId()
   const passwordId = useId()
+  const mfaCodeId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
 
   // Focus the cancel button on open so ESC / Tab feel right. The password
@@ -60,8 +72,14 @@ export function StepUpDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (submitting || password.length === 0) return
-    onSubmit(password)
+    if (mfaRequired && mfaCode.trim().length === 0) return
+    onSubmit({
+      password,
+      ...(mfaRequired ? { mfaCode } : {}),
+    })
   }
+
+  const confirmDisabled = submitting || password.length === 0 || (mfaRequired && mfaCode.trim().length === 0)
 
   return (
     <div
@@ -81,20 +99,40 @@ export function StepUpDialog({
       >
         <h2 id={titleId} className={styles.title}>Confirm your password</h2>
         <p className={styles.body}>
-          {reason ?? 'This action requires a recent password re-entry. You\'ll stay signed in here.'}
+          {reason ?? (
+            mfaRequired
+              ? 'This action requires your password and a current authentication code.'
+              : 'This action requires a recent password re-entry. You\'ll stay signed in here.'
+          )}
         </p>
-        <form className={styles.field} onSubmit={handleSubmit}>
-          <label htmlFor={passwordId} className={styles.label}>Password</label>
-          <input
-            id={passwordId}
-            type="password"
-            autoFocus
-            required
-            disabled={submitting}
-            value={password}
-            onChange={(event) => setPassword(event.currentTarget.value)}
-            data-testid="step-up-password"
-          />
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <label className={styles.field}>
+            <span className={styles.label}>Password</span>
+            <Input
+              id={passwordId}
+              type="password"
+              autoFocus
+              required
+              disabled={submitting}
+              value={password}
+              onChange={(event) => setPassword(event.currentTarget.value)}
+              data-testid="step-up-password"
+            />
+          </label>
+          {mfaRequired && (
+            <label className={styles.field}>
+              <span className={styles.label}>Authentication or recovery code</span>
+              <Input
+                id={mfaCodeId}
+                type="text"
+                autoComplete="one-time-code"
+                disabled={submitting}
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.currentTarget.value)}
+                data-testid="step-up-mfa-code"
+              />
+            </label>
+          )}
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
             <Button
@@ -112,7 +150,7 @@ export function StepUpDialog({
               type="submit"
               variant="primary"
               size="sm"
-              disabled={submitting || password.length === 0}
+              disabled={confirmDisabled}
               data-testid="step-up-confirm"
             >
               <span>{submitting ? 'Confirming…' : 'Confirm'}</span>

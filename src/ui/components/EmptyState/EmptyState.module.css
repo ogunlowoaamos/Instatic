@@ -92,7 +92,7 @@
     margin: 0;
     font-size: 10px;
     line-height: 1.5;
-    color: var(--editor-border-med);
+    color: var(--editor-text-muted);
 }
 
 .action {

@@ -386,6 +386,14 @@ describe('usePersistence — subscription selector is primitive, not inline obje
     expect(src).toContain('subscribeToEditorPrefsChanged')
     expect(src).toMatch(/prefsUnsub\(\)/)
   })
+
+  it('beforeunload flush only saves dirty sites and handles async failures', () => {
+    const src = readFileSync(persistencePath, 'utf-8')
+    expect(src).toMatch(/const\s+\{\s*site,\s*hasUnsavedChanges\s*\}\s*=\s*useEditorStore\.getState\(\)/)
+    expect(src).toContain('!hasUnsavedChanges')
+    expect(src).toContain('.catch((err) =>')
+    expect(src).toContain('[persistence] beforeunload save failed:')
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,11 @@ export interface UserRow {
   failed_login_count: number
   locked_until: Date | string | null
   avatar_media_id: string | null
+  password_updated_at: Date | string | null
+  mfa_enabled: boolean | number
+  mfa_enabled_at: Date | string | null
+  mfa_totp_secret: string | null
+  mfa_recovery_code_hashes_json: unknown
   created_at: Date | string
   updated_at: Date | string
   deleted_at: Date | string | null

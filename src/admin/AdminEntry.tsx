@@ -8,6 +8,7 @@ import {
   getCurrentCmsUser,
   loginCms,
   setupCms,
+  verifyCmsMfa,
   type CmsCurrentUser,
 } from '@core/persistence'
 import { AppLoadingScreen } from './AppLoadingScreen'
@@ -47,7 +48,7 @@ const AccountPage = lazy(() =>
   import('./pages/account/AccountPage').then((m) => ({ default: m.AccountPage })),
 )
 
-type AdminPhase = 'loading' | 'setup' | 'login' | 'editor'
+type AdminPhase = 'loading' | 'setup' | 'login' | 'mfa' | 'editor'
 type AdminSection = AdminWorkspace
 
 interface AdminEntryProps {
@@ -59,12 +60,14 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
   const [siteName, setSiteName] = useState('My Site')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<CmsCurrentUser | null>(null)
   const siteNameId = useId()
   const emailId = useId()
   const passwordId = useId()
+  const mfaCodeId = useId()
 
   useEffect(() => {
     let cancelled = false
@@ -130,11 +133,33 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
     setSubmitting(true)
     setError(null)
     try {
-      await loginCms({ email, password })
+      const result = await loginCms({ email, password })
+      if (result.mfaRequired) {
+        setPassword('')
+        setMfaCode('')
+        setPhase('mfa')
+        return
+      }
       setCurrentUser(await getCurrentCmsUser())
       setPhase('editor')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleMfaVerify(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      await verifyCmsMfa({ code: mfaCode })
+      setCurrentUser(await getCurrentCmsUser())
+      setMfaCode('')
+      setPhase('editor')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'MFA verification failed')
     } finally {
       setSubmitting(false)
     }
@@ -147,10 +172,12 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
   }
 
   const isSetup = phase === 'setup'
-  const title = isSetup ? 'Set Up CMS' : 'Admin Login'
+  const isMfa = phase === 'mfa'
+  const title = isSetup ? 'Set Up CMS' : isMfa ? 'Two-Factor Authentication' : 'Admin Login'
   const submitLabel =
-    submitting ? (isSetup ? 'Setting up' : 'Signing in') :
+    submitting ? (isSetup ? 'Setting up' : isMfa ? 'Verifying' : 'Signing in') :
     isSetup ? 'Create Admin' :
+    isMfa ? 'Verify' :
     'Sign In'
 
   return (
@@ -167,9 +194,22 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
 
         <form
           className={styles.form}
-          onSubmit={isSetup ? handleSetup : handleLogin}
+          onSubmit={isSetup ? handleSetup : isMfa ? handleMfaVerify : handleLogin}
         >
-          {isSetup && (
+          {isMfa ? (
+            <label className={styles.field} htmlFor={mfaCodeId}>
+              <span>Authentication code</span>
+              <input
+                id={mfaCodeId}
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                data-testid="admin-mfa-code"
+              />
+            </label>
+          ) : isSetup && (
             <label className={styles.field} htmlFor={siteNameId}>
               <span>Site name</span>
               <input
@@ -182,30 +222,34 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
             </label>
           )}
 
-          <label className={styles.field} htmlFor={emailId}>
-            <span>Email</span>
-            <input
-              id={emailId}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              autoComplete="email"
-            />
-          </label>
+          {!isMfa && (
+            <>
+              <label className={styles.field} htmlFor={emailId}>
+                <span>Email</span>
+                <input
+                  id={emailId}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  type="email"
+                  autoComplete="email"
+                />
+              </label>
 
-          <label className={styles.field} htmlFor={passwordId}>
-            <span>Password</span>
-            <input
-              id={passwordId}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={isSetup ? 12 : undefined}
-              type="password"
-              autoComplete={isSetup ? 'new-password' : 'current-password'}
-            />
-          </label>
+              <label className={styles.field} htmlFor={passwordId}>
+                <span>Password</span>
+                <input
+                  id={passwordId}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={isSetup ? 12 : undefined}
+                  type="password"
+                  autoComplete={isSetup ? 'new-password' : 'current-password'}
+                />
+              </label>
+            </>
+          )}
 
           {error && (
             <p role="alert" className={styles.error}>

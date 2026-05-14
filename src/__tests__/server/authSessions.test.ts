@@ -104,7 +104,7 @@ async function listSessions(db: DbClient, cookie: string): Promise<SessionListRe
  * (DELETE /sessions/:id, POST /logout-all) require one. Tests that exercise
  * those endpoints call this once after login, then proceed.
  */
-async function openStepUpWindow(db: DbClient, cookie: string): Promise<void> {
+async function openStepUpWindow(db: DbClient, cookie: string): Promise<string> {
   const req = new Request('http://localhost/admin/api/cms/auth/step-up', {
     method: 'POST',
     body: JSON.stringify({ password: PASSWORD }),
@@ -113,6 +113,9 @@ async function openStepUpWindow(db: DbClient, cookie: string): Promise<void> {
   req.headers.set('cookie', cookie)
   const res = await handleCmsRequest(req, db)
   expect(res.status).toBe(200)
+  const steppedCookie = (res.headers.get('set-cookie') ?? '').split(';')[0]
+  expect(steppedCookie.startsWith(`${SESSION_COOKIE_NAME}=`)).toBe(true)
+  return steppedCookie
 }
 
 function resetLimiters(ip = '203.0.113.10'): void {
@@ -169,8 +172,7 @@ describe('Account → Sessions endpoints', () => {
 
   it('DELETE /sessions/:id revokes another device but rejects the current one', async () => {
     const { db } = testDb
-    const cookie = await login(db)
-    await openStepUpWindow(db, cookie)
+    const cookie = await openStepUpWindow(db, await login(db))
     const user = await findUserByEmail(db, EMAIL)
     const other = await injectSession(db, user!.id, { deviceLabel: 'Other device' })
 
@@ -195,8 +197,7 @@ describe('Account → Sessions endpoints', () => {
 
   it('DELETE /sessions/:id rejects a session belonging to another user (cross-user guard)', async () => {
     const { db } = testDb
-    const ownerCookie = await login(db)
-    await openStepUpWindow(db, ownerCookie)
+    const ownerCookie = await openStepUpWindow(db, await login(db))
     const owner = await findUserByEmail(db, EMAIL)
 
     // Create a second user and a session for them.
@@ -226,8 +227,7 @@ describe('Account → Sessions endpoints', () => {
 
   it('POST /logout-all revokes other sessions but keeps the current one alive', async () => {
     const { db } = testDb
-    const cookie = await login(db)
-    await openStepUpWindow(db, cookie)
+    const cookie = await openStepUpWindow(db, await login(db))
     const user = await findUserByEmail(db, EMAIL)
     await injectSession(db, user!.id, { deviceLabel: 'Phone' })
     await injectSession(db, user!.id, { deviceLabel: 'Tablet' })

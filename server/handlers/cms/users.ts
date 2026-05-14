@@ -15,9 +15,10 @@
  */
 import type { DbClient } from '../../db/client'
 import { hashPassword } from '../../auth/tokens'
-import { requireCapability, requireStepUp } from '../../auth/authz'
+import { getSessionHash, requireCapability, requireStepUp } from '../../auth/authz'
 import type { AuthUser } from '../../repositories/users'
 import { createAuditEvent } from '../../repositories/audit'
+import { revokeAllOtherSessions } from '../../repositories/sessions'
 import {
   countActiveOwners,
   createUser,
@@ -105,6 +106,9 @@ async function handleUsersCollection(
   }
 
   if (req.method === 'POST') {
+    const stepUp = await requireStepUp(req, db)
+    if (stepUp instanceof Response) return stepUp
+
     const body = await readValidatedBody(req, UserCreateBodySchema)
     if (!body) return badRequest('Invalid user payload')
     const passwordError = rejectsShortPassword(body.password)
@@ -143,6 +147,9 @@ async function handleUserPatch(
   actor: AuthUser,
   userId: string,
 ): Promise<Response> {
+  const stepUp = await requireStepUp(req, db)
+  if (stepUp instanceof Response) return stepUp
+
   const body = await readValidatedBody(req, UserPatchBodySchema)
   if (!body) return badRequest('Invalid user payload')
 
@@ -194,6 +201,13 @@ async function handleUserPatch(
       status: body.status,
     })
     if (!user) return userNotFound()
+    const revokedSessions = body.password !== undefined
+      ? await revokeAllOtherSessions(
+        db,
+        userId,
+        userId === actor.id ? await getSessionHash(req) : null,
+      )
+      : 0
 
     const action = body.password !== undefined
       ? 'password.change'
@@ -209,6 +223,7 @@ async function handleUserPatch(
         passwordChanged: body.password !== undefined,
         roleId: body.roleId ?? user.role.id,
         status: body.status ?? user.status,
+        revokedSessions,
       },
       ...requestAuditContext(req),
     })

@@ -8,6 +8,8 @@
  */
 import React from 'react'
 import type { ModuleComponentProps } from '@core/module-engine/types'
+import { cn } from '@ui/cn'
+import styles from './ContainerEditor.module.css'
 
 type ContainerTag = 'div' | 'section' | 'article' | 'main' | 'header' | 'footer'
 
@@ -29,5 +31,14 @@ export const ContainerEditor: React.FC<ModuleComponentProps<ContainerProps>> = (
   mcClassName,
 }) => {
   const Tag = resolveContainerTag(props.tag)
-  return React.createElement(Tag, { className: mcClassName }, children)
+  const isEmpty = React.Children.count(children) === 0
+
+  return React.createElement(
+    Tag,
+    {
+      className: cn(isEmpty && styles.emptyCanvasContainer, mcClassName),
+      'data-canvas-empty-container': isEmpty ? 'true' : undefined,
+    },
+    children,
+  )
 }

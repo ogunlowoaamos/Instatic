@@ -452,29 +452,30 @@ export function UsersPage() {
     try {
       if (userDialogMode === 'reset') {
         if (!editingUserId) throw new Error('No user selected')
-        await updateCmsUser(editingUserId, { password: userForm.password })
+        await runStepUp(() => updateCmsUser(editingUserId, { password: userForm.password }))
       } else if (userDialogMode === 'edit') {
         if (!editingUserId) throw new Error('No user selected')
-        const user = await updateCmsUser(editingUserId, {
+        const user = await runStepUp(() => updateCmsUser(editingUserId, {
           email: userForm.email,
           displayName: userForm.displayName,
           roleId: userForm.roleId,
           status: userForm.status,
           ...(userForm.password ? { password: userForm.password } : {}),
-        })
+        }))
         setUsers((current) => current.map((candidate) => candidate.id === user.id ? user : candidate))
       } else {
-        const user = await createCmsUser({
+        const user = await runStepUp(() => createCmsUser({
           email: userForm.email,
           displayName: userForm.displayName,
           password: userForm.password,
           roleId: userForm.roleId,
-        })
+        }))
         setUsers((current) => [...current, user])
       }
       closeUserDialog()
       void load()
     } catch (err) {
+      if (err instanceof Error && err.message === StepUpCancelledMessage) return
       setError(err instanceof Error ? err.message : 'Could not save user')
     } finally {
       setBusy(false)
@@ -486,12 +487,13 @@ export function UsersPage() {
     setBusy(true)
     setError(null)
     try {
-      const updated = await updateCmsUser(user.id, {
+      const updated = await runStepUp(() => updateCmsUser(user.id, {
         status: user.status === 'active' ? 'suspended' : 'active',
-      })
+      }))
       setUsers((current) => current.map((candidate) => candidate.id === updated.id ? updated : candidate))
       void load()
     } catch (err) {
+      if (err instanceof Error && err.message === StepUpCancelledMessage) return
       setError(err instanceof Error ? err.message : 'Could not update user')
     } finally {
       setBusy(false)
@@ -564,8 +566,8 @@ export function UsersPage() {
     setError(null)
     try {
       const role = roleDialogMode === 'edit' && editingRoleId
-        ? await updateCmsRole(editingRoleId, roleForm)
-        : await createCmsRole(roleForm)
+        ? await runStepUp(() => updateCmsRole(editingRoleId, roleForm))
+        : await runStepUp(() => createCmsRole(roleForm))
       setRoles((current) => {
         const exists = current.some((candidate) => candidate.id === role.id)
         return exists
@@ -575,6 +577,7 @@ export function UsersPage() {
       closeRoleDialog()
       void load()
     } catch (err) {
+      if (err instanceof Error && err.message === StepUpCancelledMessage) return
       setError(err instanceof Error ? err.message : 'Could not save role')
     } finally {
       setBusy(false)
@@ -586,10 +589,11 @@ export function UsersPage() {
     setBusy(true)
     setError(null)
     try {
-      await deleteCmsRole(role.id)
+      await runStepUp(() => deleteCmsRole(role.id))
       setRoles((current) => current.filter((candidate) => candidate.id !== role.id))
       void load()
     } catch (err) {
+      if (err instanceof Error && err.message === StepUpCancelledMessage) return
       setError(err instanceof Error ? err.message : 'Could not delete role')
     } finally {
       setBusy(false)

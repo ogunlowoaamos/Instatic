@@ -198,6 +198,7 @@ function makeFakeDb() {
       return { rows: rows as Row[], rowCount: rows.length }
     }
     if (normalized.includes('insert into sessions')) {
+      const hasStepUpColumn = normalized.includes('step_up_expires_at')
       sessions.push({
         id_hash: values[0],
         user_id: values[1],
@@ -205,12 +206,22 @@ function makeFakeDb() {
         ip_address: values[3],
         user_agent: values[4],
         device_label: values[5] ?? '',
+        mfa_passed_at: values[6] ?? null,
         created_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
         revoked_at: null,
-        step_up_expires_at: null,
+        step_up_expires_at: hasStepUpColumn ? values[7] ?? null : null,
       })
       return { rows: [], rowCount: 1 }
+    }
+    if (normalized.includes('select user_id') && normalized.includes('from sessions')) {
+      const session = sessions.find((candidate) =>
+        candidate.id_hash === values[0] && candidate.revoked_at == null,
+      )
+      return {
+        rows: session ? [session as Row] : [],
+        rowCount: session ? 1 : 0,
+      }
     }
     // getSessionStepUpExpiresAt — `select step_up_expires_at from sessions
     // where id_hash = $1 and revoked_at is null`. Bind: values[0] = idHash.
@@ -237,22 +248,47 @@ function makeFakeDb() {
     if (normalized.includes('from sessions') && normalized.includes('join users')) {
       const session = sessions.find((candidate) => candidate.id_hash === values[0] && candidate.revoked_at == null)
       const user = session ? users.find((candidate) => candidate.id === session.user_id && candidate.status === 'active') : null
-      const rows = user ? [joinedUser(user)] : []
+      const rows = user ? [{
+        ...joinedUser(user),
+        session_mfa_passed_at: session.mfa_passed_at ?? null,
+        avatar_public_path: null,
+      }] : []
       return { rows: rows as Row[], rowCount: rows.length }
     }
     if (normalized.includes('update sessions') && normalized.includes('last_seen_at')) {
       return { rows: [], rowCount: 1 }
     }
     if (normalized.includes('update sessions') && normalized.includes('revoked_at')) {
+      const now = new Date().toISOString()
+      if (normalized.includes('where user_id = $1') && normalized.includes('id_hash != $2')) {
+        let count = 0
+        for (const session of sessions) {
+          if (session.user_id === values[0] && session.id_hash !== values[1] && session.revoked_at == null) {
+            session.revoked_at = now
+            count += 1
+          }
+        }
+        return { rows: [], rowCount: count }
+      }
+      if (normalized.includes('where user_id = $1')) {
+        let count = 0
+        for (const session of sessions) {
+          if (session.user_id === values[0] && session.revoked_at == null) {
+            session.revoked_at = now
+            count += 1
+          }
+        }
+        return { rows: [], rowCount: count }
+      }
       const session = sessions.find((candidate) => candidate.id_hash === values[0])
-      if (session) session.revoked_at = new Date().toISOString()
+      if (session) session.revoked_at = now
       return { rows: [], rowCount: session ? 1 : 0 }
     }
     // The full updateUser path (`set email, ..., role_id, updated_at`) must
     // be matched BEFORE the `last_login_at` matcher because the RETURNING
     // clause of this SQL also mentions `last_login_at`.
     if (normalized.includes('update users') && normalized.includes('set email =')) {
-      const userId = values[6]
+      const userId = values[7]
       const user = users.find((candidate) => candidate.id === userId && candidate.deleted_at == null)
       if (!user) return { rows: [], rowCount: 0 }
       Object.assign(user, {
@@ -260,8 +296,9 @@ function makeFakeDb() {
         email_normalized: values[1],
         display_name: values[2],
         password_hash: values[3],
-        status: values[4],
-        role_id: values[5],
+        password_updated_at: values[4],
+        status: values[5],
+        role_id: values[6],
         updated_at: new Date().toISOString(),
       })
       return { rows: [user as Row], rowCount: 1 }
@@ -310,6 +347,24 @@ function makeFakeDb() {
 
 async function json(res: Response) {
   return res.json() as Promise<Record<string, unknown>>
+}
+
+async function stepUpCookie(
+  db: DbClient,
+  cookie: string,
+  password = 'long-enough-password',
+): Promise<string> {
+  const req = new Request('http://localhost/admin/api/cms/auth/step-up', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+    headers: { 'content-type': 'application/json' },
+  })
+  req.headers.set('cookie', cookie)
+  const res = await handleCmsRequest(req, db)
+  expect(res.status).toBe(200)
+  const steppedCookie = (res.headers.get('set-cookie') ?? '').split(';')[0]
+  expect(steppedCookie.startsWith(`${SESSION_COOKIE_NAME}=`)).toBe(true)
+  return steppedCookie
 }
 
 describe('CMS handlers', () => {
@@ -406,7 +461,7 @@ describe('CMS handlers', () => {
       headers: { 'content-type': 'application/json' },
     }), db)
     expect(loginRes.status).toBe(200)
-    const cookie = (loginRes.headers.get('set-cookie') ?? '').split(';')[0]
+    const cookie = await stepUpCookie(db, (loginRes.headers.get('set-cookie') ?? '').split(';')[0])
 
     const meReq = new Request('http://localhost/admin/api/cms/me', {
       method: 'GET',
@@ -437,7 +492,7 @@ describe('CMS handlers', () => {
       body: JSON.stringify({ email: 'owner-only@example.com', password: 'long-enough-password' }),
       headers: { 'content-type': 'application/json' },
     }), db)
-    const cookie = (loginRes.headers.get('set-cookie') ?? '').split(';')[0]
+    const cookie = await stepUpCookie(db, (loginRes.headers.get('set-cookie') ?? '').split(';')[0])
     const createReq = new Request('http://localhost/admin/api/cms/users', {
       method: 'POST',
       body: JSON.stringify({
@@ -469,7 +524,7 @@ describe('CMS handlers', () => {
       body: JSON.stringify({ email: 'owner-role@example.com', password: 'long-enough-password' }),
       headers: { 'content-type': 'application/json' },
     }), db)
-    const cookie = (loginRes.headers.get('set-cookie') ?? '').split(';')[0]
+    const cookie = await stepUpCookie(db, (loginRes.headers.get('set-cookie') ?? '').split(';')[0])
 
     const createReq = new Request('http://localhost/admin/api/cms/users', {
       method: 'POST',
@@ -524,7 +579,7 @@ describe('CMS handlers', () => {
       body: JSON.stringify({ email: 'real-owner@example.com', password: 'long-enough-password' }),
       headers: { 'content-type': 'application/json' },
     }), db)
-    const ownerCookie = (ownerLogin.headers.get('set-cookie') ?? '').split(';')[0]
+    const ownerCookie = await stepUpCookie(db, (ownerLogin.headers.get('set-cookie') ?? '').split(';')[0])
 
     // Owner creates an admin co-worker.
     const createAdminReq = new Request('http://localhost/admin/api/cms/users', {
@@ -546,7 +601,11 @@ describe('CMS handlers', () => {
       body: JSON.stringify({ email: 'rogue-admin@example.com', password: 'rogue-admin-password' }),
       headers: { 'content-type': 'application/json' },
     }), db)
-    const adminCookie = (adminLogin.headers.get('set-cookie') ?? '').split(';')[0]
+    const adminCookie = await stepUpCookie(
+      db,
+      (adminLogin.headers.get('set-cookie') ?? '').split(';')[0],
+      'rogue-admin-password',
+    )
 
     const ownerId = String(db.users.find((user) => user.role_id === 'owner')?.id)
     const ownerHashBefore = db.users.find((user) => user.role_id === 'owner')?.password_hash
@@ -575,17 +634,6 @@ describe('CMS handlers', () => {
     const emailPatchRes = await handleCmsRequest(emailPatchReq, db)
     expect(emailPatchRes.status).toBe(403)
     expect(db.users.find((user) => user.role_id === 'owner')?.email).toBe('real-owner@example.com')
-
-    // Admin opens a step-up window so the next delete reaches the
-    // owner-protection guard instead of bouncing on the step-up gate.
-    const adminStepUpReq = new Request('http://localhost/admin/api/cms/auth/step-up', {
-      method: 'POST',
-      body: JSON.stringify({ password: 'rogue-admin-password' }),
-      headers: { 'content-type': 'application/json' },
-    })
-    adminStepUpReq.headers.set('cookie', adminCookie)
-    const adminStepUpRes = await handleCmsRequest(adminStepUpReq, db)
-    expect(adminStepUpRes.status).toBe(200)
 
     // Admin tries to delete the Owner — rejected with 403, NOT the
     // "last active owner" 409 (we want the row-level guard to fire first

@@ -34,7 +34,7 @@ async function setupOwner(db: DbClient): Promise<string> {
     }),
   })
   expect(setup.status).toBe(201)
-  return login(db, 'owner@example.com')
+  return stepUp(db, await login(db, 'owner@example.com'))
 }
 
 async function login(db: DbClient, email: string): Promise<string> {
@@ -46,6 +46,18 @@ async function login(db: DbClient, email: string): Promise<string> {
   const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]
   expect(cookie).toContain('pb_admin_session=')
   return cookie
+}
+
+async function stepUp(db: DbClient, cookie: string): Promise<string> {
+  const res = await request(db, '/admin/api/cms/auth/step-up', {
+    method: 'POST',
+    cookie,
+    body: JSON.stringify({ password: ownedPassword }),
+  })
+  expect(res.status).toBe(200)
+  const steppedCookie = (res.headers.get('set-cookie') ?? '').split(';')[0]
+  expect(steppedCookie).toContain('pb_admin_session=')
+  return steppedCookie
 }
 
 async function createUser(

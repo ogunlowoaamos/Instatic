@@ -27,6 +27,7 @@ export type LoginAttemptResult =
   | 'account_disabled'
   | 'locked'
   | 'rate_limited'
+  | 'mfa_failed'
 
 export interface LoginAttempt {
   id: string

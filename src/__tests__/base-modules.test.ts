@@ -218,6 +218,7 @@ describe('base.container — render() specifics', () => {
     const { html } = renderModule(ContainerModule, {}, [])
     expect(typeof html).toBe('string')
     expect(html.trim().length).toBeGreaterThan(0)
+    expect(html).not.toContain('data-canvas-empty-container')
   })
 
   it('renders safely when persisted props are missing tag', () => {
@@ -230,6 +231,38 @@ describe('base.container — render() specifics', () => {
         isSelected: false,
       }))
     }).not.toThrow()
+  })
+
+  it('marks empty editor containers with a canvas-only pickable affordance', () => {
+    const Component = ContainerModule.component
+    const { container } = renderReact(React.createElement(Component, {
+      props: {},
+      nodeId: 'empty-container',
+      isSelected: false,
+    }))
+
+    expect(container.firstElementChild?.getAttribute('data-canvas-empty-container')).toBe('true')
+  })
+
+  it('does not mark editor containers with children as empty', () => {
+    const Component = ContainerModule.component
+    const { container } = renderReact(React.createElement(Component, {
+      props: {},
+      nodeId: 'filled-container',
+      isSelected: false,
+      children: React.createElement('p', null, 'Child'),
+    }))
+
+    expect(container.firstElementChild?.hasAttribute('data-canvas-empty-container')).toBe(false)
+  })
+
+  it('defines editor-only minimum bounds for empty container affordances', async () => {
+    const css = await Bun.file('src/modules/base/container/ContainerEditor.module.css').text()
+
+    expect(css).toContain('.emptyCanvasContainer')
+    expect(css).toContain('min-width: 72px')
+    expect(css).toContain('min-height: 48px')
+    expect(css).toContain('var(--editor-border-med)')
   })
 
   it('falls back to div for invalid published tag values', () => {

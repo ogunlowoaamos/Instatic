@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { listCmsMediaAssets, type CmsMediaAsset } from '@core/persistence/cmsMedia'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { checkSizeLimit } from '@core/files/upload'
+import {
+  listCmsMediaAssets,
+  uploadCmsMediaAsset,
+  type CmsMediaAsset,
+} from '@core/persistence/cmsMedia'
 import { isValidImageUrl } from '@core/utils/urlValidation'
 import type { ControlProps } from './shared'
 import { ControlRow } from './ControlRow'
 import { Button } from '@ui/components/Button'
+import { EmptyState } from '@ui/components/EmptyState'
+import { FileUpload } from '@ui/components/FileUpload'
 import { Input } from '@ui/components/Input'
 import { SearchBar } from '@ui/components/SearchBar'
+import { SegmentedControl } from '@ui/components/SegmentedControl'
+import { UploadIcon } from 'pixel-art-icons/icons/upload'
 import { VideoIcon } from 'pixel-art-icons/icons/video'
 import styles from './controls.module.css'
 
@@ -18,6 +27,10 @@ interface MediaLibraryControlProps extends ControlProps<string> {
 
 const IMAGE_EXTENSIONS = /\.(avif|gif|jpe?g|png|svg|webp)$/i
 const VIDEO_EXTENSIONS = /\.(m4v|mov|mp4|og[gv]|webm)$/i
+const MEDIA_SOURCE_OPTIONS = [
+  { value: 'library', label: 'Library', ariaLabel: 'Media library' },
+  { value: 'url', label: 'URL', ariaLabel: 'Custom URL' },
+] satisfies ReadonlyArray<{ value: MediaMode; label: string; ariaLabel: string }>
 
 interface MediaPickerAsset extends CmsMediaAsset {
   previewPath: string
@@ -27,6 +40,15 @@ function assetMatchesKind(asset: CmsMediaAsset, mediaKind: MediaKind): boolean {
   if (asset.mimeType.startsWith(`${mediaKind}/`)) return true
   const target = `${asset.filename} ${asset.publicPath}`
   return mediaKind === 'image' ? IMAGE_EXTENSIONS.test(target) : VIDEO_EXTENSIONS.test(target)
+}
+
+function fileMatchesKind(file: File, mediaKind: MediaKind): boolean {
+  if (file.type.startsWith(`${mediaKind}/`)) return true
+  return mediaKind === 'image' ? IMAGE_EXTENSIONS.test(file.name) : VIDEO_EXTENSIONS.test(file.name)
+}
+
+function fileAccept(mediaKind: MediaKind): string {
+  return mediaKind === 'image' ? 'image/*' : 'video/*'
 }
 
 function isLocalMediaPath(value: string): boolean {
@@ -80,6 +102,8 @@ export function MediaLibraryControl({
   const [cmsAssets, setCmsAssets] = useState<CmsMediaAsset[]>([])
   const [cmsLoading, setCmsLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [query, setQuery] = useState('')
   const [urlDraftState, setUrlDraftState] = useState(() => ({
     sourceValue: currentValue,
@@ -150,6 +174,44 @@ export function MediaLibraryControl({
     onChange(propKey, asset.publicPath)
   }
 
+  async function handleAssetUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    event.target.value = ''
+    if (!file) return
+
+    setUploadError('')
+
+    if (!fileMatchesKind(file, mediaKind)) {
+      const article = mediaKind === 'image' ? 'an' : 'a'
+      setUploadError(`Choose ${article} ${modeLabel} file.`)
+      return
+    }
+
+    const sizeCheck = checkSizeLimit(file.size)
+    if (!sizeCheck.ok) {
+      setUploadError(sizeCheck.message ?? `The selected ${modeLabel} is too large to upload.`)
+      return
+    }
+
+    setUploading(true)
+    try {
+      const asset = await uploadCmsMediaAsset(file)
+      if (!assetMatchesKind(asset, mediaKind)) {
+        const article = mediaKind === 'image' ? 'an' : 'a'
+        setUploadError(`Uploaded file is not ${article} ${modeLabel}.`)
+        return
+      }
+      setCmsAssets((assets) => [asset, ...assets.filter((item) => item.id !== asset.id)])
+      setMode('library')
+      onChange(propKey, asset.publicPath)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : `Unable to upload ${modeLabel}`)
+      console.error('[MediaLibraryControl] upload asset error:', err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <ControlRow
       propKey={propKey}
@@ -165,32 +227,15 @@ export function MediaLibraryControl({
       ) : undefined}
     >
       <div className={styles.mediaPicker}>
-        <div className={styles.mediaSourceSwitch} role="group" aria-label={`${label ?? propKey} source`}>
-          <Button
-            variant="secondary"
-            size="xs"
-            fullWidth
-            pressed={mode === 'library'}
-            active={mode === 'library'}
-            disabled={disabled}
-            onClick={() => setMode('library')}
-            aria-label="Media library"
-          >
-            Library
-          </Button>
-          <Button
-            variant="secondary"
-            size="xs"
-            fullWidth
-            pressed={mode === 'url'}
-            active={mode === 'url'}
-            disabled={disabled}
-            onClick={() => setMode('url')}
-            aria-label="Custom URL"
-          >
-            URL
-          </Button>
-        </div>
+        <SegmentedControl<MediaMode>
+          value={mode}
+          options={MEDIA_SOURCE_OPTIONS}
+          onChange={setMode}
+          size="sm"
+          fullWidth
+          disabled={disabled}
+          aria-label={`${label ?? propKey} source`}
+        />
 
         {mode === 'library' ? (
           <div className={styles.mediaLibraryBody}>
@@ -203,6 +248,12 @@ export function MediaLibraryControl({
               className={styles.mediaSearch}
             />
 
+            {uploadError ? (
+              <div className={styles.mediaStatus} role="alert">
+                {uploadError}
+              </div>
+            ) : null}
+
             {loading ? (
               <div className={styles.mediaStatus}>Loading media...</div>
             ) : activeLibraryError ? (
@@ -210,9 +261,27 @@ export function MediaLibraryControl({
                 {activeLibraryError}
               </div>
             ) : mediaAssets.length === 0 ? (
-              <div className={styles.mediaStatus}>
-                {query ? `No matching ${modeLabel}s` : `No ${modeLabel} assets yet`}
-              </div>
+              <EmptyState
+                compact
+                title={query ? `No matching ${modeLabel}s` : `No ${modeLabel} assets yet`}
+                description={`Upload a new ${modeLabel} from your computer.`}
+                action={
+                  <FileUpload
+                    accept={fileAccept(mediaKind)}
+                    disabled={disabled || uploading}
+                    onChange={handleAssetUpload}
+                    buttonProps={{
+                      variant: 'secondary',
+                      size: 'xs',
+                      disabled: disabled || uploading,
+                      'aria-label': `Upload ${modeLabel}`,
+                    }}
+                  >
+                    <UploadIcon size={13} />
+                    {uploading ? 'Uploading...' : `Upload ${modeLabel}`}
+                  </FileUpload>
+                }
+              />
             ) : (
               <div className={styles.mediaAssetList}>
                 {mediaAssets.map((asset) => {

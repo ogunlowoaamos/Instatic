@@ -388,7 +388,7 @@ export const sqliteMigrations: Migration[] = [
         user_id text references users(id) on delete set null,
         result text not null
           constraint login_attempts_result_check
-          check (result in ('success', 'bad_password', 'no_user', 'account_disabled', 'locked', 'rate_limited'))
+          check (result in ('success', 'bad_password', 'no_user', 'account_disabled', 'locked', 'rate_limited', 'mfa_failed'))
       );
 
       create index if not exists login_attempts_ip_idx
@@ -417,6 +417,21 @@ export const sqliteMigrations: Migration[] = [
 
       alter table users
         add column avatar_media_id text references media_assets(id) on delete set null;
+
+      alter table users
+        add column password_updated_at text;
+
+      alter table users
+        add column mfa_enabled integer not null default 0;
+
+      alter table users
+        add column mfa_enabled_at text;
+
+      alter table users
+        add column mfa_totp_secret text;
+
+      alter table users
+        add column mfa_recovery_code_hashes_json text not null default '[]';
     `,
   },
   {

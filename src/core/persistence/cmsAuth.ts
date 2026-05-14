@@ -18,6 +18,15 @@ interface CmsLoginInput {
   password: string
 }
 
+interface CmsMfaVerifyInput {
+  code: string
+}
+
+interface CmsStepUpInput {
+  password: string
+  mfaCode?: string
+}
+
 export interface CmsCurrentUser {
   id: string
   email: string
@@ -35,6 +44,10 @@ export interface CmsCurrentUser {
   lastLoginAt: string | null
   failedLoginCount: number
   lockedUntil: string | null
+  passwordUpdatedAt: string | null
+  mfaEnabled: boolean
+  mfaEnabledAt: string | null
+  mfaRecoveryCodesRemaining: number
   /**
    * Identifier of the media asset backing the avatar, or null when the user
    * relies on the Gravatar identicon fallback.
@@ -65,6 +78,11 @@ const CurrentUserEnvelope = Type.Object(
 )
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+const CmsLoginResponseSchema = Type.Object({
+  ok: Type.Boolean(),
+  mfaRequired: Type.Optional(Type.Boolean()),
+})
 
 async function assertOk(res: Response, fallback: string): Promise<void> {
   if (res.ok) return
@@ -108,7 +126,7 @@ export async function loginCms(
   input: CmsLoginInput,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
-): Promise<void> {
+): Promise<{ mfaRequired: boolean }> {
   const res = await fetchImpl(`${basePath}/login`, {
     method: 'POST',
     credentials: 'include',
@@ -116,6 +134,22 @@ export async function loginCms(
     body: JSON.stringify(input),
   })
   await assertOk(res, `CMS login failed with ${res.status}`)
+  const body = await parseJsonResponse(res, CmsLoginResponseSchema)
+  return { mfaRequired: body.mfaRequired === true }
+}
+
+export async function verifyCmsMfa(
+  input: CmsMfaVerifyInput,
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<void> {
+  const res = await fetchImpl(`${basePath}/auth/mfa/verify`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  await assertOk(res, `CMS MFA verification failed with ${res.status}`)
 }
 
 export async function logoutCms(
@@ -161,6 +195,32 @@ export async function getCurrentCmsUser(
 
 const MeAvatarEnvelope = Type.Object(
   { user: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
+
+const MeUserEnvelope = Type.Object(
+  { user: Type.Optional(Type.Unknown()) },
+  { additionalProperties: true },
+)
+
+const PasswordChangeEnvelope = Type.Object(
+  {
+    user: Type.Optional(Type.Unknown()),
+    revokedSessions: Type.Optional(Type.Number()),
+  },
+  { additionalProperties: true },
+)
+
+const TotpStartEnvelope = Type.Object({
+  secret: Type.String(),
+  otpauthUrl: Type.String(),
+})
+
+const RecoveryCodesEnvelope = Type.Object(
+  {
+    user: Type.Optional(Type.Unknown()),
+    recoveryCodes: Type.Array(Type.String()),
+  },
   { additionalProperties: true },
 )
 
@@ -216,6 +276,103 @@ export async function deleteCurrentUserAvatar(
     throw new Error('CMS avatar delete response was missing user')
   }
   return body.user as CmsCurrentUser
+}
+
+export async function changeCurrentUserPassword(
+  input: { newPassword: string },
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<CmsCurrentUser> {
+  const res = await fetchImpl(`${basePath}/me/password`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const body = await readEnvelope(
+    res,
+    PasswordChangeEnvelope,
+    `CMS password change failed with ${res.status}`,
+  )
+  if (!body.user || typeof body.user !== 'object') {
+    throw new Error('CMS password change response was missing user')
+  }
+  return body.user as CmsCurrentUser
+}
+
+export async function startCurrentUserTotpSetup(
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<{ secret: string; otpauthUrl: string }> {
+  const res = await fetchImpl(`${basePath}/me/mfa/totp/start`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  return await readEnvelope(
+    res,
+    TotpStartEnvelope,
+    `CMS MFA setup failed with ${res.status}`,
+  )
+}
+
+export async function enableCurrentUserTotp(
+  input: { secret: string; code: string },
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<{ user: CmsCurrentUser; recoveryCodes: string[] }> {
+  const res = await fetchImpl(`${basePath}/me/mfa/totp/enable`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const body = await readEnvelope(
+    res,
+    RecoveryCodesEnvelope,
+    `CMS MFA enable failed with ${res.status}`,
+  )
+  if (!body.user || typeof body.user !== 'object') {
+    throw new Error('CMS MFA enable response was missing user')
+  }
+  return { user: body.user as CmsCurrentUser, recoveryCodes: body.recoveryCodes }
+}
+
+export async function disableCurrentUserTotp(
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<CmsCurrentUser> {
+  const res = await fetchImpl(`${basePath}/me/mfa/totp`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  const body = await readEnvelope(
+    res,
+    MeUserEnvelope,
+    `CMS MFA disable failed with ${res.status}`,
+  )
+  if (!body.user || typeof body.user !== 'object') {
+    throw new Error('CMS MFA disable response was missing user')
+  }
+  return body.user as CmsCurrentUser
+}
+
+export async function regenerateCurrentUserRecoveryCodes(
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<{ user: CmsCurrentUser; recoveryCodes: string[] }> {
+  const res = await fetchImpl(`${basePath}/me/mfa/recovery-codes`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  const body = await readEnvelope(
+    res,
+    RecoveryCodesEnvelope,
+    `CMS recovery code regeneration failed with ${res.status}`,
+  )
+  if (!body.user || typeof body.user !== 'object') {
+    throw new Error('CMS recovery code response was missing user')
+  }
+  return { user: body.user as CmsCurrentUser, recoveryCodes: body.recoveryCodes }
 }
 
 // ─── Sessions (Account → Sessions tab) ───────────────────────────────────────
@@ -282,21 +439,23 @@ export async function revokeCmsSession(
 const CmsStepUpResponseSchema = Type.Object({
   ok: Type.Boolean(),
   stepUpExpiresAt: Type.String(),
-})
+  user: Type.Optional(Type.Unknown()),
+}, { additionalProperties: true })
 
 /**
- * Re-authenticate the current session by re-entering the user's password.
+ * Re-authenticate the current session by re-entering the user's password,
+ * plus a second-factor code when MFA is enabled.
  * On success, sensitive endpoints (delete user, revoke device, sign out
  * all devices) accept actions for the next 15 minutes.
  *
- * The handler treats a 401 response as "wrong password" — the calling UI
- * should re-prompt, not redirect to the login form.
+ * The handler treats a 401 response as a retryable re-authentication error —
+ * the calling UI should re-prompt, not redirect to the login form.
  */
 export async function stepUpCms(
-  input: { password: string },
+  input: CmsStepUpInput,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
-): Promise<{ stepUpExpiresAt: string }> {
+): Promise<{ stepUpExpiresAt: string; user?: CmsCurrentUser }> {
   const res = await fetchImpl(`${basePath}/auth/step-up`, {
     method: 'POST',
     credentials: 'include',
@@ -308,7 +467,13 @@ export async function stepUpCms(
     CmsStepUpResponseSchema,
     `CMS step-up failed with ${res.status}`,
   )
-  return { stepUpExpiresAt: body.stepUpExpiresAt }
+  if (body.user !== undefined && (body.user === null || typeof body.user !== 'object')) {
+    throw new Error('CMS step-up response user was invalid')
+  }
+  return {
+    stepUpExpiresAt: body.stepUpExpiresAt,
+    user: body.user as CmsCurrentUser | undefined,
+  }
 }
 
 /**
@@ -332,6 +497,7 @@ const CmsLoginActivityResultSchema = Type.Union([
   Type.Literal('account_disabled'),
   Type.Literal('locked'),
   Type.Literal('rate_limited'),
+  Type.Literal('mfa_failed'),
 ])
 
 const CmsLoginActivityEventSchema = Type.Object({

@@ -28,19 +28,36 @@
  *   IntersectionObserver to every possible mutation source.
  * - Clears style positioning when the tracked node disappears or the
  *   selection/hover clears.
+ * - Renders the selected-layer toolbar through a fixed-position portal so it
+ *   is not clipped by the breakpoint viewport's overflow boundary.
  *
  * Contract
  * ────────
- * The overlay is purely presentational and click-through (`pointer-events:
- * none` in CSS). Click/hover/keyboard interaction still flows through
- * `NodeWrapper` exactly as before.
+ * The ring and indicator overlay is presentational and click-through
+ * (`pointer-events: none` in CSS). The selected-layer toolbar is interactive
+ * and lives outside the viewport clipping boundary.
  */
 
-import { useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { useEditorStore } from '@site/store/store'
 import { useShallow } from 'zustand/react/shallow'
+import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
+import { Copy2Icon } from 'pixel-art-icons/icons/copy-2'
+import { DeleteIcon } from 'pixel-art-icons/icons/delete'
+import { DragAndDropIcon } from 'pixel-art-icons/icons/drag-and-drop'
+import { CanvasViewportActionsContext } from './CanvasContexts'
+import { useCanvasReorderDrag } from './useCanvasReorderDrag'
+import { measureCanvasNodeClientUnionRect } from './canvasDomGeometry'
+import type {
+  CanvasDropAxis,
+  CanvasDropTarget,
+  CanvasRect,
+} from './canvasDnd'
 import styles from './BreakpointSelectionOverlay.module.css'
+
+const TOOLBAR_VERTICAL_OFFSET = 30
 
 interface BreakpointSelectionOverlayProps {
   /**
@@ -78,12 +95,15 @@ export function BreakpointSelectionOverlay({
       ? s.hoveredNodeId
       : null,
   )
+  const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
 
   // One ref per selected node, keyed by id. Stable across renders while the
   // id stays in the selection — when an id is removed, its ring entry is
   // dropped from the map; when added, a fresh ref is allocated.
   const ringRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const hoverRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const viewportActions = useContext(CanvasViewportActionsContext)
 
   // Hover only renders when the hovered node isn't already part of the
   // selection — otherwise the two rings would stack and the hover ring
@@ -93,6 +113,28 @@ export function BreakpointSelectionOverlay({
   // Stable string for the deps array — re-runs the RAF loop only when the
   // selection identity actually changes (not on every store mutation).
   const selectionKey = selectedNodeIds.join(',')
+  const showToolbar = selectedNodeIds.length > 0 && activeBreakpointId === breakpointId
+  const reorderDrag = useCanvasReorderDrag({
+    viewportRef,
+    selectedNodeIds,
+    enabled: showToolbar,
+    panBy: viewportActions?.panBy,
+    canvasRootRef: viewportActions?.canvasRootRef,
+  })
+
+  const duplicateSelectedLayers = () => {
+    const ids = useEditorStore.getState().selectedNodeIds
+    if (ids.length === 0) return
+    useEditorStore.getState().duplicateNodes(ids)
+  }
+
+  const deleteSelectedLayers = () => {
+    const ids = useEditorStore.getState().selectedNodeIds
+    if (ids.length === 0) return
+    const state = useEditorStore.getState()
+    state.deleteNodes(ids)
+    state.clearSelection()
+  }
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -107,6 +149,7 @@ export function BreakpointSelectionOverlay({
         positionRing(ringRefs.current.get(id) ?? null, id, viewport)
       }
       positionRing(hoverRef.current, showHover ? hoveredNodeId : null, viewport)
+      positionToolbar(toolbarRef.current, showToolbar ? selectedNodeIds : [], viewport)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -116,31 +159,101 @@ export function BreakpointSelectionOverlay({
       cancelAnimationFrame(frame)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionKey, hoveredNodeId, showHover, viewportRef])
+  }, [selectionKey, hoveredNodeId, showHover, showToolbar, viewportRef])
+
+  const toolbar = showToolbar ? (
+    <div
+      ref={toolbarRef}
+      role="group"
+      aria-label="Selection actions"
+      className={styles.selectionToolbar}
+      data-canvas-selection-toolbar="true"
+      data-canvas-dragging={reorderDrag.dragging ? 'true' : undefined}
+    >
+      <Button
+        variant="secondary"
+        size="xs"
+        iconOnly
+        aria-label="Drag selected layers"
+        tooltip="Drag selected layers"
+        className={cn(styles.selectionToolbarButton, styles.dragToolbarButton)}
+        onPointerDown={reorderDrag.handlePointerDown}
+      >
+        <DragAndDropIcon size={13} color="var(--editor-text)" />
+      </Button>
+      <Button
+        variant="secondary"
+        size="xs"
+        iconOnly
+        aria-label="Duplicate selected layers"
+        tooltip="Duplicate selected layers"
+        className={styles.selectionToolbarButton}
+        onClick={duplicateSelectedLayers}
+      >
+        <Copy2Icon size={13} color="var(--editor-text)" />
+      </Button>
+      <Button
+        variant="secondary"
+        size="xs"
+        iconOnly
+        tone="danger"
+        aria-label="Delete selected layers"
+        tooltip="Delete selected layers"
+        className={styles.selectionToolbarButton}
+        onClick={deleteSelectedLayers}
+      >
+        <DeleteIcon size={13} color="var(--editor-danger-light)" />
+      </Button>
+    </div>
+  ) : null
 
   return (
-    <div className={styles.overlayLayer} aria-hidden="true">
-      {selectedNodeIds.map((id) => (
-        <div
-          key={id}
-          ref={(el) => {
-            if (el) ringRefs.current.set(id, el)
-            else ringRefs.current.delete(id)
-          }}
-          className={cn(styles.ring, styles.selection)}
-          data-canvas-selection-ring="true"
-          data-node-id={id}
-        />
-      ))}
-      {showHover && hoveredNodeId && (
-        <div
-          ref={hoverRef}
-          className={cn(styles.ring, styles.hover)}
-          data-canvas-hover-ring="true"
-          data-node-id={hoveredNodeId}
-        />
-      )}
-    </div>
+    <>
+      <div className={styles.overlayLayer}>
+        <div className={styles.ringLayer} aria-hidden="true">
+          {selectedNodeIds.map((id) => (
+            <div
+              key={id}
+              ref={(el) => {
+                if (el) ringRefs.current.set(id, el)
+                else ringRefs.current.delete(id)
+              }}
+              className={cn(styles.ring, styles.selection)}
+              data-canvas-selection-ring="true"
+              data-node-id={id}
+            />
+          ))}
+          {showHover && hoveredNodeId && (
+            <div
+              ref={hoverRef}
+              className={cn(styles.ring, styles.hover)}
+              data-canvas-hover-ring="true"
+              data-node-id={hoveredNodeId}
+            />
+          )}
+        </div>
+
+        {reorderDrag.target && (
+          <div
+            className={styles.dropIndicator}
+            data-position={reorderDrag.target.position}
+            data-axis={reorderDrag.target.axis}
+            style={dropIndicatorStyle(reorderDrag.target)}
+            aria-hidden="true"
+          />
+        )}
+
+        {reorderDrag.invalid && (
+          <div
+            className={styles.invalidDropIndicator}
+            style={rectStyle(reorderDrag.invalid.rect)}
+            data-axis={reorderDrag.invalid.axis}
+            aria-hidden="true"
+          />
+        )}
+      </div>
+      {toolbar && createPortal(toolbar, document.body)}
+    </>
   )
 }
 
@@ -223,6 +336,59 @@ function positionRing(
   ring.style.transform = `translate(${x}px, ${y}px)`
   ring.style.width = `${width}px`
   ring.style.height = `${height}px`
+}
+
+function positionToolbar(
+  toolbar: HTMLDivElement | null,
+  nodeIds: readonly string[],
+  viewport: HTMLElement,
+): void {
+  if (!toolbar || nodeIds.length === 0) {
+    if (toolbar) toolbar.style.display = 'none'
+    return
+  }
+
+  const rect = measureCanvasNodeClientUnionRect(viewport, nodeIds)
+  if (!rect) {
+    toolbar.style.display = 'none'
+    return
+  }
+
+  toolbar.style.display = ''
+  toolbar.style.setProperty('--canvas-toolbar-x', `${Math.max(4, rect.left)}px`)
+  toolbar.style.setProperty('--canvas-toolbar-y', `${rect.top - TOOLBAR_VERTICAL_OFFSET}px`)
+}
+
+function dropIndicatorStyle(target: CanvasDropTarget): CSSProperties {
+  if (target.position === 'inside') return rectStyle(target.rect)
+  return lineStyle(target.rect, target.position, target.axis)
+}
+
+function lineStyle(
+  rect: CanvasRect,
+  position: 'before' | 'after',
+  axis: CanvasDropAxis,
+): CSSProperties {
+  if (axis === 'horizontal') {
+    const x = position === 'before' ? rect.left : rect.right
+    return indicatorVars(x, rect.top, 2, rect.height)
+  }
+
+  const y = position === 'before' ? rect.top : rect.bottom
+  return indicatorVars(rect.left, y, rect.width, 2)
+}
+
+function rectStyle(rect: CanvasRect): CSSProperties {
+  return indicatorVars(rect.left, rect.top, rect.width, rect.height)
+}
+
+function indicatorVars(x: number, y: number, width: number, height: number): CSSProperties {
+  return {
+    '--canvas-drop-x': `${x}px`,
+    '--canvas-drop-y': `${y}px`,
+    '--canvas-drop-w': `${width}px`,
+    '--canvas-drop-h': `${height}px`,
+  } as CSSProperties
 }
 
 /**
