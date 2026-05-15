@@ -1,10 +1,8 @@
 import { memo, useEffect, useRef, useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
 import { Button } from '@ui/components/Button'
 import { Checkbox } from '@ui/components/Checkbox'
+import { Dialog } from '@ui/components/Dialog'
 import { Input } from '@ui/components/Input'
-import { useDialogEscape } from '@ui/lib/useDialogEscape'
-import { CloseIcon } from 'pixel-art-icons/icons/close'
 import type { CreateContentCollectionInput } from '@core/content/schemas'
 import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import styles from '../../ContentPage.module.css'
@@ -27,6 +25,8 @@ function normalizeRouteBase(value: string): string {
 function errorMessage(err: unknown) {
   return err instanceof Error ? err.message.replace(/^\[[^\]]+\]\s*/, '') : 'Could not create collection'
 }
+
+const FORM_ID = 'content-collection-create-form'
 
 export const ContentCollectionCreateDialog = memo(function ContentCollectionCreateDialog({
   onCancel,
@@ -63,8 +63,6 @@ export const ContentCollectionCreateDialog = memo(function ContentCollectionCrea
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [])
 
-  useDialogEscape(onCancel)
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!canCreate) return
@@ -90,160 +88,142 @@ export const ContentCollectionCreateDialog = memo(function ContentCollectionCrea
     }
   }
 
-  return createPortal(
-    <div
-      className={dialogStyles.backdrop}
-      data-testid="content-collection-create-dialog-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="content-collection-create-dialog-title"
-        className={dialogStyles.dialog}
-        data-testid="content-collection-create-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={dialogStyles.header}>
-          <h2 id="content-collection-create-dialog-title" className={dialogStyles.title}>
-            New collection
-          </h2>
-          <Button
-            variant="ghost"
-            size="xs"
-            iconOnly
-            aria-label="Close dialog"
-            onClick={onCancel}
-          >
-            <CloseIcon size={12} color="currentColor" aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title="New collection"
+      size="sm"
+      initialFocusRef={inputRef}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
-        </div>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={FORM_ID}
+            disabled={!canCreate}
+          >
+            Create
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} className={dialogStyles.form} onSubmit={handleSubmit}>
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Name</span>
+          <Input
+            ref={inputRef}
+            fieldSize="sm"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setSubmitError(null)
+            }}
+            placeholder="Products"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
 
-        <form className={dialogStyles.form} onSubmit={handleSubmit}>
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Name</span>
-            <Input
-              ref={inputRef}
-              fieldSize="sm"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                setSubmitError(null)
-              }}
-              placeholder="Products"
-              autoComplete="off"
-              spellCheck={false}
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Slug</span>
+          <Input
+            fieldSize="sm"
+            value={displayedSlug}
+            onChange={(event) => {
+              setSlugTouched(true)
+              setSlug(slugFromTitle(event.target.value))
+              setSubmitError(null)
+            }}
+            placeholder="products"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>URL path</span>
+          <Input
+            fieldSize="sm"
+            value={effectiveRouteBase}
+            onChange={(event) => {
+              setRouteTouched(true)
+              setRouteBase(event.target.value)
+              setSubmitError(null)
+            }}
+            placeholder="/products"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Singular label</span>
+          <Input
+            fieldSize="sm"
+            value={displayedSingularLabel}
+            onChange={(event) => {
+              setSingularTouched(true)
+              setSingularLabel(event.target.value)
+              setSubmitError(null)
+            }}
+            placeholder="Product"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Plural label</span>
+          <Input
+            fieldSize="sm"
+            value={displayedPluralLabel}
+            onChange={(event) => {
+              setPluralTouched(true)
+              setPluralLabel(event.target.value)
+              setSubmitError(null)
+            }}
+            placeholder="Products"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        <fieldset className={styles.collectionFields}>
+          <legend>Fields</legend>
+          <label>
+            <Checkbox
+              checked={bodyField}
+              onCheckedChange={setBodyField}
             />
+            <span>Body</span>
           </label>
-
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Slug</span>
-            <Input
-              fieldSize="sm"
-              value={displayedSlug}
-              onChange={(event) => {
-                setSlugTouched(true)
-                setSlug(slugFromTitle(event.target.value))
-                setSubmitError(null)
-              }}
-              placeholder="products"
-              autoComplete="off"
-              spellCheck={false}
+          <label>
+            <Checkbox
+              checked={featuredMediaField}
+              onCheckedChange={setFeaturedMediaField}
             />
+            <span>Featured media</span>
           </label>
-
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>URL path</span>
-            <Input
-              fieldSize="sm"
-              value={effectiveRouteBase}
-              onChange={(event) => {
-                setRouteTouched(true)
-                setRouteBase(event.target.value)
-                setSubmitError(null)
-              }}
-              placeholder="/products"
-              autoComplete="off"
-              spellCheck={false}
+          <label>
+            <Checkbox
+              checked={seoField}
+              onCheckedChange={setSeoField}
             />
+            <span>SEO fields</span>
           </label>
+        </fieldset>
 
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Singular label</span>
-            <Input
-              fieldSize="sm"
-              value={displayedSingularLabel}
-              onChange={(event) => {
-                setSingularTouched(true)
-                setSingularLabel(event.target.value)
-                setSubmitError(null)
-              }}
-              placeholder="Product"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Plural label</span>
-            <Input
-              fieldSize="sm"
-              value={displayedPluralLabel}
-              onChange={(event) => {
-                setPluralTouched(true)
-                setPluralLabel(event.target.value)
-                setSubmitError(null)
-              }}
-              placeholder="Products"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-
-          <fieldset className={styles.collectionFields}>
-            <legend>Fields</legend>
-            <label>
-              <Checkbox
-                checked={bodyField}
-                onCheckedChange={setBodyField}
-              />
-              <span>Body</span>
-            </label>
-            <label>
-              <Checkbox
-                checked={featuredMediaField}
-                onCheckedChange={setFeaturedMediaField}
-              />
-              <span>Featured media</span>
-            </label>
-            <label>
-              <Checkbox
-                checked={seoField}
-                onCheckedChange={setSeoField}
-              />
-              <span>SEO fields</span>
-            </label>
-          </fieldset>
-
-          {submitError && (
-            <p role="alert" className={dialogStyles.errorText}>
-              {submitError}
-            </p>
-          )}
-
-          <div className={dialogStyles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" disabled={!canCreate}>
-              Create
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        {submitError && (
+          <p role="alert" className={dialogStyles.errorText}>
+            {submitError}
+          </p>
+        )}
+      </form>
+    </Dialog>
   )
 })

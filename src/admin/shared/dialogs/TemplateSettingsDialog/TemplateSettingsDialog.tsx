@@ -1,5 +1,4 @@
 import { memo, useEffect, useRef, useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
 import type { Page, PageTemplateConfig } from '@core/page-tree'
 import {
   normalizePageSlug,
@@ -9,10 +8,9 @@ import {
 import { listCmsContentCollections } from '@core/persistence/cmsContent'
 import type { ContentCollection } from '@core/content/schemas'
 import { Button } from '@ui/components/Button'
+import { Dialog } from '@ui/components/Dialog'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
-import { useDialogEscape } from '@ui/lib/useDialogEscape'
-import { CloseIcon } from 'pixel-art-icons/icons/close'
 import dialogStyles from '../SiteCreateDialog/SiteCreateDialog.module.css'
 
 export interface TemplateSettingsPayload {
@@ -38,6 +36,8 @@ const FALLBACK_COLLECTIONS: ContentCollection[] = [{
   createdAt: '',
   updatedAt: '',
 }]
+
+const FORM_ID = 'template-settings-form'
 
 export const TemplateSettingsDialog = memo(function TemplateSettingsDialog({
   page,
@@ -76,8 +76,6 @@ export const TemplateSettingsDialog = memo(function TemplateSettingsDialog({
     }
   }, [])
 
-  useDialogEscape(onCancel)
-
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!trimmedTitle || slugValidation || priorityInvalid) return
@@ -95,107 +93,84 @@ export const TemplateSettingsDialog = memo(function TemplateSettingsDialog({
     })
   }
 
-  return createPortal(
-    <div
-      className={dialogStyles.backdrop}
-      data-testid="template-settings-dialog-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="template-settings-dialog-title"
-        className={dialogStyles.dialog}
-        data-testid="template-settings-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={dialogStyles.header}>
-          <h2 id="template-settings-dialog-title" className={dialogStyles.title}>
-            Template settings
-          </h2>
-          <Button
-            variant="ghost"
-            size="xs"
-            iconOnly
-            aria-label="Close dialog"
-            onClick={onCancel}
-          >
-            <CloseIcon size={12} color="currentColor" aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title="Template settings"
+      size="sm"
+      initialFocusRef={inputRef}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={FORM_ID}
+            disabled={!trimmedTitle || Boolean(slugValidation) || priorityInvalid}
+          >
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} className={dialogStyles.form} onSubmit={handleSubmit}>
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Name</span>
+          <Input
+            ref={inputRef}
+            fieldSize="sm"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Slug</span>
+          <Input
+            fieldSize="sm"
+            value={slug}
+            onChange={(event) => setSlug(normalizePageSlug(event.target.value))}
+            autoComplete="off"
+            spellCheck={false}
+            invalid={Boolean(slugValidation)}
+          />
+          {slugValidation && (
+            <p role="alert" className={dialogStyles.errorText}>{slugValidation}</p>
+          )}
+        </label>
+
+        <div className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Collection</span>
+          <Select
+            aria-label="Collection"
+            fieldSize="sm"
+            value={collectionId}
+            onChange={(event) => setCollectionId(event.target.value)}
+            options={collections.map((collection) => ({
+              value: collection.id,
+              label: collection.pluralLabel || collection.name,
+            }))}
+          />
         </div>
 
-        <form className={dialogStyles.form} onSubmit={handleSubmit}>
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Name</span>
-            <Input
-              ref={inputRef}
-              fieldSize="sm"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Slug</span>
-            <Input
-              fieldSize="sm"
-              value={slug}
-              onChange={(event) => setSlug(normalizePageSlug(event.target.value))}
-              autoComplete="off"
-              spellCheck={false}
-              invalid={Boolean(slugValidation)}
-            />
-            {slugValidation && (
-              <p role="alert" className={dialogStyles.errorText}>{slugValidation}</p>
-            )}
-          </label>
-
-          <div className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Collection</span>
-            <Select
-              aria-label="Collection"
-              fieldSize="sm"
-              value={collectionId}
-              onChange={(event) => setCollectionId(event.target.value)}
-              options={collections.map((collection) => ({
-                value: collection.id,
-                label: collection.pluralLabel || collection.name,
-              }))}
-            />
-          </div>
-
-          <div className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Priority</span>
-            <Input
-              aria-label="Priority"
-              fieldSize="sm"
-              type="number"
-              value={priority}
-              onChange={(event) => setPriority(event.target.value)}
-              invalid={priorityInvalid}
-            />
-          </div>
-
-          <div className={dialogStyles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              type="submit"
-              disabled={!trimmedTitle || Boolean(slugValidation) || priorityInvalid}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        <div className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Priority</span>
+          <Input
+            aria-label="Priority"
+            fieldSize="sm"
+            type="number"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
+            invalid={priorityInvalid}
+          />
+        </div>
+      </form>
+    </Dialog>
   )
 })

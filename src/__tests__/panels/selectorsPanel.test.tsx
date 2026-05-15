@@ -394,7 +394,10 @@ describe('SelectorsPanel', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /edit selector \.renamed-card/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /delete/i }))
-    const deleteDialog = screen.getByRole('dialog', { name: /delete selector/i })
+    // Destructive confirmations use role=alertdialog (Dialog primitive,
+    // tone="danger"). alertdialog is the correct ARIA role for prompts
+    // that interrupt the user with a destructive choice.
+    const deleteDialog = screen.getByRole('alertdialog', { name: /delete selector/i })
     expect(deleteDialog.textContent).toContain('Delete .renamed-card?')
     expect(deleteDialog.textContent).not.toContain('renamed-card (')
     expect(within(deleteDialog).getByText(/this selector is unused/i)).toBeDefined()

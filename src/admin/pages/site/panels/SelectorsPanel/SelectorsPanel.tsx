@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from 'react'
-import { createPortal } from 'react-dom'
 import { selectSelectedNode, useEditorStore } from '@site/store/store'
 import { cssClassSelector } from '@core/page-tree/classNames'
 import { generatedClassKindLabel, isGeneratedClass, isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import type { CSSClass } from '@core/page-tree/schemas'
 import { Button } from '@ui/components/Button'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@ui/components/ContextMenu'
+import { Dialog } from '@ui/components/Dialog'
 import { EmptyState } from '@ui/components/EmptyState'
 import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import { Input } from '@ui/components/Input'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { Copy2SharpIcon } from 'pixel-art-icons/icons/copy-2-sharp'
-import { DeleteIcon } from 'pixel-art-icons/icons/delete'
-import { EditIcon } from 'pixel-art-icons/icons/edit'
-import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
-import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
+import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
+import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
+import { FilePlusSolidIcon } from 'pixel-art-icons/icons/file-plus-solid'
+import { PaintBucketSolidIcon } from 'pixel-art-icons/icons/paint-bucket-solid'
 import { Panel } from '@admin/shared/Panel'
 import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import {
@@ -201,7 +201,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
             tooltip="Create selector"
             onClick={() => setCreateDialogOpen(true)}
           >
-            <FilePlusIcon size={13} aria-hidden="true" />
+            <FilePlusSolidIcon size={13} aria-hidden="true" />
           </Button>
         }
       >
@@ -347,7 +347,7 @@ function SelectorRow({
         onKeyDown(event)
       }}
     >
-      <PaintBucketIcon size={13} aria-hidden="true" />
+      <PaintBucketSolidIcon size={13} aria-hidden="true" />
       <span className={styles.rowText}>
         <span className={styles.rowLabel}>{selectorLabel}</span>
         <span className={styles.rowMeta}>{summary}</span>
@@ -392,11 +392,11 @@ function SelectorContextMenu({
   return (
     <ContextMenu x={x} y={y} ariaLabel="Selector actions" onClose={onClose}>
       <ContextMenuItem onClick={onEdit}>
-        <span aria-hidden="true"><EditIcon size={13} /></span>
+        <span aria-hidden="true"><EditSolidIcon size={13} /></span>
         {locked ? 'View utility' : 'Edit'}
       </ContextMenuItem>
       <ContextMenuItem disabled={locked} onClick={onRename}>
-        <span aria-hidden="true"><EditIcon size={13} /></span>
+        <span aria-hidden="true"><EditSolidIcon size={13} /></span>
         Rename
       </ContextMenuItem>
       <ContextMenuItem disabled={locked} onClick={onDuplicate}>
@@ -405,7 +405,7 @@ function SelectorContextMenu({
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem disabled={!selectedNodeId || selectedNodeHasClass} onClick={onApply}>
-        <span aria-hidden="true"><PaintBucketIcon size={13} /></span>
+        <span aria-hidden="true"><PaintBucketSolidIcon size={13} /></span>
         Apply to selected element
       </ContextMenuItem>
       <ContextMenuItem disabled={!selectedNodeId || !selectedNodeHasClass} onClick={onRemove}>
@@ -418,12 +418,14 @@ function SelectorContextMenu({
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem danger disabled={locked} onClick={onDelete}>
-        <span aria-hidden="true"><DeleteIcon size={13} /></span>
+        <span aria-hidden="true"><TrashSolidIcon size={13} /></span>
         Delete
       </ContextMenuItem>
     </ContextMenu>
   )
 }
+
+const SELECTOR_NAME_FORM_ID = 'selector-name-form'
 
 function SelectorNameDialog({
   title,
@@ -452,56 +454,47 @@ function SelectorNameDialog({
     }
   }
 
-  return createPortal(
-    <div
-      className={dialogStyles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="selector-name-dialog-title"
-        className={dialogStyles.dialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={dialogStyles.header}>
-          <h2 id="selector-name-dialog-title" className={dialogStyles.title}>
-            {title}
-          </h2>
-          <Button variant="ghost" size="xs" iconOnly aria-label="Close dialog" onClick={onCancel}>
-            <CloseIcon size={12} aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title={title}
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
-        </div>
-        <form className={dialogStyles.form} onSubmit={handleSubmit}>
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Class name</span>
-            <Input
-              fieldSize="sm"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                setError(null)
-              }}
-              aria-label="Class name"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          {error && <p role="alert" className={dialogStyles.errorText}>{error}</p>}
-          <div className={dialogStyles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" disabled={!trimmedName}>
-              {submitLabel}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={SELECTOR_NAME_FORM_ID}
+            disabled={!trimmedName}
+          >
+            {submitLabel}
+          </Button>
+        </>
+      }
+    >
+      <form id={SELECTOR_NAME_FORM_ID} className={dialogStyles.form} onSubmit={handleSubmit}>
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Class name</span>
+          <Input
+            fieldSize="sm"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setError(null)
+            }}
+            aria-label="Class name"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        {error && <p role="alert" className={dialogStyles.errorText}>{error}</p>}
+      </form>
+    </Dialog>
   )
 }
 
@@ -518,44 +511,28 @@ function DeleteSelectorDialog({
 }) {
   const selectorLabel = `.${cls.name}`
 
-  return createPortal(
-    <div
-      className={dialogStyles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-selector-dialog-title"
-        className={dialogStyles.dialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={dialogStyles.header}>
-          <h2 id="delete-selector-dialog-title" className={dialogStyles.title}>
-            Delete selector
-          </h2>
-          <Button variant="ghost" size="xs" iconOnly aria-label="Close dialog" onClick={onCancel}>
-            <CloseIcon size={12} aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title="Delete selector"
+      tone="danger"
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
-        </div>
-        <div className={dialogStyles.form}>
-          <p className={styles.dialogCopy}>
-            Delete <span className={styles.dialogStrong}>{selectorLabel}</span>?
-            This selector is {usage.toLowerCase()}.
-          </p>
-          <div className={dialogStyles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="destructive" size="sm" type="button" onClick={onDelete}>
-              Delete selector
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body,
+          <Button variant="destructive" size="sm" type="button" onClick={onDelete}>
+            Delete selector
+          </Button>
+        </>
+      }
+    >
+      <p className={styles.dialogCopy}>
+        Delete <span className={styles.dialogStrong}>{selectorLabel}</span>?
+        This selector is {usage.toLowerCase()}.
+      </p>
+    </Dialog>
   )
 }

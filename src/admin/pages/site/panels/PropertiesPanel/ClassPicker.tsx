@@ -34,18 +34,18 @@ import { createPortal } from 'react-dom'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { Button } from '@ui/components/Button'
-import { useDialogEscape } from '@ui/lib/useDialogEscape'
 import {
   ContextMenu,
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@ui/components/ContextMenu'
+import { Dialog } from '@ui/components/Dialog'
 import { Input } from '@ui/components/Input'
 import { ChevronUpIcon } from 'pixel-art-icons/icons/chevron-up'
 import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { CornerDownLeftIcon } from 'pixel-art-icons/icons/corner-down-left'
-import { EditIcon } from 'pixel-art-icons/icons/edit'
+import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { cn } from '@ui/cn'
 import {
   generatedClassKindLabel,
@@ -819,11 +819,11 @@ function ClassPillContextMenu({
   return (
     <ContextMenu x={x} y={y} ariaLabel="Class actions" onClose={onClose}>
       <ContextMenuItem ref={firstItemRef} onClick={onEdit}>
-        <span aria-hidden="true"><EditIcon size={13} /></span>
+        <span aria-hidden="true"><EditSolidIcon size={13} /></span>
         {locked ? 'View utility' : 'Edit styles'}
       </ContextMenuItem>
       <ContextMenuItem disabled={locked} onClick={onRename}>
-        <span aria-hidden="true"><EditIcon size={13} /></span>
+        <span aria-hidden="true"><EditSolidIcon size={13} /></span>
         Rename
       </ContextMenuItem>
       <ContextMenuSeparator />
@@ -844,6 +844,8 @@ function ClassPillContextMenu({
   )
 }
 
+const CLASS_RENAME_FORM_ID = 'class-rename-form'
+
 function ClassRenameDialog({
   initialValue,
   onCancel,
@@ -862,8 +864,6 @@ function ClassRenameDialog({
     requestAnimationFrame(() => inputRef.current?.select())
   }, [])
 
-  useDialogEscape(onCancel)
-
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!trimmedName) return
@@ -875,56 +875,48 @@ function ClassRenameDialog({
     }
   }
 
-  return createPortal(
-    <div
-      className={dialogStyles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="class-rename-dialog-title"
-        className={dialogStyles.dialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={dialogStyles.header}>
-          <h2 id="class-rename-dialog-title" className={dialogStyles.title}>
-            Rename selector
-          </h2>
-          <Button variant="ghost" size="xs" iconOnly aria-label="Close dialog" onClick={onCancel}>
-            <CloseIcon size={12} color="currentColor" aria-hidden="true" />
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      title="Rename selector"
+      size="sm"
+      initialFocusRef={inputRef}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
+            Cancel
           </Button>
-        </div>
-        <form className={dialogStyles.form} onSubmit={handleSubmit}>
-          <label className={dialogStyles.field}>
-            <span className={dialogStyles.label}>Name</span>
-            <Input
-              ref={inputRef}
-              fieldSize="sm"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                setError(null)
-              }}
-              aria-label="Class name"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          {error && <p role="alert" className={dialogStyles.errorText}>{error}</p>}
-          <div className={dialogStyles.actions}>
-            <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" disabled={!trimmedName}>
-              Save
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={CLASS_RENAME_FORM_ID}
+            disabled={!trimmedName}
+          >
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id={CLASS_RENAME_FORM_ID} className={dialogStyles.form} onSubmit={handleSubmit}>
+        <label className={dialogStyles.field}>
+          <span className={dialogStyles.label}>Name</span>
+          <Input
+            ref={inputRef}
+            fieldSize="sm"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setError(null)
+            }}
+            aria-label="Class name"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        {error && <p role="alert" className={dialogStyles.errorText}>{error}</p>}
+      </form>
+    </Dialog>
   )
 }
