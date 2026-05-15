@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { expectedOrigin, isStateChangingMethod, originAllowed, clientIp } from '../../../server/auth/security'
+import {
+  DEV_ORIGIN_ALLOWLIST,
+  expectedOrigin,
+  isStateChangingMethod,
+  originAllowed,
+  clientIp,
+  stampSocketIp,
+} from '../../../server/auth/security'
 
 /**
  * Build a Request whose headers contain Fetch-spec "forbidden header names"
@@ -79,6 +86,19 @@ describe('originAllowed', () => {
     expect(originAllowed(req)).toBe(true)
   })
 
+  it('allows requests from the numeric loopback dev origin (Vite at :5173)', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: { origin: 'http://127.0.0.1:5173' },
+    })
+    expect(originAllowed(req)).toBe(true)
+  })
+
+  it('uses the same dev origins for CSRF and CORS checks', () => {
+    expect(DEV_ORIGIN_ALLOWLIST).toContain('http://localhost:5173')
+    expect(DEV_ORIGIN_ALLOWLIST).toContain('http://127.0.0.1:5173')
+  })
+
   it('rejects requests from a foreign origin', () => {
     const req = makeReq('http://localhost:3001/admin/api/cms/login', {
       method: 'POST',
@@ -121,7 +141,7 @@ describe('clientIp', () => {
     expect(clientIp(req)).toBe('203.0.113.7')
   })
 
-  it('returns null when no XFF header is present', () => {
+  it('returns null when no XFF header and no socket-IP stamp are present', () => {
     const req = makeReq('http://localhost:3001/admin/api/cms/login', { method: 'POST' })
     expect(clientIp(req)).toBeNull()
   })
@@ -132,5 +152,56 @@ describe('clientIp', () => {
       headers: { 'x-forwarded-for': '  192.0.2.5  , 10.0.0.1' },
     })
     expect(clientIp(req)).toBe('192.0.2.5')
+  })
+
+  it('falls back to the Bun socket-IP stamp when XFF is absent', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', { method: 'POST' })
+    stampSocketIp(req, '127.0.0.1')
+    expect(clientIp(req)).toBe('127.0.0.1')
+  })
+
+  it('prefers XFF over the socket-IP stamp (proxy is authoritative)', () => {
+    const req = makeReq('http://app:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    })
+    stampSocketIp(req, '10.0.0.99')
+    expect(clientIp(req)).toBe('203.0.113.7')
+  })
+})
+
+describe('stampSocketIp', () => {
+  it('writes the address into a synthetic header that clientIp can read', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', { method: 'POST' })
+    stampSocketIp(req, '::1')
+    expect(clientIp(req)).toBe('::1')
+  })
+
+  it('clears the stamp when the address is null (no peer surfaced)', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', { method: 'POST' })
+    stampSocketIp(req, '127.0.0.1')
+    stampSocketIp(req, null)
+    expect(clientIp(req)).toBeNull()
+  })
+
+  it('strips any inbound spoof of the synthetic header before stamping', () => {
+    // A malicious client tries to inject the synthetic header. The boundary
+    // must overwrite it with the real peer address (here we model that by
+    // passing the real value into stampSocketIp).
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: { 'x-bun-socket-ip': '198.51.100.1' },
+    })
+    stampSocketIp(req, '127.0.0.1')
+    expect(clientIp(req)).toBe('127.0.0.1')
+  })
+
+  it('strips any inbound spoof even when no real peer is available', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: { 'x-bun-socket-ip': '198.51.100.1' },
+    })
+    stampSocketIp(req, null)
+    expect(clientIp(req)).toBeNull()
   })
 })

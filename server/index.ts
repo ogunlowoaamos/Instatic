@@ -1,6 +1,7 @@
 import { createDbClient } from './db'
 import { runMigrations } from './db/runMigrations'
 import { readServerConfig } from './config'
+import { DEV_ORIGIN_ALLOWLIST, stampSocketIp } from './auth/security'
 
 await import('./domEnvironment')
 const { handleServerRequest } = await import('./router')
@@ -11,14 +12,8 @@ const { db, migrations } = createDbClient(config.databaseUrl)
 await runMigrations(db, migrations)
 await activateInstalledServerPlugins(db, config.uploadsDir)
 
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  process.env.VITE_ALLOWED_ORIGIN,
-].filter(Boolean) as string[]
-
 function corsHeaders(origin: string | null): Record<string, string> {
-  const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  const allow = origin && DEV_ORIGIN_ALLOWLIST.includes(origin) ? origin : DEV_ORIGIN_ALLOWLIST[0]
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Credentials': 'true',
@@ -39,9 +34,14 @@ Bun.serve({
   // idle timeout has no downside for them.
   idleTimeout: 0,
 
-  async fetch(req: Request) {
+  async fetch(req: Request, server: Bun.Server<unknown>) {
     const origin = req.headers.get('origin')
     const cors = corsHeaders(origin)
+
+    // Stamp the socket peer address onto the request so downstream
+    // `clientIp(req)` returns a real value when no `X-Forwarded-For` is
+    // present (dev, self-hosted without a proxy). Strips any inbound spoof.
+    stampSocketIp(req, server.requestIP(req)?.address ?? null)
 
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
