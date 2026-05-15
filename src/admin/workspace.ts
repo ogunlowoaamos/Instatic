@@ -11,4 +11,11 @@
  * can access their own. The avatar dropdown in the toolbar is the primary
  * entry point.
  */
-export type AdminWorkspace = 'site' | 'content' | 'plugins' | 'users' | 'pluginPage' | 'account'
+export type AdminWorkspace =
+  | 'site'
+  | 'content'
+  | 'media'
+  | 'plugins'
+  | 'users'
+  | 'pluginPage'
+  | 'account'

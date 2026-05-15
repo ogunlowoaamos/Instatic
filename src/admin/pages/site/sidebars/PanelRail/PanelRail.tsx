@@ -4,13 +4,13 @@ import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
 import type { IconComponent } from 'pixel-art-icons/types'
 import { Bulletlist2SharpIcon } from 'pixel-art-icons/icons/bulletlist-2-sharp'
 import { AiSettingsSolidIcon } from 'pixel-art-icons/icons/ai-settings-solid'
-import { FilesStack2Icon } from 'pixel-art-icons/icons/files-stack-2'
-import { ImagesIcon } from 'pixel-art-icons/icons/images'
-import { BoxStackIcon } from 'pixel-art-icons/icons/box-stack'
-import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
-import { ColorsSwatchIcon } from 'pixel-art-icons/icons/colors-swatch'
+import { FilesStack2SolidIcon } from 'pixel-art-icons/icons/files-stack-2-solid'
+import { ImagesSolidIcon } from 'pixel-art-icons/icons/images-solid'
+import { BoxStackSolidIcon } from 'pixel-art-icons/icons/box-stack-solid'
+import { PaintBucketSolidIcon } from 'pixel-art-icons/icons/paint-bucket-solid'
+import { ColorsSwatchSolidIcon } from 'pixel-art-icons/icons/colors-swatch-solid'
 import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
-import { RulerDimensionIcon } from 'pixel-art-icons/icons/ruler-dimension'
+import { RulerDimensionSolidIcon } from 'pixel-art-icons/icons/ruler-dimension-solid'
 import { Button } from '@ui/components/Button'
 import { pluginRuntime } from '@core/plugins/runtime'
 import { resolvePluginPanelIcon } from './pluginPanelIcons'
@@ -64,7 +64,7 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
   {
     id: 'site',
     label: 'Site',
-    icon: FilesStack2Icon,
+    icon: FilesStack2SolidIcon,
     iconName: 'files-stack-2',
     accent: 'sky',
     ariaKeyshortcuts: 'Control+Shift+E',
@@ -73,14 +73,14 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
   {
     id: 'selectors',
     label: 'Selectors',
-    icon: PaintBucketIcon,
+    icon: PaintBucketSolidIcon,
     iconName: 'paint-bucket',
     accent: 'peach',
   },
   {
     id: 'colors',
     label: 'Colors',
-    icon: ColorsSwatchIcon,
+    icon: ColorsSwatchSolidIcon,
     iconName: 'colors-swatch',
     accent: 'peach',
   },
@@ -94,28 +94,28 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
   {
     id: 'spacing',
     label: 'Spacing',
-    icon: RulerDimensionIcon,
+    icon: RulerDimensionSolidIcon,
     iconName: 'ruler-dimension',
     accent: 'lilac',
   },
   {
     id: 'media',
     label: 'Media',
-    icon: ImagesIcon,
+    icon: ImagesSolidIcon,
     iconName: 'images',
     accent: 'sky',
   },
   {
     id: 'dependencies',
     label: 'Dependencies',
-    icon: BoxStackIcon,
+    icon: BoxStackSolidIcon,
     iconName: 'box-stack',
     accent: 'peach',
   },
 ]
 
 interface PanelRailProps {
-  workspace?: 'site' | 'content'
+  workspace?: 'site' | 'content' | 'media'
   editable?: boolean
 }
 

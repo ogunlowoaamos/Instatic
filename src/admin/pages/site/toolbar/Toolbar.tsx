@@ -223,6 +223,11 @@ function DefaultAdminNavigation({ section }: { section: AdminWorkspace }) {
       ) : (
         <a className={styles.adminLink} href="/admin/content">Content</a>
       )}
+      {section === 'media' ? (
+        <span className={styles.activeSection}>Media</span>
+      ) : (
+        <a className={styles.adminLink} href="/admin/media">Media</a>
+      )}
       {section === 'plugins' ? (
         <span className={styles.activeSection}>Plugins</span>
       ) : (

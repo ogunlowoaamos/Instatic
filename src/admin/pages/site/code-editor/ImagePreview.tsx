@@ -17,7 +17,6 @@
  */
 
 import type { SiteFile } from '@core/files/schemas'
-import type { MediaAssetPreview } from '@site/store/slices/uiSlice'
 import styles from './imagePreview.module.css'
 
 // ---------------------------------------------------------------------------
@@ -28,12 +27,6 @@ import styles from './imagePreview.module.css'
 function formatSize(base64: string): string {
   // base64 encodes ~4/3 bytes; actual byte size:
   const bytes = Math.round((base64.length * 3) / 4)
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -68,79 +61,6 @@ export function ImagePreview({ file }: ImagePreviewProps) {
 
   // ── Image asset: render with object URL ──────────────────────────────────
   return <ImageRenderer file={file} blob={blob} />
-}
-
-export function RemoteAssetPreview({ asset }: { asset: MediaAssetPreview }) {
-  const sizeStr = formatBytes(asset.sizeBytes)
-
-  if (asset.mimeType.startsWith('image/')) {
-    return (
-      <div
-        className={styles.previewContainer}
-        aria-label={`Image preview: ${asset.filename}`}
-      >
-        <img
-          src={asset.publicPath}
-          alt=""
-          className={styles.previewImage}
-        />
-        <AssetMetaFooter
-          filename={asset.filename}
-          size={sizeStr}
-          mimeType={asset.mimeType}
-        />
-      </div>
-    )
-  }
-
-  if (asset.mimeType.startsWith('video/')) {
-    return (
-      <div
-        className={styles.previewContainer}
-        aria-label={`Video preview: ${asset.filename}`}
-      >
-        <video
-          src={asset.publicPath}
-          controls
-          className={styles.previewImage}
-        />
-        <AssetMetaFooter
-          filename={asset.filename}
-          size={sizeStr}
-          mimeType={asset.mimeType}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className={styles.binaryPlaceholder}>
-      <p className={styles.binaryTitle}>Binary file — no preview available</p>
-      <p className={styles.binaryMeta}>{asset.filename}</p>
-      <p className={styles.binaryMeta}>{sizeStr} · {asset.mimeType}</p>
-      <p className={styles.binaryHint}>{asset.publicPath}</p>
-    </div>
-  )
-}
-
-function AssetMetaFooter({
-  filename,
-  size,
-  mimeType,
-}: {
-  filename: string
-  size: string
-  mimeType: string
-}) {
-  return (
-    <div className={styles.metaFooter}>
-      <span className={styles.metaName}>{filename}</span>
-      <span className={styles.metaSep}>·</span>
-      <span>{size}</span>
-      <span className={styles.metaSep}>·</span>
-      <span>{mimeType}</span>
-    </div>
-  )
 }
 
 // ---------------------------------------------------------------------------

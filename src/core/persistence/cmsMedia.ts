@@ -2,19 +2,108 @@ import { parseJsonResponse, safeParseJson } from '@core/utils/jsonValidate'
 import { responseErrorMessage } from './httpErrors'
 import {
   CmsMediaAssetEnvelopeSchema,
+  CmsMediaFolderEnvelopeSchema,
+  CmsMediaFolderListResponseSchema,
   CmsMediaListResponseSchema,
-  type CmsMediaAsset,
+  type CmsMediaAssetWire,
+  type CmsMediaFolder,
 } from './responseSchemas'
 
-export type { CmsMediaAsset }
+/**
+ * Normalized media asset — every field is non-optional. The wire shape
+ * (`CmsMediaAssetWire`) marks the M2+ metadata fields optional so older
+ * server responses keep validating; `normalizeCmsMediaAsset` runs at the
+ * client boundary to fill defaults so consumer code can `asset.altText`
+ * freely.
+ */
+export interface CmsMediaAsset {
+  id: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  publicPath: string
+  uploadedByUserId: string | null
+  createdAt: string
+  altText: string
+  caption: string
+  title: string
+  tags: string[]
+  width: number | null
+  height: number | null
+  durationMs: number | null
+  focalX: number
+  focalY: number
+  dominantColor: string | null
+  deletedAt: string | null
+  replacedAt: string | null
+  folderIds: string[]
+}
+
+export type { CmsMediaFolder }
+
+export function normalizeCmsMediaAsset(wire: CmsMediaAssetWire): CmsMediaAsset {
+  return {
+    id: wire.id,
+    filename: wire.filename,
+    mimeType: wire.mimeType,
+    sizeBytes: wire.sizeBytes,
+    publicPath: wire.publicPath,
+    uploadedByUserId: wire.uploadedByUserId,
+    createdAt: wire.createdAt,
+    altText: wire.altText ?? '',
+    caption: wire.caption ?? '',
+    title: wire.title ?? '',
+    tags: wire.tags ?? [],
+    width: wire.width ?? null,
+    height: wire.height ?? null,
+    durationMs: wire.durationMs ?? null,
+    focalX: wire.focalX ?? 0.5,
+    focalY: wire.focalY ?? 0.5,
+    dominantColor: wire.dominantColor ?? null,
+    deletedAt: wire.deletedAt ?? null,
+    replacedAt: wire.replacedAt ?? null,
+    folderIds: wire.folderIds ?? [],
+  }
+}
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
+interface ClientBase {
+  fetchImpl?: FetchLike
+  basePath?: string
+}
+
+function resolveClient(base: ClientBase | undefined) {
+  return {
+    fetchImpl: base?.fetchImpl ?? globalThis.fetch.bind(globalThis),
+    basePath: base?.basePath ?? '/admin/api/cms',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Assets
+// ---------------------------------------------------------------------------
+
+export interface ListCmsMediaAssetsOptions extends ClientBase {
+  /** `true` returns only soft-deleted assets (Trash view). */
+  trash?: boolean
+}
+
 export async function listCmsMediaAssets(
-  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
-  basePath = '/admin/api/cms',
+  options: ListCmsMediaAssetsOptions | FetchLike = {},
+  legacyBasePath = '/admin/api/cms',
 ): Promise<CmsMediaAsset[]> {
-  const res = await fetchImpl(`${basePath}/media`, {
+  // Backward compatibility: previous signature accepted (fetchImpl, basePath)
+  // as positional args. The MediaExplorerPanel still calls `listCmsMediaAssets()`
+  // with zero args; this overload keeps that working while letting new callers
+  // pass `{ trash: true }`.
+  const opts: ListCmsMediaAssetsOptions = typeof options === 'function'
+    ? { fetchImpl: options, basePath: legacyBasePath }
+    : options
+  const { fetchImpl, basePath } = resolveClient(opts)
+  const params = opts.trash ? '?trash=1' : ''
+
+  const res = await fetchImpl(`${basePath}/media${params}`, {
     method: 'GET',
     credentials: 'include',
   })
@@ -22,17 +111,22 @@ export async function listCmsMediaAssets(
     throw new Error(await responseErrorMessage(res, `CMS media listing failed with ${res.status}`))
   }
   // Use safeParseJson here so a malformed response degrades to an empty list
-  // instead of crashing the media panel — preserves prior behaviour.
+  // instead of crashing the media panel.
   const text = await res.text()
   const parsed = safeParseJson(text, CmsMediaListResponseSchema)
-  return parsed.ok && parsed.value.assets ? parsed.value.assets : []
+  if (!parsed.ok || !parsed.value.assets) return []
+  return parsed.value.assets.map(normalizeCmsMediaAsset)
 }
 
 export async function uploadCmsMediaAsset(
   file: File,
-  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
-  basePath = '/admin/api/cms',
+  options: ClientBase | FetchLike = {},
+  legacyBasePath = '/admin/api/cms',
 ): Promise<CmsMediaAsset> {
+  const opts: ClientBase = typeof options === 'function'
+    ? { fetchImpl: options, basePath: legacyBasePath }
+    : options
+  const { fetchImpl, basePath } = resolveClient(opts)
   const body = new FormData()
   body.set('file', file)
 
@@ -45,38 +139,220 @@ export async function uploadCmsMediaAsset(
     throw new Error(await responseErrorMessage(res, `CMS media upload failed with ${res.status}`))
   }
   const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
-  return payload.asset
+  return normalizeCmsMediaAsset(payload.asset)
+}
+
+export interface UpdateCmsMediaAssetInput {
+  filename?: string
+  altText?: string
+  caption?: string
+  title?: string
+  tags?: string[]
+  focalX?: number
+  focalY?: number
+}
+
+/**
+ * General-purpose PATCH that accepts any subset of editable fields. The
+ * one-field rename helper below stays for callers that only need that.
+ */
+export async function updateCmsMediaAsset(
+  assetId: string,
+  input: UpdateCmsMediaAssetInput,
+  options: ClientBase = {},
+): Promise<CmsMediaAsset> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS media update failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
+  return normalizeCmsMediaAsset(payload.asset)
 }
 
 export async function renameCmsMediaAsset(
   assetId: string,
   filename: string,
-  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
-  basePath = '/admin/api/cms',
+  options: ClientBase | FetchLike = {},
+  legacyBasePath = '/admin/api/cms',
 ): Promise<CmsMediaAsset> {
-  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ filename }),
-  })
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, `CMS media rename failed with ${res.status}`))
-  }
-  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
-  return payload.asset
+  const opts: ClientBase = typeof options === 'function'
+    ? { fetchImpl: options, basePath: legacyBasePath }
+    : options
+  return updateCmsMediaAsset(assetId, { filename }, opts)
 }
 
+/**
+ * Soft delete. Issues `DELETE /media/:id` which stamps `deleted_at` server-side
+ * — the file stays on disk; restore() un-stamps; `purgeCmsMediaAsset()`
+ * finishes the job.
+ */
 export async function deleteCmsMediaAsset(
   assetId: string,
-  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
-  basePath = '/admin/api/cms',
+  options: ClientBase | FetchLike = {},
+  legacyBasePath = '/admin/api/cms',
 ): Promise<void> {
+  const opts: ClientBase = typeof options === 'function'
+    ? { fetchImpl: options, basePath: legacyBasePath }
+    : options
+  const { fetchImpl, basePath } = resolveClient(opts)
   const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}`, {
     method: 'DELETE',
     credentials: 'include',
   })
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `CMS media delete failed with ${res.status}`))
+  }
+}
+
+export async function restoreCmsMediaAsset(
+  assetId: string,
+  options: ClientBase = {},
+): Promise<CmsMediaAsset> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}/restore`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS media restore failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
+  return normalizeCmsMediaAsset(payload.asset)
+}
+
+/**
+ * Replace the binary backing this asset. Keeps the same `id` and `publicPath`
+ * so every page tree / content entry / avatar reference continues to resolve.
+ * Server-side checks (size + magic bytes) are identical to a fresh upload.
+ */
+export async function replaceCmsMediaAssetFile(
+  assetId: string,
+  file: File,
+  options: ClientBase = {},
+): Promise<CmsMediaAsset> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const body = new FormData()
+  body.set('file', file)
+  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}/replace`, {
+    method: 'POST',
+    credentials: 'include',
+    body,
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS media replace failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
+  return normalizeCmsMediaAsset(payload.asset)
+}
+
+/**
+ * Hard delete + on-disk file removal. Server rejects the request unless the
+ * asset is already soft-deleted, so the trash safety net can't be bypassed
+ * by a single API call.
+ */
+export async function purgeCmsMediaAsset(
+  assetId: string,
+  options: ClientBase = {},
+): Promise<void> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}?purge=1`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS media purge failed with ${res.status}`))
+  }
+}
+
+export async function setCmsMediaAssetFolders(
+  assetId: string,
+  input: { add?: string[]; remove?: string[] },
+  options: ClientBase = {},
+): Promise<CmsMediaAsset> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/${encodeURIComponent(assetId)}/folders`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS media folder assignment failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
+  return normalizeCmsMediaAsset(payload.asset)
+}
+
+// ---------------------------------------------------------------------------
+// Folders
+// ---------------------------------------------------------------------------
+
+export async function listCmsMediaFolders(options: ClientBase = {}): Promise<CmsMediaFolder[]> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/folders`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS folder listing failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaFolderListResponseSchema)
+  return payload.folders
+}
+
+export async function createCmsMediaFolder(
+  input: { name: string; parentId?: string | null },
+  options: ClientBase = {},
+): Promise<CmsMediaFolder> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/folders`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS folder create failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaFolderEnvelopeSchema)
+  return payload.folder
+}
+
+export async function updateCmsMediaFolder(
+  folderId: string,
+  input: { name?: string; parentId?: string | null; sortOrder?: number },
+  options: ClientBase = {},
+): Promise<CmsMediaFolder> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/folders/${encodeURIComponent(folderId)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS folder update failed with ${res.status}`))
+  }
+  const payload = await parseJsonResponse(res, CmsMediaFolderEnvelopeSchema)
+  return payload.folder
+}
+
+export async function deleteCmsMediaFolder(
+  folderId: string,
+  options: ClientBase = {},
+): Promise<void> {
+  const { fetchImpl, basePath } = resolveClient(options)
+  const res = await fetchImpl(`${basePath}/media/folders/${encodeURIComponent(folderId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `CMS folder delete failed with ${res.status}`))
   }
 }

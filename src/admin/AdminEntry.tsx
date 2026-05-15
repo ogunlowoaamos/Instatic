@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '@ui/components/Button'
-import { DatabaseIcon } from 'pixel-art-icons/icons/database'
+import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import {
   getCmsSetupStatus,
@@ -34,6 +34,9 @@ const SitePage = lazy(() =>
 )
 const ContentPage = lazy(() =>
   import('./pages/content/ContentPage').then((m) => ({ default: m.ContentPage })),
+)
+const MediaPage = lazy(() =>
+  import('./pages/media/MediaPage').then((m) => ({ default: m.MediaPage })),
 )
 const PluginsPage = lazy(() =>
   import('./pages/plugins/PluginsPage').then((m) => ({ default: m.PluginsPage })),
@@ -185,7 +188,7 @@ export default function AdminEntry({ section = 'site' }: AdminEntryProps) {
       <section className={styles.panel} aria-labelledby="admin-entry-title">
         <div className={styles.brandRow}>
           <div className={styles.brandIcon} aria-hidden="true">
-            <DatabaseIcon size={16} />
+            <DatabaseSolidIcon size={16} />
           </div>
           <span>Page Builder CMS</span>
         </div>
@@ -305,6 +308,7 @@ function AuthenticatedAdmin({
       <StepUpProvider>
         <Suspense fallback={<AppLoadingScreen />}>
           {section === 'content' ? <ContentPage /> :
+            section === 'media' ? <MediaPage /> :
             section === 'plugins' ? <PluginsPage /> :
             section === 'users' ? <UsersPage /> :
             section === 'pluginPage' ? <PluginPage /> :

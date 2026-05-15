@@ -64,6 +64,8 @@ export function canAccessWorkspace(user: CmsCurrentUser | null, workspace: Admin
       return hasCapability(user, 'site.read')
     case 'content':
       return canAccessContent(user)
+    case 'media':
+      return hasCapability(user, 'media.manage')
     case 'plugins':
     case 'pluginPage':
       return hasCapability(user, 'plugins.manage')
@@ -77,7 +79,7 @@ export function canAccessWorkspace(user: CmsCurrentUser | null, workspace: Admin
 }
 
 export function firstAccessibleWorkspace(user: CmsCurrentUser | null): AdminWorkspace | null {
-  const order: AdminWorkspace[] = ['site', 'content', 'plugins', 'users']
+  const order: AdminWorkspace[] = ['site', 'content', 'media', 'plugins', 'users']
   return order.find((workspace) => canAccessWorkspace(user, workspace)) ?? null
 }
 
@@ -87,6 +89,8 @@ export function workspacePath(workspace: AdminWorkspace): string {
       return '/admin/site'
     case 'content':
       return '/admin/content'
+    case 'media':
+      return '/admin/media'
     case 'plugins':
       return '/admin/plugins'
     case 'users':

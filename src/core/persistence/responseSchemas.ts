@@ -53,6 +53,14 @@ export type CmsSetupStatus = Static<typeof CmsSetupStatusSchema>
 // cmsMedia.ts
 // ---------------------------------------------------------------------------
 
+/**
+ * Wire schema for a media asset. The M2+ metadata fields are accepted as
+ * optional so older test fixtures and the avatar endpoint — which still
+ * returns the bare row shape — keep validating. `normalizeCmsMediaAsset` in
+ * `cmsMedia.ts` runs at the client boundary to fill defaults, so the
+ * exported `CmsMediaAsset` type that consumers see is always fully
+ * populated.
+ */
 const CmsMediaAssetSchema = Type.Object({
   id: Type.String(),
   filename: Type.String(),
@@ -61,9 +69,28 @@ const CmsMediaAssetSchema = Type.Object({
   publicPath: Type.String(),
   uploadedByUserId: Type.Union([Type.String(), Type.Null()]),
   createdAt: Type.String(),
+  altText: Type.Optional(Type.String()),
+  caption: Type.Optional(Type.String()),
+  title: Type.Optional(Type.String()),
+  tags: Type.Optional(Type.Array(Type.String())),
+  width: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+  height: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+  durationMs: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+  focalX: Type.Optional(Type.Number()),
+  focalY: Type.Optional(Type.Number()),
+  dominantColor: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  deletedAt: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  replacedAt: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  folderIds: Type.Optional(Type.Array(Type.String())),
 })
 
-export type CmsMediaAsset = Static<typeof CmsMediaAssetSchema>
+/**
+ * Wire shape returned by the server. Use `CmsMediaAsset` (the normalized
+ * type exported from `cmsMedia.ts`) when consuming asset data — that
+ * variant fills in defaults for every optional field, so consumer code
+ * never has to guard against `undefined`.
+ */
+export type CmsMediaAssetWire = Static<typeof CmsMediaAssetSchema>
 
 export const CmsMediaListResponseSchema = Type.Object(
   { assets: Type.Optional(Type.Array(CmsMediaAssetSchema)) },
@@ -72,6 +99,27 @@ export const CmsMediaListResponseSchema = Type.Object(
 
 export const CmsMediaAssetEnvelopeSchema = Type.Object({
   asset: CmsMediaAssetSchema,
+})
+
+const CmsMediaFolderSchema = Type.Object({
+  id: Type.String(),
+  parentId: Type.Union([Type.String(), Type.Null()]),
+  name: Type.String(),
+  slug: Type.String(),
+  sortOrder: Type.Number(),
+  createdByUserId: Type.Union([Type.String(), Type.Null()]),
+  createdAt: Type.String(),
+})
+
+export type CmsMediaFolder = Static<typeof CmsMediaFolderSchema>
+
+export const CmsMediaFolderListResponseSchema = Type.Object(
+  { folders: Type.Array(CmsMediaFolderSchema) },
+  { additionalProperties: true },
+)
+
+export const CmsMediaFolderEnvelopeSchema = Type.Object({
+  folder: CmsMediaFolderSchema,
 })
 
 // ---------------------------------------------------------------------------

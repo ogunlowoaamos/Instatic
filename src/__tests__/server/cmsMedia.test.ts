@@ -23,6 +23,29 @@ function pngFile(name: string): File {
   return new File([PNG_PREFIX], name, { type: 'image/png' })
 }
 
+/**
+ * Build a row that mimics what the real `media_assets` table returns after
+ * the M2 migrations (alt_text / tags_json / focal / deleted_at / ...). Used
+ * by the fake DB so the repository's SELECTs produce the full shape.
+ */
+function mediaRow(input: Record<string, unknown>): Record<string, unknown> {
+  return {
+    alt_text: '',
+    caption: '',
+    title: '',
+    tags_json: [],
+    width: null,
+    height: null,
+    duration_ms: null,
+    focal_x: 0.5,
+    focal_y: 0.5,
+    dominant_color: null,
+    deleted_at: null,
+    replaced_at: null,
+    ...input,
+  }
+}
+
 function makeFakeDb() {
   const admins: Record<string, unknown>[] = [
     {
@@ -69,9 +92,17 @@ function makeFakeDb() {
     if (normalized.includes('update sessions') && normalized.includes('last_seen_at')) {
       return { rows: [], rowCount: 1 }
     }
+
+    // Folder join lookups are issued by `loadFolderIdsForAssets` once per
+    // asset id during list/get/update paths. None of the assets in this
+    // suite are assigned to a folder; return an empty result set.
+    if (normalized.includes('select folder_id from media_asset_folders')) {
+      return { rows: [], rowCount: 0 }
+    }
+
     // createMediaAsset — values[0..6] = id, filename, mimeType, sizeBytes, storagePath, publicPath, uploadedByUserId
     if (normalized.includes('insert into media_assets')) {
-      const row = {
+      const row = mediaRow({
         id: values[0],
         filename: values[1],
         mime_type: values[2],
@@ -80,31 +111,87 @@ function makeFakeDb() {
         public_path: values[5],
         uploaded_by_user_id: values[6],
         created_at: new Date('2026-01-03').toISOString(),
-      }
+      })
       media.push(row)
       return { rows: [row as Row], rowCount: 1 }
     }
-    // listMediaAssets — no values
-    if (normalized.includes('select id, filename, mime_type')) {
-      return { rows: [...media].reverse() as Row[], rowCount: media.length }
+
+    // getMediaAsset — single-row SELECT scoped by id. Matched BEFORE the
+    // listMediaAssets branch because the column prefix substring overlaps.
+    if (normalized.includes('select id, filename, mime_type') && normalized.includes('where id =')) {
+      const row = media.find((asset) => asset.id === values[0])
+      return { rows: row ? [row as Row] : [], rowCount: row ? 1 : 0 }
     }
+
+    // listMediaAssets — active path (deleted_at is null) and trash path
+    // (deleted_at is not null) share the same SELECT column prefix.
+    if (normalized.includes('select id, filename, mime_type')) {
+      const wantsTrash = normalized.includes('deleted_at is not null')
+      const filtered = media.filter((asset) => Boolean(asset.deleted_at) === wantsTrash)
+      return { rows: [...filtered].reverse() as Row[], rowCount: filtered.length }
+    }
+
+    // updateMediaAssetMetadata — COALESCE update with field order:
+    // filename, alt_text, caption, title, tags_json, focal_x, focal_y, id
+    // MUST be matched BEFORE the bare rename branch below — the prefixes
+    // overlap and `startsWith` would otherwise route here incorrectly.
+    if (normalized.startsWith('update media_assets set filename = coalesce')) {
+      const row = media.find((asset) => asset.id === values[7])
+      if (!row) return { rows: [], rowCount: 0 }
+      if (values[0] !== null) row.filename = values[0]
+      if (values[1] !== null) row.alt_text = values[1]
+      if (values[2] !== null) row.caption = values[2]
+      if (values[3] !== null) row.title = values[3]
+      if (values[4] !== null) row.tags_json = values[4]
+      if (values[5] !== null) row.focal_x = values[5]
+      if (values[6] !== null) row.focal_y = values[6]
+      return { rows: [row as Row], rowCount: 1 }
+    }
+
     // renameMediaAsset — values[0] = filename, values[1] = id
-    if (normalized.includes('update media_assets set filename')) {
+    if (normalized.startsWith('update media_assets set filename =')) {
       const row = media.find((asset) => asset.id === values[1])
       if (!row) return { rows: [], rowCount: 0 }
       row.filename = values[0]
       return { rows: [row as Row], rowCount: 1 }
     }
-    // deleteMediaAsset — values[0] = id
-    if (normalized.includes('delete from media_assets')) {
+
+    // softDeleteMediaAsset — values[0] = deletedAt timestamp, values[1] = id
+    if (normalized.startsWith('update media_assets set deleted_at')) {
+      // Two branches share this prefix: the soft-delete (sets a timestamp)
+      // and the restore (clears it back to null). Disambiguate via values.
+      const isRestore = values[0] === null || values.length === 1
+      if (isRestore) {
+        const row = media.find((asset) => asset.id === values[0])
+        if (!row) return { rows: [], rowCount: 0 }
+        row.deleted_at = null
+        return { rows: [row as Row], rowCount: 1 }
+      }
+      const row = media.find((asset) => asset.id === values[1])
+      if (!row) return { rows: [], rowCount: 0 }
+      row.deleted_at = values[0]
+      return { rows: [row as Row], rowCount: 1 }
+    }
+
+    // getMediaAssetStoragePath — bare storage_path lookup used by the purge
+    // flow to find the file to remove.
+    if (normalized.startsWith('select storage_path from media_assets')) {
+      const row = media.find((asset) => asset.id === values[0])
+      return { rows: row ? [{ storage_path: row.storage_path } as Row] : [], rowCount: row ? 1 : 0 }
+    }
+
+    // deleteMediaAsset — values[0] = id, returns storage_path
+    if (normalized.startsWith('delete from media_assets')) {
       const index = media.findIndex((asset) => asset.id === values[0])
       if (index === -1) return { rows: [], rowCount: 0 }
       const [row] = media.splice(index, 1)
       return { rows: [row as Row], rowCount: 1 }
     }
+
     throw new Error(`Unhandled SQL: ${sql}`)
   }
 
+  handle.unsafe = async () => ({ rows: [], rowCount: 0 })
   handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
     cb(handle as unknown as DbClient)
 
@@ -161,15 +248,21 @@ describe('CMS media repository', () => {
 
     const assets = await listMediaAssets(db)
 
-    expect(assets).toEqual([{
+    expect(assets).toHaveLength(1)
+    expect(assets[0]).toMatchObject({
       id: 'asset_1',
       filename: 'hero.png',
       mimeType: 'image/png',
       sizeBytes: 12,
       publicPath: '/uploads/asset_1-hero.png',
       uploadedByUserId: 'user_1',
-      createdAt: '2026-01-03T00:00:00.000Z',
-    }])
+      altText: '',
+      tags: [],
+      folderIds: [],
+      focalX: 0.5,
+      focalY: 0.5,
+      deletedAt: null,
+    })
   })
 
   it('renames media asset metadata', async () => {
@@ -191,7 +284,7 @@ describe('CMS media repository', () => {
     expect(db.media[0].filename).toBe('Hero renamed.png')
   })
 
-  it('deletes media asset metadata and returns its storage path', async () => {
+  it('hard-deletes media asset metadata and returns its storage path', async () => {
     const db = makeFakeDb()
 
     await createMediaAsset(db, {
@@ -444,7 +537,7 @@ describe('CMS media handlers', () => {
     })
   })
 
-  it('deletes uploaded media assets and removes their stored file for authenticated admins', async () => {
+  it('soft-deletes uploaded media assets and keeps their file on disk', async () => {
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
@@ -470,7 +563,55 @@ describe('CMS media handlers', () => {
       )
 
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ ok: true })
+      const payload = await res.json() as { asset: { deletedAt: string | null } }
+      // Soft delete stamps `deleted_at` and returns the row.
+      expect(payload.asset.deletedAt).toBeTruthy()
+      // Row stays in the table; file stays on disk until ?purge=1.
+      expect(db.media).toHaveLength(1)
+      await expect(readFile(join(uploadsDir, 'asset_1-hero.png'), 'utf-8')).resolves.toBe('image-bytes')
+    } finally {
+      rmSync(uploadsDir, { recursive: true, force: true })
+    }
+  })
+
+  it('purges soft-deleted media assets and removes their stored file', async () => {
+    const db = makeFakeDb()
+    const cookie = await createCookie(db)
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    await createMediaAsset(db, {
+      id: 'asset_1',
+      filename: 'hero.png',
+      mimeType: 'image/png',
+      sizeBytes: 12,
+      storagePath: 'asset_1-hero.png',
+      publicPath: '/uploads/asset_1-hero.png',
+      uploadedByUserId: 'user_1',
+    })
+    await writeFile(join(uploadsDir, 'asset_1-hero.png'), 'image-bytes')
+
+    try {
+      // Soft delete first — the purge endpoint requires it (no one-click bypass).
+      const soft = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media/asset_1', {
+          method: 'DELETE',
+          headers: { cookie },
+        }),
+        db,
+        { uploadsDir },
+      )
+      expect(soft.status).toBe(200)
+
+      const purge = await handleCmsRequest(
+        cmsRequest('http://localhost/admin/api/cms/media/asset_1?purge=1', {
+          method: 'DELETE',
+          headers: { cookie },
+        }),
+        db,
+        { uploadsDir },
+      )
+
+      expect(purge.status).toBe(200)
+      expect(await purge.json()).toEqual({ ok: true })
       expect(db.media).toHaveLength(0)
       await expect(readFile(join(uploadsDir, 'asset_1-hero.png'), 'utf-8')).rejects.toThrow()
     } finally {

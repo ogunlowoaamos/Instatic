@@ -449,4 +449,107 @@ export const sqliteMigrations: Migration[] = [
         on plugin_crash_events (plugin_id, occurred_at desc);
     `,
   },
+  {
+    id: '016_media_assets_metadata',
+    // See migrations-pg.ts:016 — same semantic effect, SQLite dialect.
+    // SQLite has no native boolean / timestamptz / jsonb — use integer / text.
+    // The `_json` suffix triggers the SQLite adapter's auto JSON.parse/stringify.
+    sql: `
+      alter table media_assets
+        add column alt_text text not null default '';
+
+      alter table media_assets
+        add column caption text not null default '';
+
+      alter table media_assets
+        add column title text not null default '';
+
+      alter table media_assets
+        add column tags_json text not null default '[]';
+
+      alter table media_assets
+        add column width integer;
+
+      alter table media_assets
+        add column height integer;
+
+      alter table media_assets
+        add column duration_ms integer;
+
+      alter table media_assets
+        add column focal_x real not null default 0.5;
+
+      alter table media_assets
+        add column focal_y real not null default 0.5;
+
+      alter table media_assets
+        add column dominant_color text;
+
+      alter table media_assets
+        add column deleted_at text;
+
+      alter table media_assets
+        add column replaced_at text;
+
+      create index if not exists media_assets_deleted_idx
+        on media_assets (deleted_at);
+    `,
+  },
+  {
+    id: '017_media_folders',
+    // See migrations-pg.ts:017 — many-to-many folder model.
+    sql: `
+      create table if not exists media_folders (
+        id text primary key,
+        parent_id text references media_folders(id) on delete cascade,
+        name text not null,
+        slug text not null,
+        sort_order integer not null default 0,
+        created_by_user_id text references users(id) on delete set null,
+        created_at text not null default current_timestamp
+      );
+
+      create unique index if not exists media_folders_parent_slug_idx
+        on media_folders (coalesce(parent_id, ''), slug);
+
+      create table if not exists media_asset_folders (
+        asset_id text not null references media_assets(id) on delete cascade,
+        folder_id text not null references media_folders(id) on delete cascade,
+        primary key (asset_id, folder_id)
+      );
+
+      create index if not exists media_asset_folders_folder_idx
+        on media_asset_folders (folder_id);
+    `,
+  },
+  {
+    id: '018_media_smart_folders',
+    // See migrations-pg.ts:018.
+    sql: `
+      create table if not exists media_smart_folders (
+        id text primary key,
+        name text not null,
+        query_json text not null,
+        created_by_user_id text references users(id) on delete set null,
+        created_at text not null default current_timestamp
+      );
+    `,
+  },
+  {
+    id: '019_media_usage_refs',
+    // See migrations-pg.ts:019.
+    sql: `
+      create table if not exists media_usage_refs (
+        asset_id text not null references media_assets(id) on delete cascade,
+        ref_kind text not null,
+        ref_id text not null,
+        ref_path text not null default '',
+        computed_at text not null default current_timestamp,
+        primary key (asset_id, ref_kind, ref_id, ref_path)
+      );
+
+      create index if not exists media_usage_refs_asset_idx
+        on media_usage_refs (asset_id);
+    `,
+  },
 ]

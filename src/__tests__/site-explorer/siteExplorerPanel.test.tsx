@@ -5,7 +5,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { readFileSync } from 'fs'
 import { SiteExplorerPanel } from '@site/panels/SiteExplorerPanel'
 import { MediaExplorerPanel } from '@site/panels/MediaExplorerPanel'
-import { CodeEditorPanel } from '@site/code-editor'
 import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { VisualComponent } from '@core/visualComponents/schemas'
@@ -26,7 +25,6 @@ function resetStore() {
     mediaExplorerPanelOpen: false,
     codeEditorPanelOpen: false,
     activeEditorFileId: null,
-    activeMediaAssetPreview: null,
     _historyPast: [],
     _historyFuture: [],
     canUndo: false,
@@ -386,7 +384,7 @@ describe('SiteExplorerPanel', () => {
     }
   })
 
-  it('opens CMS media assets in the editor preview instead of navigating away', async () => {
+  it('opens CMS media assets in the dedicated viewer window instead of navigating away', async () => {
     loadSite()
     useEditorStore.setState({
       siteExplorerPanelOpen: false,
@@ -413,26 +411,16 @@ describe('SiteExplorerPanel', () => {
     }) as typeof window.open
 
     try {
-      render(
-        <>
-          <MediaExplorerPanel variant="docked" />
-          <CodeEditorPanel />
-        </>,
-      )
+      render(<MediaExplorerPanel variant="docked" />)
 
       const mediaRow = await screen.findByRole('button', { name: /open media hero\.png/i })
       fireEvent.click(mediaRow)
 
-      await waitFor(() => {
-        const state = useEditorStore.getState() as ReturnType<typeof useEditorStore.getState> & {
-          activeMediaAssetPreview?: { publicPath: string } | null
-        }
-        expect(state.codeEditorPanelOpen).toBe(true)
-        expect(state.activeEditorFileId).toBeNull()
-        expect(state.activeMediaAssetPreview?.publicPath).toBe('/uploads/hero.png')
-      })
+      // The new viewer is a portal-rendered <aside role="dialog"> with the
+      // filename in its aria-label. CodeEditorPanel is no longer involved.
+      const viewer = await screen.findByRole('dialog', { name: /viewer: hero\.png/i })
+      expect(viewer).toBeDefined()
       expect(openCalls).toHaveLength(0)
-      expect(screen.getByLabelText('Image preview: hero.png')).toBeDefined()
     } finally {
       globalThis.fetch = originalFetch
       window.open = originalOpen

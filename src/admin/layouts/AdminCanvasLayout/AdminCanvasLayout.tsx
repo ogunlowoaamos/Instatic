@@ -74,13 +74,31 @@ import { hasAllCapabilities, hasCapability } from '@admin/access'
  * plugin pages) render through `AdminPageLayout` instead, which skips the
  * canvas / sidebar / DnD chrome they don't need.
  */
-type AdminCanvasWorkspace = Extract<AdminWorkspace, 'site' | 'content'>
+type AdminCanvasWorkspace = Extract<AdminWorkspace, 'site' | 'content' | 'media'>
 
 interface AdminCanvasLayoutProps {
   workspace?: AdminCanvasWorkspace
+  /**
+   * Custom left sidebar. Used by non-site workspaces ('content', 'media') to
+   * replace the built-in `LeftSidebar` with their own panel rail + folder /
+   * collection tree.
+   */
   contentSidebar?: ReactNode
+  /**
+   * Optional content rendered inside the built-in site `LeftSidebar`. Only
+   * the 'site' workspace consumes this — non-site workspaces own their full
+   * sidebar via `contentSidebar`.
+   */
   contentLeftPanel?: ReactNode
+  /**
+   * Canvas content for non-site workspaces. The 'site' workspace renders the
+   * page-builder canvas regardless of this prop.
+   */
   contentCanvas?: ReactNode
+  /**
+   * Custom right-sidebar content for non-site workspaces (e.g. the Content
+   * SEO/settings panel or the Media asset inspector).
+   */
   contentRightPanel?: ReactNode
   toolbarRightSlot?: ReactNode
 }
@@ -97,8 +115,8 @@ export function AdminCanvasLayout({
   const propertiesPanelMode = useEditorStore((s) => s.propertiesPanelMode)
   const rightSidebarExpanded = useEditorStore(selectRightSidebarExpanded)
   const currentUser = useCurrentAdminUser()
-  const contentRightSidebarExpanded = workspace === 'content' && Boolean(contentRightPanel)
-  const hasRightSidebar = contentRightSidebarExpanded || (workspace === 'site' && rightSidebarExpanded)
+  const customRightSidebarExpanded = workspace !== 'site' && Boolean(contentRightPanel)
+  const hasRightSidebar = customRightSidebarExpanded || (workspace === 'site' && rightSidebarExpanded)
   const canEditDraftSite = !currentUser || hasAllCapabilities(currentUser, ['site.edit', 'pages.edit'])
   const canPublishPages = !currentUser || hasCapability(currentUser, 'pages.publish')
   const requiresSiteDocument = workspace === 'site'
@@ -252,7 +270,7 @@ export function AdminCanvasLayout({
           </div>
         </div>
         <RightSidebar
-          contentPanel={workspace === 'content' ? contentRightPanel : undefined}
+          contentPanel={workspace !== 'site' ? contentRightPanel : undefined}
           suppressDefaultPanel={workspace !== 'site' || !canEditDraftSite}
         />
       </div>

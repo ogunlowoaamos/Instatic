@@ -427,4 +427,115 @@ export const pgMigrations: Migration[] = [
         on plugin_crash_events (plugin_id, occurred_at desc);
     `,
   },
+  {
+    id: '016_media_assets_metadata',
+    // Media page (docs/media-page.md) — extends media_assets with the metadata
+    // fields the inspector edits (alt text, caption, title, tags, focal point),
+    // image / video intrinsic dimensions populated on upload, a dominant_color
+    // swatch, and the soft-delete + replace-file timestamps.
+    sql: `
+      alter table media_assets
+        add column if not exists alt_text text not null default '';
+
+      alter table media_assets
+        add column if not exists caption text not null default '';
+
+      alter table media_assets
+        add column if not exists title text not null default '';
+
+      alter table media_assets
+        add column if not exists tags_json jsonb not null default '[]'::jsonb;
+
+      alter table media_assets
+        add column if not exists width integer;
+
+      alter table media_assets
+        add column if not exists height integer;
+
+      alter table media_assets
+        add column if not exists duration_ms integer;
+
+      alter table media_assets
+        add column if not exists focal_x real not null default 0.5;
+
+      alter table media_assets
+        add column if not exists focal_y real not null default 0.5;
+
+      alter table media_assets
+        add column if not exists dominant_color text;
+
+      alter table media_assets
+        add column if not exists deleted_at timestamptz;
+
+      alter table media_assets
+        add column if not exists replaced_at timestamptz;
+
+      create index if not exists media_assets_deleted_idx
+        on media_assets (deleted_at);
+    `,
+  },
+  {
+    id: '017_media_folders',
+    // Many-to-many folder model (HappyFiles-style) — an asset can live in
+    // multiple folders. Slug is unique within its parent so users can have
+    // two "Logos" folders under different roots.
+    sql: `
+      create table if not exists media_folders (
+        id text primary key,
+        parent_id text references media_folders(id) on delete cascade,
+        name text not null,
+        slug text not null,
+        sort_order integer not null default 0,
+        created_by_user_id text references users(id) on delete set null,
+        created_at timestamptz not null default now()
+      );
+
+      create unique index if not exists media_folders_parent_slug_idx
+        on media_folders (coalesce(parent_id, ''), slug);
+
+      create table if not exists media_asset_folders (
+        asset_id text not null references media_assets(id) on delete cascade,
+        folder_id text not null references media_folders(id) on delete cascade,
+        primary key (asset_id, folder_id)
+      );
+
+      create index if not exists media_asset_folders_folder_idx
+        on media_asset_folders (folder_id);
+    `,
+  },
+  {
+    id: '018_media_smart_folders',
+    // User-defined saved searches (recent, unused, missing alt text, …).
+    // query_json is a TypeBox-validated filter; the server runs it as a
+    // query at list time rather than materializing a stored list.
+    sql: `
+      create table if not exists media_smart_folders (
+        id text primary key,
+        name text not null,
+        query_json jsonb not null,
+        created_by_user_id text references users(id) on delete set null,
+        created_at timestamptz not null default now()
+      );
+    `,
+  },
+  {
+    id: '019_media_usage_refs',
+    // Per-asset reverse index of where an asset is referenced (page, content
+    // entry, user avatar, plugin). Populated by the publish pipeline so the
+    // inspector can show "Used on N pages" without scanning every tree on
+    // every load.
+    sql: `
+      create table if not exists media_usage_refs (
+        asset_id text not null references media_assets(id) on delete cascade,
+        ref_kind text not null,
+        ref_id text not null,
+        ref_path text not null default '',
+        computed_at timestamptz not null default now(),
+        primary key (asset_id, ref_kind, ref_id, ref_path)
+      );
+
+      create index if not exists media_usage_refs_asset_idx
+        on media_usage_refs (asset_id);
+    `,
+  },
 ]

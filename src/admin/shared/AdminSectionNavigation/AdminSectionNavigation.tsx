@@ -93,6 +93,13 @@ export function AdminSectionNavigation({
           <AdminRouteLink to="/admin/content" onNavigateStart={onWorkspaceNavigateStart}>Content</AdminRouteLink>
         )
       )}
+      {canAccess('media') && (
+        section === 'media' ? (
+          <span className={toolbarStyles.activeSection}>Media</span>
+        ) : (
+          <AdminRouteLink to="/admin/media" onNavigateStart={onWorkspaceNavigateStart}>Media</AdminRouteLink>
+        )
+      )}
       {canAccess('plugins') && (
         <PluginsNavLink
           active={section === 'plugins'}

@@ -34,7 +34,7 @@ function selectActiveLeftSidebarPanel(state: ReturnType<typeof useEditorStore.ge
 }
 
 interface LeftSidebarProps {
-  workspace?: 'site' | 'content'
+  workspace?: 'site' | 'content' | 'media'
   contentPanel?: ReactNode
   editable?: boolean
 }

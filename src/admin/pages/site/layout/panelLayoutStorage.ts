@@ -26,6 +26,9 @@ export type FloatingPanelId =
   | 'dependencies'
   | 'codeeditor'
   | 'agent'
+  | 'mediaUploadQueue'
+  | 'mediaDetachedInspector'
+  | 'mediaBulkEdit'
 
 export interface StoredPanelLayout {
   open?: boolean

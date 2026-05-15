@@ -1,0 +1,71 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  min-height: 28px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--input-radius);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 6px;
+  background: var(--editor-surface-2);
+  border-radius: var(--editor-radius-sm);
+  font-size: 11px;
+  color: var(--editor-text);
+}
+
+.chipLabel {
+  line-height: 1.2;
+}
+
+.chipRemove {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.inputLi {
+  flex: 1 1 80px;
+  display: flex;
+  align-items: center;
+  list-style: none;
+}
+
+.input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggestion {
+  font-size: 11px;
+  padding: 2px 6px;
+  color: var(--editor-text-muted);
+}

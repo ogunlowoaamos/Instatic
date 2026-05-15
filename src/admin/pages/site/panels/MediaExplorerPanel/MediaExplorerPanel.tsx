@@ -24,14 +24,14 @@ import { EmptyState } from '@ui/components/EmptyState'
 import { FileUpload } from '@ui/components/FileUpload'
 import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import type { IconComponent } from 'pixel-art-icons/types'
-import { BulletlistIcon } from 'pixel-art-icons/icons/bulletlist'
+import { BulletlistSolidIcon } from 'pixel-art-icons/icons/bulletlist-solid'
 import { CheckIcon } from 'pixel-art-icons/icons/check'
-import { Copy2Icon } from 'pixel-art-icons/icons/copy-2'
-import { FolderIcon } from 'pixel-art-icons/icons/folder'
-import { Grid2x22Icon } from 'pixel-art-icons/icons/grid-2x2-2'
-import { Image2Icon } from 'pixel-art-icons/icons/image-2'
+import { Copy2SolidIcon } from 'pixel-art-icons/icons/copy-2-solid'
+import { FolderGlyphIcon } from 'pixel-art-icons/icons/folder-glyph'
+import { Grid2x22SolidIcon } from 'pixel-art-icons/icons/grid-2x2-2-solid'
+import { Image2SolidIcon } from 'pixel-art-icons/icons/image-2-solid'
 import { UploadIcon } from 'pixel-art-icons/icons/upload'
-import { VideoIcon } from 'pixel-art-icons/icons/video'
+import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
 import { cn } from '@ui/cn'
 import {
   ExplorerItemContextMenu,
@@ -39,6 +39,8 @@ import {
   type ExplorerContextMenuItem,
   type ExplorerRenamePayload,
 } from '@site/explorer-actions'
+import { MediaViewerWindow } from '@admin/pages/media/components/MediaViewerWindow/MediaViewerWindow'
+import { useStandaloneMediaEditor } from '@admin/pages/media/hooks/useStandaloneMediaEditor'
 import styles from '../SiteExplorerPanel/SiteExplorerPanel.module.css'
 
 interface MediaExplorerPanelProps {
@@ -188,12 +190,29 @@ export function MediaExplorerPanel({
   const site = useEditorStore((s) => s.site)
   const setMediaExplorerPanelOpen = useEditorStore((s) => s.setMediaExplorerPanelOpen)
   const updateNodeProps = useEditorStore((s) => s.updateNodeProps)
-  const openMediaAssetPreview = useEditorStore((s) => s.openMediaAssetPreview)
-  const activeMediaAssetPreview = useEditorStore((s) => s.activeMediaAssetPreview)
-  const closeEditor = useEditorStore((s) => s.closeEditor)
   const activePageId = useEditorStore((s) => s.activePageId)
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
   const [cmsAssets, setCmsAssets] = useState<CmsMediaAsset[]>([])
+  // Single-asset viewer state. Replaces the old `openMediaAssetPreview`
+  // store action which routed previews into the CodeEditorPanel. The new
+  // viewer is the same MediaViewerWindow the Media page uses, so editing
+  // (alt text, caption, tags, replace file, …) works identically here.
+  const [viewerAssetId, setViewerAssetId] = useState<string | null>(null)
+  const viewerAsset = useMemo(
+    () => cmsAssets.find((asset) => asset.id === viewerAssetId) ?? null,
+    [cmsAssets, viewerAssetId],
+  )
+  const viewerEditor = useStandaloneMediaEditor({
+    asset: viewerAsset,
+    assets: cmsAssets,
+    onAssetChanged: (asset) =>
+      setCmsAssets((current) => current.map((item) => item.id === asset.id ? asset : item)),
+    onAssetRemoved: (id) =>
+      setCmsAssets((current) => current.filter((item) => item.id !== id)),
+  })
+  const openMediaAssetPreview = useCallback((asset: CmsMediaAsset) => {
+    setViewerAssetId(asset.id)
+  }, [])
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [renameTarget, setRenameTarget] = useState<CmsMediaAsset | null>(null)
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -317,17 +336,15 @@ export function MediaExplorerPanel({
 
     const asset = await renameCmsMediaAsset(renameTarget.id, payload.value)
     setCmsAssets((assets) => assets.map((item) => item.id === asset.id ? asset : item))
-    if (activeMediaAssetPreview?.id === asset.id) {
-      openMediaAssetPreview(asset)
-    }
-
+    // Viewer reads the asset by id from `cmsAssets`, so the rename surfaces
+    // automatically — no separate openMediaAssetPreview re-trigger needed.
     setRenameTarget(null)
   }
 
   async function handleDelete(target: CmsMediaAsset) {
     setCmsAssets((assets) => assets.filter((item) => item.id !== target.id))
-    if (activeMediaAssetPreview?.id === target.id) {
-      closeEditor()
+    if (viewerAssetId === target.id) {
+      setViewerAssetId(null)
     }
     try {
       await deleteCmsMediaAsset(target.id)
@@ -388,7 +405,7 @@ export function MediaExplorerPanel({
     items.push({
       label: 'Copy URL',
       action: () => { void copyTargetUrl(target) },
-      icon: <Copy2Icon size={13} />,
+      icon: <Copy2SolidIcon size={13} />,
     })
 
     return items
@@ -434,7 +451,7 @@ export function MediaExplorerPanel({
                 aria-label="List view"
                 onClick={() => setViewMode('list')}
               >
-                <BulletlistIcon size={13} />
+                <BulletlistSolidIcon size={13} />
               </Button>
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -445,7 +462,7 @@ export function MediaExplorerPanel({
                 aria-label="Grid view"
                 onClick={() => setViewMode('grid')}
               >
-                <Grid2x22Icon size={13} />
+                <Grid2x22SolidIcon size={13} />
               </Button>
             </div>
           }
@@ -536,6 +553,12 @@ export function MediaExplorerPanel({
           onRename={handleRename}
         />
       )}
+
+      <MediaViewerWindow
+        editor={viewerEditor}
+        open={viewerAsset !== null}
+        onClose={() => setViewerAssetId(null)}
+      />
     </>
   )
 }
@@ -699,10 +722,10 @@ function CmsMediaRows({
       key={asset.id}
       icon={
         asset.mimeType.startsWith('video/')
-          ? VideoIcon
+          ? VideoSolidIcon
           : mediaBucket(asset.mimeType, asset.filename) === 'images'
-            ? Image2Icon
-            : FolderIcon
+            ? Image2SolidIcon
+            : FolderGlyphIcon
       }
       label={asset.filename}
       meta={asset.publicPath}

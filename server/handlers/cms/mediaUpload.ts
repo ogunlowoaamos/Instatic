@@ -13,11 +13,15 @@
  * in one place is a security-critical invariant — any handler that uploads
  * media MUST go through `acceptUploadedMedia`.
  */
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { nanoid } from 'nanoid'
 import type { DbClient } from '../../db/client'
-import { createMediaAsset } from '../../repositories/media'
+import {
+  createMediaAsset,
+  getMediaAssetStoragePath,
+  replaceMediaAssetBinary,
+} from '../../repositories/media'
 import { badRequest, jsonResponse } from '../../http'
 
 /**
@@ -134,17 +138,18 @@ interface AcceptUploadInput {
   unsupportedMessage: string
 }
 
+interface ValidatedUpload {
+  bytes: Uint8Array
+  detectedMime: AcceptedMediaMime
+}
+
 /**
- * Validate + persist an uploaded image/video and return the created media row.
- *
- * On any policy failure the function returns a `Response` so the caller can
- * `return response` straight from its route handler. On success it returns
- * the `MediaAsset` row from the repository.
+ * Apply the size + magic-byte security layer to a multipart upload. Returns
+ * either the validated bytes + sniffed MIME, or a ready-to-return `Response`
+ * with the appropriate error envelope. Shared by both the create-asset and
+ * replace-file flows so the byte-level checks live in exactly one place.
  */
-export async function acceptUploadedMedia(
-  db: DbClient,
-  input: AcceptUploadInput,
-): Promise<Response | Awaited<ReturnType<typeof createMediaAsset>>> {
+async function validateUploadedMedia(input: AcceptUploadInput): Promise<Response | ValidatedUpload> {
   if (input.file.size <= 0) return badRequest('File is empty')
   if (input.file.size > input.maxBytes) return badRequest(input.oversizedMessage)
 
@@ -156,25 +161,92 @@ export async function acceptUploadedMedia(
   if (!detectedMime || !input.allowedMimes.includes(detectedMime)) {
     return badRequest(input.unsupportedMessage)
   }
+  return { bytes, detectedMime }
+}
+
+/**
+ * Validate + persist an uploaded image/video and return the created media row.
+ *
+ * On any policy failure the function returns a `Response` so the caller can
+ * `return response` straight from its route handler. On success it returns
+ * the `MediaAsset` row from the repository.
+ */
+export async function acceptUploadedMedia(
+  db: DbClient,
+  input: AcceptUploadInput,
+): Promise<Response | Awaited<ReturnType<typeof createMediaAsset>>> {
+  const validated = await validateUploadedMedia(input)
+  if (validated instanceof Response) return validated
 
   // Server-chosen extension on the on-disk filename so the static handler's
   // extension→Content-Type lookup can only ever yield the verified inert
   // MIME we just sniffed. Client-supplied extension is dropped.
-  const storageName = `${safeStorageStem(input.file.name)}${EXTENSION_FOR_MIME[detectedMime]}`
+  const storageName = `${safeStorageStem(input.file.name)}${EXTENSION_FOR_MIME[validated.detectedMime]}`
   const storagePath = `${nanoid()}-${storageName}`
   const publicPath = `/uploads/${storagePath}`
   await mkdir(input.uploadsDir, { recursive: true })
-  await writeFile(join(input.uploadsDir, storagePath), bytes)
+  await writeFile(join(input.uploadsDir, storagePath), validated.bytes)
 
   return await createMediaAsset(db, {
     id: nanoid(),
     filename: input.file.name || storagePath,
-    mimeType: detectedMime,
+    mimeType: validated.detectedMime,
     sizeBytes: input.file.size,
     storagePath,
     publicPath,
     uploadedByUserId: input.uploadedByUserId,
   })
+}
+
+/**
+ * Replace the binary backing an existing asset. Public URL stays stable —
+ * the asset row keeps its `id` and `public_path` so every page tree / content
+ * entry / avatar reference is automatically updated.
+ *
+ * Flow:
+ *   1. Run the same security checks as a fresh upload (size + magic bytes).
+ *   2. Look up the existing storage path so we can remove the old file
+ *      after the new one is in place.
+ *   3. Write the new file under a new storage path.
+ *   4. Update the row (`replaceMediaAssetBinary`).
+ *   5. Remove the old on-disk binary. Failures here are non-fatal — the
+ *      replacement already succeeded; the worst case is an orphaned file
+ *      that a future GC can sweep.
+ */
+export async function acceptReplacementMedia(
+  db: DbClient,
+  assetId: string,
+  input: AcceptUploadInput,
+): Promise<Response | Awaited<ReturnType<typeof replaceMediaAssetBinary>>> {
+  const validated = await validateUploadedMedia(input)
+  if (validated instanceof Response) return validated
+
+  const previousStoragePath = await getMediaAssetStoragePath(db, assetId)
+  if (!previousStoragePath) {
+    return jsonResponse({ error: 'Media asset not found' }, { status: 404 })
+  }
+
+  const storageName = `${safeStorageStem(input.file.name)}${EXTENSION_FOR_MIME[validated.detectedMime]}`
+  const storagePath = `${nanoid()}-${storageName}`
+  await mkdir(input.uploadsDir, { recursive: true })
+  await writeFile(join(input.uploadsDir, storagePath), validated.bytes)
+
+  const updated = await replaceMediaAssetBinary(db, assetId, {
+    filename: input.file.name || storagePath,
+    mimeType: validated.detectedMime,
+    sizeBytes: input.file.size,
+    storagePath,
+  })
+  if (!updated) {
+    // The asset disappeared between the lookup and the update (race against
+    // a parallel hard-delete). Remove the file we just wrote so we don't
+    // leak it, then 404.
+    await rm(join(input.uploadsDir, storagePath), { force: true })
+    return jsonResponse({ error: 'Media asset not found' }, { status: 404 })
+  }
+
+  await rm(join(input.uploadsDir, previousStoragePath), { force: true })
+  return updated
 }
 
 export function uploadsDirRequired(): Response {

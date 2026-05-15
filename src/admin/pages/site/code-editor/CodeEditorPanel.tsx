@@ -30,7 +30,7 @@ import { Suspense, lazy, memo, useEffect, useRef, type CSSProperties } from 'rea
 import { useEditorStore } from '@site/store/store'
 import { PanelHeader } from '@admin/shared/PanelHeader'
 import { useDraggablePanel } from '@site/hooks/useDraggablePanel'
-import { ImagePreview, RemoteAssetPreview } from './ImagePreview'
+import { ImagePreview } from './ImagePreview'
 import { ScriptSettingsPane } from './ScriptSettingsPane'
 import { EmptyState } from '@ui/components/EmptyState'
 import { cn } from '@ui/cn'
@@ -61,7 +61,6 @@ export const CodeEditorPanel = memo(function CodeEditorPanel() {
   // ── Store subscriptions ──────────────────────────────────────────────────
   const activeEditorFileId = useEditorStore((s) => s.activeEditorFileId)
   const codeEditorPanelOpen = useEditorStore((s) => s.codeEditorPanelOpen)
-  const activeMediaAssetPreview = useEditorStore((s) => s.activeMediaAssetPreview)
   const site = useEditorStore((s) => s.site)
   const closeEditor = useEditorStore((s) => s.closeEditor)
   const updateFileContent = useEditorStore((s) => s.updateFileContent)
@@ -127,8 +126,8 @@ export const CodeEditorPanel = memo(function CodeEditorPanel() {
   // Panel title: show filename when a file is active
   const panelTitle = activeFile
     ? (activeFile.path.split('/').pop() ?? 'Code Editor')
-    : (activeMediaAssetPreview?.filename ?? 'Code Editor')
-  const hasActivePreview = Boolean(activeFile || activeMediaAssetPreview)
+    : 'Code Editor'
+  const hasActivePreview = Boolean(activeFile)
 
   return (
     <aside
@@ -153,10 +152,7 @@ export const CodeEditorPanel = memo(function CodeEditorPanel() {
 
         {/* ── Editor body ─────────────────────────────────────────────────── */}
         <div className={styles.editorBody}>
-          {activeMediaAssetPreview ? (
-            <RemoteAssetPreview asset={activeMediaAssetPreview} />
-
-          ) : !activeFile ? (
+          {!activeFile ? (
             /* No file selected — show empty state */
             <EmptyState
               variant="centered"

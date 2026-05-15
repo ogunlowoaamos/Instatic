@@ -41,6 +41,7 @@ export function AdminRoutes() {
       <Route path="/admin" element={<Navigate to="/admin/site" replace />} />
       <Route path="/admin/site" element={withRouteBoundary(<AdminEntry section="site" />)} />
       <Route path="/admin/content" element={withRouteBoundary(<AdminEntry section="content" />)} />
+      <Route path="/admin/media" element={withRouteBoundary(<AdminEntry section="media" />)} />
       <Route path="/admin/plugins" element={withRouteBoundary(<AdminEntry section="plugins" />)} />
       <Route path="/admin/users" element={withRouteBoundary(<AdminEntry section="users" />)} />
       <Route path="/admin/account" element={withRouteBoundary(<AdminEntry section="account" />)} />
