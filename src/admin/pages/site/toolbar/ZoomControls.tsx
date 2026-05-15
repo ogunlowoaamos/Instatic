@@ -32,8 +32,8 @@ import { useCallback } from 'react'
 import { useEditorStore } from '@site/store/store'
 import { MinusIcon } from 'pixel-art-icons/icons/minus'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
-import { TargetIcon } from 'pixel-art-icons/icons/target'
-import { ProportionsIcon } from 'pixel-art-icons/icons/proportions'
+import { TargetSolidIcon } from 'pixel-art-icons/icons/target-solid'
+import { ProportionsSolidIcon } from 'pixel-art-icons/icons/proportions-solid'
 import { Button } from '@ui/components/Button'
 import { frameSelectedNodes, fitContentCanvas } from '@site/canvas/canvasFraming'
 import styles from './Toolbar.module.css'
@@ -109,7 +109,7 @@ export function ZoomControls() {
         onClick={handleFrameSelection}
         data-testid="toolbar-frame-selection-btn"
       >
-        <TargetIcon size={14} />
+        <TargetSolidIcon size={14} />
       </Button>
 
       {/* Fit content — zoom the entire document into view. */}
@@ -123,7 +123,7 @@ export function ZoomControls() {
         onClick={handleFitContent}
         data-testid="toolbar-fit-content-btn"
       >
-        <ProportionsIcon size={14} />
+        <ProportionsSolidIcon size={14} />
       </Button>
 
       {/* Visual divider between framing and zoom-step groups */}
