@@ -172,15 +172,14 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/admin/api/cms': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      // /api/agent (streaming NDJSON) and /api/agent/tool-result (browser
-      // bridge response) both belong to the CMS backend — `server/router.ts`
-      // is the single source of truth. The `ws: false` is the default; we
-      // do not need WebSocket upgrades for the agent.
-      '/api/agent': {
+      // The whole `/admin/api/` prefix (CMS + agent) is forwarded to the
+      // Bun backend. Agent endpoints live under `/admin/api/agent` (and
+      // `/admin/api/agent/tool-result`) so the admin session cookie —
+      // scoped to `Path=/admin` to keep it off the public site — actually
+      // accompanies the request. The `ws: false` default suffices; we do
+      // not need WebSocket upgrades for the agent (NDJSON streams over a
+      // standard HTTP response).
+      '/admin/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },

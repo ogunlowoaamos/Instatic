@@ -149,7 +149,7 @@ describe('processStreamEvent — toolRequest dispatches to executor', () => {
     }
 
     expect(intercept.calls).toHaveLength(1)
-    expect(intercept.calls[0].url).toBe('/api/agent/tool-result')
+    expect(intercept.calls[0].url).toBe('/admin/api/agent/tool-result')
     const body = JSON.parse(intercept.calls[0].body) as Record<string, unknown>
     expect(body.bridgeId).toBe('bridge-1')
     expect(body.requestId).toBe('req-1')
@@ -329,9 +329,9 @@ describe('sendAgentMessage — request lifecycle', () => {
       intercept.restore()
     }
 
-    // Single POST to /api/agent (no follow-up tool-result POSTs because no
+    // Single POST to /admin/api/agent (no follow-up tool-result POSTs because no
     // toolRequest was emitted in this canned stream).
-    expect(intercept.calls.filter((c) => c.url === '/api/agent')).toHaveLength(1)
+    expect(intercept.calls.filter((c) => c.url === '/admin/api/agent')).toHaveLength(1)
     void rootId
   })
 
@@ -363,7 +363,7 @@ describe('sendAgentMessage — request lifecycle', () => {
       intercept.restore()
     }
 
-    const queryCalls = intercept.calls.filter((c) => c.url === '/api/agent')
+    const queryCalls = intercept.calls.filter((c) => c.url === '/admin/api/agent')
     expect(queryCalls).toHaveLength(2)
 
     const firstBody = JSON.parse(queryCalls[0].body) as { sessionId?: string }
@@ -373,7 +373,7 @@ describe('sendAgentMessage — request lifecycle', () => {
     expect(secondBody.sessionId).toBe(sessionId)
   })
 
-  it('runs a toolRequest from the stream and posts its result back to /api/agent/tool-result', async () => {
+  it('runs a toolRequest from the stream and posts its result back to /admin/api/agent/tool-result', async () => {
     const { rootId } = freshAgentState()
     useEditorStore.setState({ isAgentStreaming: false, agentMessages: [] })
 
@@ -388,7 +388,7 @@ describe('sendAgentMessage — request lifecycle', () => {
         },
         { type: 'done' },
       ]),
-      // /api/agent/tool-result acknowledgement
+      // /admin/api/agent/tool-result acknowledgement
       () => new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -401,7 +401,7 @@ describe('sendAgentMessage — request lifecycle', () => {
       intercept.restore()
     }
 
-    const toolResultCalls = intercept.calls.filter((c) => c.url === '/api/agent/tool-result')
+    const toolResultCalls = intercept.calls.filter((c) => c.url === '/admin/api/agent/tool-result')
     expect(toolResultCalls).toHaveLength(1)
     const body = JSON.parse(toolResultCalls[0].body) as {
       bridgeId: string

@@ -104,7 +104,7 @@ export interface AgentSlice {
 
   /**
    * Send a user message and stream the assistant response.
-   * Routes via the Vite proxy `/api/agent` → local Bun server → Claude Agent SDK.
+   * Routes via the Vite proxy `/admin/api/agent` → local Bun server → Claude Agent SDK.
    * No endpoint configuration required (Constraint #385).
    */
   sendAgentMessage(content: string): Promise<void>

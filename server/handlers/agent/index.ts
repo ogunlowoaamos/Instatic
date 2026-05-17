@@ -1,16 +1,17 @@
 /**
  * Agent server endpoints.
  *
- * Two HTTP entry points:
+ * Two HTTP entry points (both under `/admin/api/agent` so the admin session
+ * cookie — scoped to `Path=/admin` — is sent by the browser):
  *
- *   POST /api/agent
+ *   POST /admin/api/agent
  *     Browser opens a streaming NDJSON request with { prompt, sessionId,
  *     pageContext }. The server runs the Claude Agent SDK with our page-builder
  *     MCP. Tool calls reach Claude as real MCP tools — both the read tools
  *     (handled server-side from the page snapshot) and write tools (bridged
  *     to the browser via toolRequest events).
  *
- *   POST /api/agent/tool-result
+ *   POST /admin/api/agent/tool-result
  *     Browser POSTs { bridgeId, requestId, result } to deliver the outcome of
  *     a write tool it just executed against the editor store. The server uses
  *     the bridgeId to find the in-flight MCP tool handler and resolve its
@@ -42,7 +43,7 @@ import type {
 // When the SDK calls a write MCP tool, the tool handler stores `{ resolve,
 // reject }` keyed by a freshly-minted requestId. The browser receives the
 // matching `toolRequest` stream event, applies the mutation locally, and POSTs
-// to /api/agent/tool-result with `{ bridgeId, requestId, result }`. That POST
+// to /admin/api/agent/tool-result with `{ bridgeId, requestId, result }`. That POST
 // looks up the entry here and resolves the resolver — the MCP tool handler
 // returns the result to the SDK, the SDK sends tool_result back to Claude.
 
@@ -56,7 +57,7 @@ interface BridgeContext {
 }
 
 // Module-level registry shared between the streaming handler and the
-// /api/agent/tool-result endpoint. A bridge lives only for the duration of
+// /admin/api/agent/tool-result endpoint. A bridge lives only for the duration of
 // one stream — destroyBridge() is called from the stream's finally block.
 const activeBridges = new Map<string, BridgeContext>()
 
@@ -457,7 +458,7 @@ function normalizeResumeSessionId(value: unknown): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// handleAgentRequest — POST /api/agent
+// handleAgentRequest — POST /admin/api/agent
 // ---------------------------------------------------------------------------
 
 export async function handleAgentRequest(req: Request, db: DbClient): Promise<Response> {
@@ -613,7 +614,7 @@ export async function handleAgentRequest(req: Request, db: DbClient): Promise<Re
 }
 
 // ---------------------------------------------------------------------------
-// handleAgentToolResult — POST /api/agent/tool-result
+// handleAgentToolResult — POST /admin/api/agent/tool-result
 // ---------------------------------------------------------------------------
 
 export async function handleAgentToolResult(req: Request, db: DbClient): Promise<Response> {

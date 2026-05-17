@@ -1,10 +1,13 @@
 /**
  * Architecture Gate Tests — Agent endpoint auth (F-0008)
  *
- * The two `/api/agent` endpoints — `POST /api/agent` (Claude Agent SDK
- * streaming entry) and `POST /api/agent/tool-result` (browser-side bridge ack)
- * — are dispatched directly from `server/router.ts` *outside* the
- * `handleCmsRequest` wrapper that performs origin/CSRF and capability checks.
+ * The two agent endpoints — `POST /admin/api/agent` (Claude Agent SDK
+ * streaming entry) and `POST /admin/api/agent/tool-result` (browser-side
+ * bridge ack) — are dispatched directly from `server/router.ts` *outside*
+ * the `handleCmsRequest` wrapper that performs origin/CSRF and capability
+ * checks. They live under `/admin/` so the admin session cookie (scoped to
+ * `Path=/admin`) accompanies the request and the capability gate inside
+ * each handler can resolve the caller's user identity.
  *
  * Without their own gate, anyone able to reach the server could:
  *   1. Drain the operator's Claude billing budget (each stream consumes input

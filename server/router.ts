@@ -187,10 +187,14 @@ export async function handleServerRequest(
   }
 
   // Delegated subsystems — each owns a URL prefix.
-  if (pathname.startsWith('/admin/api/cms/')) {
-    return handleCmsRequest(req, db, { uploadsDir: runtime.uploadsDir })
-  }
-  if (pathname === '/api/agent') {
+  //
+  // Agent endpoints live under `/admin/api/agent` (not their own `/api/agent`
+  // prefix) so the session cookie — scoped to `Path=/admin` to keep it off
+  // the public site — is actually carried to them. Without this, the
+  // capability gate inside the handlers would 401 every request. Matched
+  // before the broader `/admin/api/cms/` check because the agent paths
+  // don't include `cms` and must not be swallowed by the CMS dispatcher.
+  if (pathname === '/admin/api/agent') {
     // `runtime.db` here, not the destructured `db`, satisfies the F-0008
     // architecture gate (agent-endpoint-auth.test.ts) which scans the
     // router source for the literal `handleAgentRequest(req, runtime.db)`
@@ -198,8 +202,11 @@ export async function handleServerRequest(
     // to ensure the DbClient flows into the handlers' auth checks.
     return handleAgentRequest(req, runtime.db)
   }
-  if (pathname === '/api/agent/tool-result') {
+  if (pathname === '/admin/api/agent/tool-result') {
     return handleAgentToolResult(req, runtime.db)
+  }
+  if (pathname.startsWith('/admin/api/cms/')) {
+    return handleCmsRequest(req, db, { uploadsDir: runtime.uploadsDir })
   }
 
   // Loop runtime — fixed CMS asset, served before per-site runtime

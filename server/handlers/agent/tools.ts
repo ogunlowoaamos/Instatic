@@ -52,7 +52,7 @@ export function buildPageBuilderToolContext(ctx: PageContext): PageBuilderToolCo
 // Bridge — write tools and render_snapshot don't run server-side. The MCP
 // handler emits a `toolRequest` so the browser can apply the action against
 // the live editor store (write tools) or capture an html-to-image render
-// (render_snapshot), then POST the result back to /api/agent/tool-result.
+// (render_snapshot), then POST the result back to /admin/api/agent/tool-result.
 // ---------------------------------------------------------------------------
 
 export interface PageBuilderBridge {
