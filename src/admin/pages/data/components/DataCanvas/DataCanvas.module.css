@@ -1,0 +1,15 @@
+/**
+ * DataCanvas — layout styles for the data grid canvas.
+ * Tokens from globals.css; no hardcoded colours.
+ */
+
+.canvas {
+    background: none;
+    /* Breathing room around the data card so the rounded border has space. */
+}
+
+.canvasEmpty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

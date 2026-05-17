@@ -1,0 +1,700 @@
+/* DataGrid — Notion-style data table for the Data admin page.
+ *
+ * The grid lives inside a bordered, rounded-corner card with the toolbar
+ * at the top and an internal scroll region beneath. All chrome is
+ * achromatic; the only chromatic accents are the semantic state tokens
+ * for status dots (success / warning / surface-4).
+ *
+ * Layout principles:
+ *   - Card surface uses --editor-bg so sticky cells mask scrolled content
+ *     without needing alternating row backgrounds.
+ *   - Bare <button> grid cells (column-header, group-header) explicitly
+ *     zero the user-agent border + outline so the grid never shows the
+ *     default 2px outset chrome.
+ *   - Row hover / checked / selected are layered as background-image
+ *     overlays so sticky cells can keep an opaque background-color.
+ */
+
+/* ─── Outer card wrapper ─────────────────────────────────────────────────── */
+
+.gridWrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: var(--editor-bg);
+    border: 1px solid var(--editor-border);
+    border-bottom: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+
+/* ─── Toolbar (two rows) ─────────────────────────────────────────────────── */
+
+.toolbar {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--editor-border);
+    flex-shrink: 0;
+}
+
+.toolbarTop {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px 10px;
+}
+
+.toolbarBottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 12px;
+    min-height: 0;
+}
+
+.titleBlock {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--editor-text-bright);
+    letter-spacing: -0.01em;
+}
+
+.subtitle {
+    font-size: 12px;
+    color: var(--editor-text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.toolbarSpacer {
+    flex: 1;
+}
+
+.viewChips {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.searchWrap {
+    width: 260px;
+}
+
+/* Sort indicator (right side of toolbarBottom) — click to clear. */
+.sortIndicator {
+    gap: 6px;
+}
+
+.sortArrow {
+    display: inline-flex;
+    color: var(--editor-text-secondary);
+}
+
+.sortArrow[data-dir="asc"] {
+    transform: rotate(180deg);
+}
+
+/* ─── View / status pills ────────────────────────────────────────────────── */
+
+/*
+ * Pills use the <Button> primitive (variant="ghost" size="sm" shape="pill"
+ * pressed={active}). Ghost variant has no built-in pressed style, so we add
+ * the active-chip surface here. Class only layers the inline status dot +
+ * count badge.
+ */
+.pill {
+    gap: 6px;
+}
+
+.pill[aria-pressed="true"] {
+    background: var(--editor-surface);
+    color: var(--editor-text-bright);
+}
+
+.pillDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.pillDot[data-status="published"] {
+    background: var(--editor-success-green);
+}
+.pillDot[data-status="draft"] {
+    background: var(--editor-warning);
+}
+.pillDot[data-status="unpublished"] {
+    background: var(--editor-surface-4);
+}
+
+.pillCount {
+    color: var(--editor-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.pill[aria-pressed="true"] .pillCount {
+    color: var(--editor-text);
+}
+
+/* ─── Scroll container ───────────────────────────────────────────────────── */
+
+.scrollContainer {
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+/* ─── CSS Grid ───────────────────────────────────────────────────────────── */
+
+.grid {
+    display: grid;
+    grid-template-columns: var(--data-grid-columns);
+    min-width: max-content;
+}
+
+/* ─── Header row ─────────────────────────────────────────────────────────── */
+
+.headerRow {
+    display: contents;
+}
+
+/*
+ * `.headerCell` is rendered as a bare <button> on data columns (sortable)
+ * and as a <div> on the leading checkbox / trailing actions. Reset the
+ * user-agent button chrome explicitly — the default 2px outset border is
+ * what shows up as "native borders" otherwise.
+ */
+.headerCell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    height: 36px;
+    background: var(--editor-bg);
+    border: 0;
+    border-bottom: 1px solid var(--editor-border);
+    border-radius: 0;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--editor-text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+
+.headerCell:focus-visible {
+    box-shadow: var(--editor-focus-ring);
+}
+
+.headerCell:hover {
+    color: var(--editor-text-secondary);
+}
+
+.headerCell[data-sorted="asc"],
+.headerCell[data-sorted="desc"] {
+    color: var(--editor-text-bright);
+}
+
+.headerCell[data-sticky="checkbox"] {
+    left: 0;
+    z-index: 4;
+    padding: 0 0 0 14px;
+    cursor: default;
+}
+
+.headerCell[data-sticky="primary"] {
+    z-index: 4;
+    box-shadow: 1px 0 0 var(--editor-border);
+}
+
+.headerLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.headerIcon {
+    display: inline-flex;
+    color: var(--editor-text-subtle);
+    flex-shrink: 0;
+}
+
+.headerSort {
+    margin-left: auto;
+    color: var(--editor-text-secondary);
+    display: inline-flex;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.headerCell:hover .headerSort,
+.headerCell[data-sorted="asc"] .headerSort,
+.headerCell[data-sorted="desc"] .headerSort {
+    opacity: 1;
+}
+
+.headerCell[data-sorted="asc"] .headerSort {
+    transform: rotate(180deg);
+}
+
+.requiredIndicator {
+    color: var(--editor-danger);
+    font-size: 11px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* ─── Column resize handle (primary column only) ─────────────────────────── */
+
+/*
+ * Absolute-positioned drag handle on the right edge of the primary header.
+ * Invisible at rest; a 1px accent line appears on hover or while dragging.
+ * The handle is wider (6px) than the visible line so the cursor target is
+ * easy to hit without precision aiming.
+ */
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    /* Sits above the header text but below the focus ring so dragging never
+     * accidentally crosses into the next column's hit area. */
+    z-index: 1;
+    /* Transparent strip becomes a 1px accent line via ::after on hover. */
+    background: transparent;
+    user-select: none;
+}
+
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 0;
+    bottom: 6px;
+    width: 1px;
+    background: var(--editor-surface-3);
+    opacity: 0;
+    transition: opacity 0.1s, background-color 0.1s;
+}
+
+.resizeHandle:hover::after,
+.resizeHandle:active::after {
+    opacity: 1;
+    background: var(--editor-text-secondary);
+}
+
+/* ─── Group header rows ──────────────────────────────────────────────────── */
+
+/*
+ * Full-width sticky disclosure for status grouping (§8.8 allowlist). Bare
+ * <button> — needs the same user-agent reset as `.headerCell`.
+ */
+.groupHeader {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    /* Padding moves to the inner element so the inner span hugs the left
+     * edge of the scroll viewport (after the inner sticky-left kicks in). */
+    padding: 0;
+    background: var(--editor-bg);
+    border: 0;
+    border-bottom: 1px solid var(--editor-border);
+    border-radius: 0;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    /*
+     * Sticky vertically only — sits below the 36px column header row. The
+     * outer element keeps its full grid-spanning width so its background
+     * covers the entire row. Horizontal stickiness is handled by the
+     * `.groupHeaderInner` child below: nested `position: sticky` works
+     * because the outer element doesn't create its own scrolling
+     * ancestor — both stickies resolve against `.scrollContainer`.
+     */
+    position: sticky;
+    top: 36px;
+    z-index: 2;
+    cursor: pointer;
+    user-select: none;
+    text-align: left;
+    font-family: inherit;
+    min-height: 36px;
+}
+
+/*
+ * Visible label cluster — pinned to the left edge of the scroll viewport
+ * during horizontal scroll so the status label never disappears off-screen.
+ *
+ * `left: 14px` matches the visual padding the original `.groupHeader` had.
+ */
+.groupHeaderInner {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 0 8px;
+    position: sticky;
+    left: 14px;
+    /* Allow the inner span to shrink to its content width so sticky can
+     * pin it; without an explicit width, flex children default to filling
+     * the container which would defeat sticky-left. */
+    width: max-content;
+}
+
+.groupHeader:focus-visible {
+    box-shadow: var(--editor-focus-ring);
+}
+
+.groupHeader:hover .groupTitle {
+    color: var(--editor-text-bright);
+}
+
+.groupChev {
+    color: var(--editor-text-muted);
+    display: inline-flex;
+    transition: transform 0.12s;
+}
+
+.groupHeader[data-collapsed="true"] .groupChev {
+    transform: rotate(-90deg);
+}
+
+.groupDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.groupDot[data-status="published"] {
+    background: var(--editor-success-green);
+}
+.groupDot[data-status="draft"] {
+    background: var(--editor-warning);
+}
+.groupDot[data-status="unpublished"] {
+    background: var(--editor-surface-4);
+}
+
+.groupTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--editor-text);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.groupCount {
+    font-size: 11px;
+    color: var(--editor-text-muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* ─── Data rows ──────────────────────────────────────────────────────────── */
+
+.row {
+    display: contents;
+}
+
+/*
+ * Row hover / checked / selected tints layer on top of the opaque base
+ * (background-image stacks above background-color). Keeping background-color
+ * fully opaque is required so sticky cells properly mask the cells that
+ * scroll under them — a semi-transparent background would let scrolled
+ * content bleed through.
+ */
+.row > .cell {
+    background-color: var(--editor-bg);
+    background-image: none;
+    transition:
+        background-color 0.08s,
+        background-image 0.08s;
+    cursor: pointer;
+}
+
+.row:hover > .cell {
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.025),
+        rgba(255, 255, 255, 0.025)
+    );
+}
+
+.row[data-checked="true"] > .cell {
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.04),
+        rgba(255, 255, 255, 0.04)
+    );
+}
+
+.row[data-selected="true"] > .cell {
+    background-color: var(--editor-surface-2);
+    background-image: none;
+}
+
+/* ─── Cells ──────────────────────────────────────────────────────────────── */
+
+.cell {
+    padding: 0 14px;
+    height: 48px;
+    border-bottom: 1px solid var(--editor-border);
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--editor-text);
+    position: relative;
+}
+
+.cell[data-sticky="checkbox"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    padding: 0 0 0 14px;
+}
+
+.cell[data-sticky="primary"] {
+    position: sticky;
+    z-index: 1;
+    box-shadow: 1px 0 0 var(--editor-border);
+    gap: 10px;
+}
+
+/* ─── Primary cell — two-line stack (title + /slug subtitle) ─────────────── */
+
+.primaryCell {
+    align-items: center;
+}
+
+.primaryStack {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    gap: 2px;
+    line-height: 1.25;
+}
+
+.primaryTitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--editor-text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.primarySubtitle {
+    font-size: 11.5px;
+    color: var(--editor-text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Em-dash for empty primary titles (same look as cells/.empty). */
+.empty {
+    color: var(--editor-text-subtle);
+}
+
+/* When horizontally scrolled, give the sticky primary cell a soft shadow
+ * so it's clear it's pinned. */
+.row:hover > .cell[data-sticky="primary"],
+.row[data-checked="true"] > .cell[data-sticky="primary"],
+.row[data-selected="true"] > .cell[data-sticky="primary"] {
+    box-shadow:
+        1px 0 0 var(--editor-border),
+        8px 0 12px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Status dot (primary cell, postType) ────────────────────────────────── */
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.statusDot[data-status="published"] {
+    background: var(--editor-success-green);
+    box-shadow: 0 0 0 3px var(--editor-success-bg);
+}
+.statusDot[data-status="draft"] {
+    background: var(--editor-warning);
+    box-shadow: 0 0 0 3px var(--editor-warning-bg);
+}
+.statusDot[data-status="unpublished"] {
+    background: var(--editor-surface-4);
+}
+
+/* ─── Actions cell ───────────────────────────────────────────────────────── */
+
+.actionsCell {
+    padding: 0 8px;
+    height: 48px;
+    border-bottom: 1px solid var(--editor-border);
+    background-color: var(--editor-bg);
+    background-image: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    white-space: nowrap;
+    transition:
+        background-color 0.08s,
+        background-image 0.08s;
+}
+
+.row:hover > .actionsCell {
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.025),
+        rgba(255, 255, 255, 0.025)
+    );
+}
+
+.row[data-checked="true"] > .actionsCell {
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.04),
+        rgba(255, 255, 255, 0.04)
+    );
+}
+
+.row[data-selected="true"] > .actionsCell {
+    background-color: var(--editor-surface-2);
+    background-image: none;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.row:hover .actions,
+.row[data-selected="true"] .actions,
+.row[data-checked="true"] .actions {
+    opacity: 1;
+}
+
+/* ─── Empty / loading / error states (span all grid columns) ─────────────── */
+
+.emptyStateSpan {
+    grid-column: 1 / -1;
+}
+
+.loadingState {
+    grid-column: 1 / -1;
+    padding: 40px 24px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--editor-text-muted);
+}
+
+.errorState {
+    padding: 24px;
+}
+
+.errorText {
+    font-size: 13px;
+    color: var(--editor-danger);
+}
+
+.errorHint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--editor-text-muted);
+}
+
+/* ─── Floating bulk action bar ───────────────────────────────────────────── */
+
+.bulkBar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 6px 0 14px;
+    background: var(--editor-surface);
+    border: 1px solid var(--editor-surface-3);
+    border-radius: 20px;
+    box-shadow:
+        0 10px 28px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    z-index: 10;
+}
+
+.bulkBarCount {
+    font-size: 12.5px;
+    color: var(--editor-text);
+    font-weight: 500;
+}
+
+.bulkBarCount strong {
+    color: var(--editor-text-bright);
+    font-weight: 600;
+}
+
+.bulkBarSep {
+    width: 1px;
+    height: 18px;
+    background: var(--editor-border-med);
+}
+
+.bulkBarActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/*
+ * Bulk-bar pills — flatter look than the toolbar view chips (no hover
+ * surface glow; just text colour shift). Keeps the bar feeling like a
+ * single grouped control rather than a row of competing chips.
+ */
+.bulkBarBtn {
+    background: transparent;
+}
+
+.bulkBarBtn:hover {
+    background: var(--editor-surface-2);
+}

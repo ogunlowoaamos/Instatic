@@ -123,6 +123,25 @@ const ALLOWLIST = new Set([
   'admin/pages/site/panels/ColorsPanel/CategoryComboBox.tsx',
   'admin/pages/site/property-controls/TokenizedColorField.tsx',
   'admin/pages/site/panels/TypographyPanel/FontsSection/AddGoogleFontDialog.tsx',
+
+  // ── §8.8 DataGrid custom CSS-Grid cells ─────────────────────────────────
+  // The Data table is a CSS-Grid (display: grid + display: contents on rows)
+  // with sticky column / group headers. Two grid-cell types cannot be
+  // expressed with Button's inline-flex layout:
+  //
+  // • DataGridHeaderCell renders role="columnheader" inside a 36px grid
+  //   row with a structured layout (field icon + label + required indicator
+  //   + sort caret). Button does not allow role overrides, and a sticky
+  //   columnheader's grid-cell sizing differs from Button's size tokens.
+  //   This is the same pattern class as §8.6 (custom ARIA role + custom
+  //   structural layout).
+  //
+  // • DataGrid status-group header is a grid-column-spanning (1 / -1)
+  //   sticky disclosure toggle (status dot + label + count, collapsible).
+  //   This is the exact §8.2 full-width-disclosure pattern, but inside a
+  //   CSS-Grid row rather than a panel section.
+  'admin/pages/data/components/DataGrid/DataGridHeaderCell.tsx',
+  'admin/pages/data/components/DataGrid/DataGrid.tsx',
 ])
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,383 @@
+/* Shared styles for all DataGrid cell editors. */
+
+/* ---- Base wrappers ---- */
+
+.cellGrid {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.cellDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+/* ---- Text / Input cells ---- */
+
+.inputFull {
+  width: 100%;
+}
+
+/* ---- Boolean cell ---- */
+
+.booleanGrid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.booleanLabel {
+  font-size: 13px;
+  color: var(--editor-text);
+  line-height: 1;
+  user-select: none;
+}
+
+/* ---- MultiSelect cell ---- */
+
+.multiSelectWrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  font-size: 11.5px;
+  color: var(--editor-text);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.chipRemove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--editor-text-muted);
+  line-height: 1;
+}
+
+.chipRemove:hover {
+  color: var(--editor-text);
+}
+
+.multiSelectTrigger {
+  flex-shrink: 0;
+}
+
+/* ---- URL cell — external link button ---- */
+
+.urlWrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.urlLinkBtn {
+  flex-shrink: 0;
+}
+
+/* ---- Media cell ---- */
+
+/*
+ * Outer wrapper — single non-wrapping flex row:
+ *   [trigger button: grows]  [× dismiss: hidden until hover/focus]
+ */
+.mediaCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Picker trigger — grows to fill remaining space, clips overflow for filename ellipsis. */
+.mediaTrigger {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/*
+ * Filename — single-line truncate with ellipsis.
+ * min-width: 0 is required so the flex item can shrink below its content size.
+ */
+.mediaFilename {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty-state placeholder text */
+.mediaEmpty {
+  color: var(--editor-text-muted);
+  font-style: italic;
+}
+
+/*
+ * Dismiss (×) button — hidden by default, revealed on row hover or keyboard focus.
+ * flex-shrink: 0 prevents it from being squashed by a long filename.
+ */
+.mediaClearBtn {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.mediaCell:hover .mediaClearBtn,
+.mediaClearBtn:focus-visible {
+  opacity: 1;
+}
+
+/* Thumbnail strip — used in multi-value mode. */
+.mediaPreviews {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* Individual thumb slot — 28×28px square. */
+.mediaThumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-surface-3);
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--editor-text-muted);
+}
+
+/* Loading placeholder — slightly dimmer */
+.mediaThumb[data-state='loading'] {
+  opacity: 0.4;
+}
+
+/* Missing asset — danger tint */
+.mediaThumb[data-state='missing'] {
+  color: var(--editor-danger);
+  background: var(--editor-danger-bg);
+}
+
+.mediaThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Overflow badge: "+N more" */
+.mediaOverflow {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--editor-text-muted);
+  padding: 0 3px;
+  flex-shrink: 0;
+}
+
+/* ---- Relation cell ---- */
+
+.relationButton {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.relationEmpty {
+  color: var(--editor-text-muted);
+  font-style: italic;
+}
+
+/* ---- Read-only overlay ---- */
+
+.readOnlyText {
+  font-size: 13px;
+  color: var(--editor-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===========================================================================
+ * Display-mode renderers (CellDisplayRenderer.tsx)
+ * The grid is read-only: each field type renders as a presentational chip,
+ * formatted value, or thumbnail. Empty values show a muted em-dash.
+ * =========================================================================== */
+
+/* Em-dash placeholder shown for any empty / null value. */
+.empty {
+  color: var(--editor-text-subtle);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Plain text / longText / richText / date / dateTime displays. */
+.text {
+  font-size: 13px;
+  color: var(--editor-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Number — tabular numerics, right-aligned within the cell. */
+.numberValue {
+  font-size: 13px;
+  color: var(--editor-text);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* Boolean — green check tile when true; em-dash otherwise. */
+.boolTrue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-success-bg);
+  color: var(--editor-success-green);
+}
+
+/* URL / email — muted body text, single-line ellipsis. Same look as .text
+ * but tinted to hint at the link semantics. */
+.linkText {
+  font-size: 13px;
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/*
+ * Display chips — used for select / multiSelect / relation / overflow.
+ * Re-uses the .chip class above; data-tone variants tune the surface.
+ */
+.chip[data-tone="tag"] {
+  background: var(--editor-surface);
+  border-color: var(--editor-border-med);
+  color: var(--editor-text-secondary);
+}
+
+.chip[data-tone="relation"] {
+  background: var(--editor-surface-2);
+  border-color: var(--editor-surface-3);
+  color: var(--editor-text);
+}
+
+.chip[data-tone="overflow"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--editor-text-muted);
+  padding: 2px 4px;
+  font-weight: 600;
+}
+
+/* Inline dot inside the chip (select with color, group header etc.). */
+.chipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wrapper for a series of chips (multiSelect, multi relation). */
+.chipSet {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Media display — small thumbnail + filename. */
+.mediaDisplay {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mediaDisplayThumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-surface-3);
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--editor-text-muted);
+}
+
+.mediaDisplayThumb[data-state='loading'] {
+  opacity: 0.4;
+}
+
+.mediaDisplayThumb[data-state='missing'] {
+  color: var(--editor-danger);
+  background: var(--editor-danger-bg);
+}
+
+.mediaDisplayThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mediaDisplayName {
+  font-size: 12.5px;
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.mediaDisplayOverflow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--editor-text-muted);
+  padding: 0 3px;
+  flex-shrink: 0;
+}
