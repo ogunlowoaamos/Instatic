@@ -31,48 +31,57 @@ import { normalizeRouteBase } from './templateMatching'
 // ---------------------------------------------------------------------------
 
 /**
+ * Post-type built-in field ids → contextual preview value. Adding a new
+ * built-in override (or tweaking the wording of an existing one) is a
+ * single-line edit here; the per-type handlers below check this map before
+ * falling back to the user-provided `defaultValue` or a generic placeholder.
+ *
+ * Only text-like fields (`text` / `longText` / `richText`) consult this map —
+ * none of the other built-in post-type fields override the type's generic
+ * preview (e.g. `featuredMedia` stays `null` like any other `media` field).
+ */
+const POST_TYPE_PREVIEW_VALUE_BY_FIELD_ID: Record<string, string> = {
+  [POST_TYPE_FIELD_TITLE]: 'Example Post Title',
+  [POST_TYPE_FIELD_SLUG]: 'example-post-title',
+  [POST_TYPE_FIELD_SEO_TITLE]: 'Example Post — Site Name',
+  [POST_TYPE_FIELD_SEO_DESCRIPTION]:
+    'A short description of this example post for search engines.',
+  [POST_TYPE_FIELD_BODY]:
+    '## Example heading\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque at porta est.',
+}
+
+/** All text-like field variants share the same override → defaultValue → fallback resolution. */
+type TextLikeField = Extract<DataField, { type: 'text' | 'longText' | 'richText' }>
+
+function previewTextLikeValue(field: TextLikeField, fallback: string): string {
+  return POST_TYPE_PREVIEW_VALUE_BY_FIELD_ID[field.id] ?? field.defaultValue ?? fallback
+}
+
+/**
  * Generate a sensible preview value for a single field.
  *
- * Post-type built-in field ids get contextual defaults (e.g. `title` →
- * `'Example Post Title'`). All other fields get a generic value that is
- * visually meaningful in the canvas (text, numbers, dates).
+ * Each switch arm is a one-liner: post-type built-in overrides live in
+ * `POST_TYPE_PREVIEW_VALUE_BY_FIELD_ID`, and the text-like resolution chain
+ * is centralized in `previewTextLikeValue`. Adding a new `DataField['type']`
+ * is a one-row edit here; TypeScript's exhaustive check in the `default`
+ * arm enforces coverage of every discriminated-union variant.
  */
 function previewValueForField(field: DataField): unknown {
   switch (field.type) {
-    case 'text':
-      if (field.id === POST_TYPE_FIELD_TITLE) return 'Example Post Title'
-      if (field.id === POST_TYPE_FIELD_SLUG) return 'example-post-title'
-      if (field.id === POST_TYPE_FIELD_SEO_TITLE) return 'Example Post — Site Name'
-      return field.defaultValue ?? 'Lorem ipsum'
-    case 'longText':
-      if (field.id === POST_TYPE_FIELD_SEO_DESCRIPTION)
-        return 'A short description of this example post for search engines.'
-      return field.defaultValue ?? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-    case 'richText':
-      if (field.id === POST_TYPE_FIELD_BODY)
-        return '## Example heading\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque at porta est.'
-      return field.defaultValue ?? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-    case 'number':
-      return field.defaultValue ?? 42
-    case 'boolean':
-      return field.defaultValue ?? false
-    case 'date':
-      return new Date().toISOString().split('T')[0]
-    case 'dateTime':
-      return new Date().toISOString()
-    case 'select':
-      return field.defaultValue ?? field.options[0]?.value ?? null
-    case 'multiSelect':
-      return field.options.length > 0 ? [field.options[0]!.value] : []
-    case 'url':
-      return 'https://example.com'
-    case 'email':
-      return 'hello@example.com'
-    case 'media':
-      // No synthetic media URL — modules that render a media field must handle null gracefully.
-      return null
-    case 'relation':
-      return null
+    case 'text': return previewTextLikeValue(field, 'Lorem ipsum')
+    case 'longText': return previewTextLikeValue(field, 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')
+    case 'richText': return previewTextLikeValue(field, 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')
+    case 'number': return field.defaultValue ?? 42
+    case 'boolean': return field.defaultValue ?? false
+    case 'date': return new Date().toISOString().split('T')[0]
+    case 'dateTime': return new Date().toISOString()
+    case 'select': return field.defaultValue ?? field.options[0]?.value ?? null
+    case 'multiSelect': return field.options.length > 0 ? [field.options[0]!.value] : []
+    case 'url': return 'https://example.com'
+    case 'email': return 'hello@example.com'
+    // No synthetic media URL — modules that render a media field must handle null gracefully.
+    case 'media': return null
+    case 'relation': return null
     default: {
       // Exhaustive check: TypeScript will error here if a new field type
       // is added to the discriminated union without a case above.
