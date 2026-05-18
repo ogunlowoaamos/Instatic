@@ -49,7 +49,6 @@
 }
 
 .selectionToolbar {
-    position: fixed;
     top: 0;
     left: 0;
     display: inline-flex;
@@ -62,7 +61,27 @@
     color: var(--editor-text);
     pointer-events: auto;
     transform: translate(var(--canvas-toolbar-x), var(--canvas-toolbar-y));
-    z-index: 2147483647;
+    /* Sits inside the canvas root's coordinate space (clipped by its
+   * overflow: hidden) so it cannot bleed over sidebars, modals, or
+   * dialogs. z-index sits one above PluginCanvasOverlayLayer (50) so it
+   * paints over plugin overlays, but well below LeftSidebar/RightSidebar
+   * (55), Dialog (95), and the editor toolbar surfaces (200+). */
+    z-index: 51;
+}
+
+/* Scoped mode: portaled inside the canvas root. Uses absolute positioning so
+   the canvas root's overflow:hidden contains it and the sidebars / dialogs
+   above naturally cover it. This is the production path. */
+.selectionToolbar[data-canvas-toolbar-mode="scoped"] {
+    position: absolute;
+}
+
+/* Fixed mode: fallback when the canvas root ref isn't available (tests, or a
+   transient mount race). Uses viewport coordinates and stays detached from
+   any canvas stacking context — a regression hazard we explicitly avoid in
+   the scoped path. */
+.selectionToolbar[data-canvas-toolbar-mode="fixed"] {
+    position: fixed;
 }
 
 .selectionToolbarButton {

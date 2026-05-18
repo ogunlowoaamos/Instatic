@@ -28,14 +28,20 @@
  *   IntersectionObserver to every possible mutation source.
  * - Clears style positioning when the tracked node disappears or the
  *   selection/hover clears.
- * - Renders the selected-layer toolbar through a fixed-position portal so it
- *   is not clipped by the breakpoint viewport's overflow boundary.
+ * - Renders the selected-layer toolbar through a portal into the canvas
+ *   root so it escapes the breakpoint viewport's overflow boundary but
+ *   stays inside the canvas's stacking + clipping context. That way the
+ *   editor sidebars (z-index 55), dialogs (95+), modals (200+) and
+ *   overlays naturally paint above it — instead of being covered by a
+ *   max-z-index fixed-position toolbar floating over the whole document.
+ *   Falls back to document.body with position:fixed when the canvas root
+ *   isn't available (tests, transient mount race).
  *
  * Contract
  * ────────
  * The ring and indicator overlay is presentational and click-through
  * (`pointer-events: none` in CSS). The selected-layer toolbar is interactive
- * and lives outside the viewport clipping boundary.
+ * and clipped by the canvas root.
  */
 
 import { useContext, useEffect, useRef, type CSSProperties } from 'react'
@@ -149,7 +155,12 @@ export function BreakpointSelectionOverlay({
         positionRing(ringRefs.current.get(id) ?? null, id, viewport)
       }
       positionRing(hoverRef.current, showHover ? hoveredNodeId : null, viewport)
-      positionToolbar(toolbarRef.current, showToolbar ? selectedNodeIds : [], viewport)
+      positionToolbar(
+        toolbarRef.current,
+        showToolbar ? selectedNodeIds : [],
+        viewport,
+        viewportActions?.canvasRootRef.current ?? null,
+      )
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -161,6 +172,14 @@ export function BreakpointSelectionOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey, hoveredNodeId, showHover, showToolbar, viewportRef])
 
+  // Prefer the canvas root as the portal target so the toolbar sits inside
+  // the canvas's stacking + clipping context (below sidebars / dialogs /
+  // modals, clipped by canvas overflow). Fall back to document.body for
+  // tests or transient mount races where the ref isn't ready yet.
+  const canvasRoot = viewportActions?.canvasRootRef.current ?? null
+  const portalTarget = canvasRoot ?? document.body
+  const toolbarMode = canvasRoot ? 'scoped' : 'fixed'
+
   const toolbar = showToolbar ? (
     <div
       ref={toolbarRef}
@@ -168,6 +187,7 @@ export function BreakpointSelectionOverlay({
       aria-label="Selection actions"
       className={styles.selectionToolbar}
       data-canvas-selection-toolbar="true"
+      data-canvas-toolbar-mode={toolbarMode}
       data-canvas-dragging={reorderDrag.dragging ? 'true' : undefined}
     >
       <Button
@@ -252,7 +272,7 @@ export function BreakpointSelectionOverlay({
           />
         )}
       </div>
-      {toolbar && createPortal(toolbar, document.body)}
+      {toolbar && createPortal(toolbar, portalTarget)}
     </>
   )
 }
@@ -342,6 +362,7 @@ function positionToolbar(
   toolbar: HTMLDivElement | null,
   nodeIds: readonly string[],
   viewport: HTMLElement,
+  canvasRoot: HTMLElement | null,
 ): void {
   if (!toolbar || nodeIds.length === 0) {
     if (toolbar) toolbar.style.display = 'none'
@@ -354,9 +375,56 @@ function positionToolbar(
     return
   }
 
+  // When the selected element has been panned/zoomed entirely outside the
+  // canvas root's visible area, hide the toolbar rather than leaving it
+  // anchored to an off-canvas position. Otherwise the toolbar appears to
+  // "hang on screen" detached from the element it belongs to. This also
+  // covers the case where overflow:hidden clipping would only partially hide
+  // the toolbar — once the element is gone, hide the chrome cleanly.
+  if (canvasRoot) {
+    const canvasRect = canvasRoot.getBoundingClientRect()
+    const elementFullyOutOfBounds =
+      rect.right <= canvasRect.left ||
+      rect.left >= canvasRect.right ||
+      rect.bottom <= canvasRect.top ||
+      rect.top >= canvasRect.bottom
+    if (elementFullyOutOfBounds) {
+      toolbar.style.display = 'none'
+      return
+    }
+  }
+
   toolbar.style.display = ''
-  toolbar.style.setProperty('--canvas-toolbar-x', `${Math.max(4, rect.left)}px`)
-  toolbar.style.setProperty('--canvas-toolbar-y', `${rect.top - TOOLBAR_VERTICAL_OFFSET}px`)
+
+  // Scoped path: toolbar lives inside the canvas root (position: absolute),
+  // so the CSS variables are in canvas-root-local coordinates. The canvas
+  // root's overflow:hidden then clips the toolbar when it lands outside the
+  // visible canvas area (e.g. anchored to an element near a frame edge that
+  // the user has panned partly out of view).
+  //
+  // Fixed path (fallback): toolbar lives in document.body (position: fixed),
+  // so the CSS variables remain in viewport (client) coordinates.
+  let originLeft = 0
+  let originTop = 0
+  if (canvasRoot) {
+    const canvasRect = canvasRoot.getBoundingClientRect()
+    originLeft = canvasRect.left
+    originTop = canvasRect.top
+  }
+
+  // No horizontal clamping: the toolbar anchors to the selected element's
+  // left edge. A previous `Math.max(4, x)` clamp kept the toolbar visible at
+  // the canvas-left edge when the element panned off-screen left, but that
+  // decoupled the toolbar from the element and left it "hanging" far from
+  // the actual selection. The element-out-of-bounds check above already
+  // hides the toolbar when the selection is fully off-canvas; for partial
+  // overlap, overflow:hidden clips the toolbar so it can't bleed into the
+  // sidebars.
+  const x = rect.left - originLeft
+  const y = rect.top - originTop - TOOLBAR_VERTICAL_OFFSET
+
+  toolbar.style.setProperty('--canvas-toolbar-x', `${x}px`)
+  toolbar.style.setProperty('--canvas-toolbar-y', `${y}px`)
 }
 
 function dropIndicatorStyle(target: CanvasDropTarget): CSSProperties {
