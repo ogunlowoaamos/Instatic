@@ -39,6 +39,14 @@ const ManifestEnvelope = Type.Object(
   { additionalProperties: true },
 )
 
+const PluginSettingsEnvelope = Type.Object(
+  {
+    schema: Type.Optional(Type.Unknown()),
+    settings: Type.Optional(Type.Unknown()),
+  },
+  { additionalProperties: true },
+)
+
 function emptyPayload(body: Partial<CmsPluginsPayload>): CmsPluginsPayload {
   return {
     plugins: Array.isArray(body.plugins) ? body.plugins : [],
@@ -215,6 +223,66 @@ export async function installCmsPluginPack(
   }
   const body = (await res.json()) as CmsPluginPackInstallSummary
   return body
+}
+
+// ---------------------------------------------------------------------------
+// Plugin settings
+//
+// `GET /admin/api/cms/plugins/:id/settings` returns the declared schema +
+// the masked stored values (secrets become `'***'`). `PUT` validates against
+// the schema and persists; the host requires a fresh step-up window for the
+// PUT (see `server/handlers/cms/plugins/index.ts:requiresStepUp`), so callers
+// in the admin UI must wrap the update in `runStepUp` to surface the
+// password prompt when the window has expired.
+// ---------------------------------------------------------------------------
+
+export type PluginSettingsValue = string | number | boolean
+export type PluginSettingsRecord = Record<string, PluginSettingsValue>
+export type PluginSettingsSchema = NonNullable<PluginManifest['settings']>
+
+export interface CmsPluginSettingsResponse {
+  schema: PluginSettingsSchema
+  settings: PluginSettingsRecord
+}
+
+export async function loadCmsPluginSettings(
+  pluginId: string,
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<CmsPluginSettingsResponse> {
+  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+  const body = await readEnvelope(
+    res,
+    PluginSettingsEnvelope,
+    `CMS plugin settings load failed with ${res.status}`,
+  )
+  return {
+    schema: (body.schema as PluginSettingsSchema | undefined) ?? [],
+    settings: (body.settings as PluginSettingsRecord | undefined) ?? {},
+  }
+}
+
+export async function updateCmsPluginSettings(
+  pluginId: string,
+  settings: PluginSettingsRecord,
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<PluginSettingsRecord> {
+  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ settings }),
+  })
+  const body = await readEnvelope(
+    res,
+    PluginSettingsEnvelope,
+    `CMS plugin settings update failed with ${res.status}`,
+  )
+  return (body.settings as PluginSettingsRecord | undefined) ?? {}
 }
 
 // ---------------------------------------------------------------------------

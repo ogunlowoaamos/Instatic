@@ -53,10 +53,14 @@ const mod: ServerPluginModule = {
     api.plugin.log('Uptime Monitor activating')
 
     // ─── HTTP route ──────────────────────────────────────────────────────
-    // GET /status — live stats for the dashboard. We read storage at call
-    // time rather than maintaining an in-memory cache, so the response
-    // reflects every check the schedule has recorded.
+    // GET /status — live stats for the dashboard. The source of truth for
+    // *which* URLs are tracked is the operator's `urls` setting; check
+    // records are layered on top to provide last-run + 24h stats. This way
+    // newly-added URLs show up immediately as "Pending" before the schedule
+    // has had a chance to fire, and URLs removed from settings drop out of
+    // the dashboard even if old history still exists.
     api.cms.routes.get('/status', 'plugins.manage', async () => {
+      const configuredUrls = parseUrls(api.cms.settings.get('urls') ?? '')
       const all = await api.cms.storage.collection('checks').list()
       const byUrl = new Map<string, CheckRecord[]>()
       for (const row of all) {
@@ -67,7 +71,8 @@ const mod: ServerPluginModule = {
       }
 
       const cutoff = Date.now() - 24 * 60 * 60 * 1000
-      const summary = [...byUrl.entries()].map(([url, rows]) => {
+      const summary = configuredUrls.map((url) => {
+        const rows = byUrl.get(url) ?? []
         const sorted = rows.slice().sort(
           (a, b) => new Date(b['checked-at']).getTime() - new Date(a['checked-at']).getTime(),
         )

@@ -85,6 +85,28 @@ describe('plugin manifest validation', () => {
     })
   })
 
+  it('preserves networkAllowedHosts on the parsed manifest', () => {
+    // Regression: the parser previously dropped this field on the way out,
+    // so even plugins that declared an allowlist saw every gated fetch
+    // rejected at the host with "host not in allowlist" — making
+    // `network.outbound` effectively unusable. The host's gated-fetch
+    // check (server/plugins/pluginWorkerHost.ts:performGatedFetch) reads
+    // this list straight off the parsed manifest.
+    const manifest = parsePluginManifest({
+      id: 'acme.fetch',
+      name: 'Fetch demo',
+      version: '1.0.0',
+      apiVersion: 1,
+      permissions: ['network.outbound'],
+      networkAllowedHosts: ['example.com', 'api.github.com', '*.github.com'],
+    })
+    expect(manifest.networkAllowedHosts).toEqual([
+      'example.com',
+      'api.github.com',
+      '*.github.com',
+    ])
+  })
+
   it('accepts packaged JavaScript app admin pages', () => {
     const manifest = parsePluginManifest({
       id: 'acme.insights',

@@ -24,17 +24,23 @@ export {
   installCmsPluginPack,
   listCmsPlugins,
   listCmsPluginSchedules,
+  loadCmsPluginSettings,
   pauseCmsPluginSchedule,
   removeCmsPlugin,
   restartCmsPlugin,
   resumeCmsPluginSchedule,
   runCmsPluginScheduleNow,
   setCmsPluginEnabled,
+  updateCmsPluginSettings,
 } from './cmsPlugins'
 export type {
   CmsPluginScheduleRunSummary,
   CmsPluginScheduleSummary,
   CmsPluginSchedulesResponse,
+  CmsPluginSettingsResponse,
+  PluginSettingsRecord,
+  PluginSettingsSchema,
+  PluginSettingsValue,
 } from './cmsPlugins'
 export {
   createCmsPluginResourceRecord,

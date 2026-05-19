@@ -4,36 +4,38 @@
  * the shared `<Dialog/>` primitive; only the body content lives here.
  *
  * Flow:
- *   1. Open dialog → fetch latest settings + schema from
- *      `GET /admin/api/cms/plugins/:id/settings`
- *   2. User edits form fields
- *   3. Save → `PUT` the cleaned record; backend validates against schema,
- *      persists, refreshes the plugin runtime cache, emits
- *      `settings.changed` for plugin server hooks to react
- *   4. Dialog re-renders with the masked response and closes on success
+ *   1. Open dialog → `loadCmsPluginSettings` fetches the declared schema +
+ *      the masked stored values (secrets are `'***'`).
+ *   2. User edits form fields.
+ *   3. Save → `updateCmsPluginSettings`, wrapped in `runStepUp`. The host
+ *      requires a fresh step-up window for the PUT
+ *      (`server/handlers/cms/plugins/index.ts:requiresStepUp`); the wrapper
+ *      catches the `step_up_required` rejection, opens the password-confirm
+ *      dialog, and retries the save on success.
+ *   4. On success the dialog closes and notifies the parent so the plugin
+ *      list can re-render with the new settings.
  */
 import { useEffect, useState } from 'react'
 import { Button } from '@ui/components/Button'
 import { Dialog } from '@ui/components/Dialog'
-import type { PluginManifest } from '@core/plugin-sdk'
+import {
+  loadCmsPluginSettings,
+  updateCmsPluginSettings,
+  type PluginSettingsRecord,
+  type PluginSettingsSchema,
+  type PluginSettingsValue,
+} from '@core/persistence'
+import { StepUpCancelledMessage, useStepUp } from '@admin/shared/StepUp'
 import { pluginAdminUi } from '../PluginAdminUi'
 import styles from './PluginSettingsDialog.module.css'
 
-type SettingsValue = string | number | boolean
-type SettingsRecord = Record<string, SettingsValue>
-type SettingsSchema = NonNullable<PluginManifest['settings']>
-type SettingDefinition = SettingsSchema[number]
-
-interface SettingsResponse {
-  schema: SettingsSchema
-  settings: SettingsRecord
-}
+type SettingDefinition = PluginSettingsSchema[number]
 
 interface PluginSettingsDialogProps {
   pluginId: string
   pluginName: string
   onClose: () => void
-  onSaved?: (next: SettingsRecord) => void
+  onSaved?: (next: PluginSettingsRecord) => void
 }
 
 export function PluginSettingsDialog({
@@ -42,23 +44,22 @@ export function PluginSettingsDialog({
   onClose,
   onSaved,
 }: PluginSettingsDialogProps) {
+  const { runStepUp } = useStepUp()
   // pluginId is the load-key — when it changes we discard the old load.
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
-  const [schema, setSchema] = useState<SettingsSchema | null>(null)
-  const [values, setValues] = useState<SettingsRecord>({})
+  const [schema, setSchema] = useState<PluginSettingsSchema | null>(null)
+  const [values, setValues] = useState<PluginSettingsRecord>({})
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Load and save errors are surfaced under different alert titles so the
+  // operator can tell whether the dialog failed to read the current settings
+  // or failed to persist their edits.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const loading = loadedFor !== pluginId
 
   useEffect(() => {
     let cancelled = false
-    void fetch(`/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/settings`, {
-      credentials: 'include',
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await res.text() || `Load failed (${res.status})`)
-        return res.json() as Promise<SettingsResponse>
-      })
+    void loadCmsPluginSettings(pluginId)
       .then((body) => {
         if (cancelled) return
         setSchema(body.schema)
@@ -67,32 +68,33 @@ export function PluginSettingsDialog({
       })
       .catch((err) => {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load settings')
+        setLoadError(err instanceof Error ? err.message : 'Failed to load settings')
         setLoadedFor(pluginId)
       })
     return () => { cancelled = true }
   }, [pluginId])
 
-  function setValue(id: string, next: SettingsValue) {
+  function setValue(id: string, next: PluginSettingsValue) {
     setValues((current) => ({ ...current, [id]: next }))
   }
 
   async function save() {
     setSaving(true)
-    setError(null)
+    setSaveError(null)
     try {
-      const res = await fetch(`/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/settings`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ settings: values }),
-      })
-      if (!res.ok) throw new Error(await res.text() || `Save failed (${res.status})`)
-      const body = await res.json() as { settings: SettingsRecord }
-      onSaved?.(body.settings)
+      // `updateCmsPluginSettings` rejects with `Error('step_up_required')`
+      // when the session has no fresh step-up window. `runStepUp` catches
+      // that rejection, prompts for the password, then retries the save.
+      const next = await runStepUp(() => updateCmsPluginSettings(pluginId, values))
+      onSaved?.(next)
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save settings')
+      if (err instanceof Error && err.message === StepUpCancelledMessage) {
+        // User dismissed the password dialog — leave the form open with the
+        // pending edits intact so they can retry without retyping.
+        return
+      }
+      setSaveError(err instanceof Error ? err.message : 'Failed to save settings')
     } finally {
       setSaving(false)
     }
@@ -115,7 +117,7 @@ export function PluginSettingsDialog({
             size="sm"
             type="button"
             onClick={() => void save()}
-            disabled={loading || saving || !schema || schema.length === 0}
+            disabled={loading || saving || !schema || schema.length === 0 || loadError !== null}
           >
             {saving ? 'Saving...' : 'Save settings'}
           </Button>
@@ -123,18 +125,23 @@ export function PluginSettingsDialog({
       }
     >
       {loading && <p className={styles.empty}>Loading settings...</p>}
-      {error && (
+      {loadError && (
         <pluginAdminUi.Alert tone="danger" title="Could not load settings">
-          {error}
+          {loadError}
         </pluginAdminUi.Alert>
       )}
-      {!loading && schema && schema.length === 0 && (
+      {saveError && (
+        <pluginAdminUi.Alert tone="danger" title="Could not save settings">
+          {saveError}
+        </pluginAdminUi.Alert>
+      )}
+      {!loading && !loadError && schema && schema.length === 0 && (
         <pluginAdminUi.EmptyState
           title="No settings declared"
           body="This plugin does not expose any user-configurable settings."
         />
       )}
-      {!loading && schema && schema.length > 0 && (
+      {!loading && !loadError && schema && schema.length > 0 && (
         <pluginAdminUi.Stack gap={14}>
           {schema.map((field) => renderField(field, values, setValue))}
         </pluginAdminUi.Stack>
@@ -145,8 +152,8 @@ export function PluginSettingsDialog({
 
 function renderField(
   field: SettingDefinition,
-  values: SettingsRecord,
-  setValue: (id: string, next: SettingsValue) => void,
+  values: PluginSettingsRecord,
+  setValue: (id: string, next: PluginSettingsValue) => void,
 ) {
   const value = values[field.id]
   switch (field.type) {

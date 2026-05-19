@@ -300,6 +300,10 @@ export function parsePluginManifest(input: unknown): PluginManifest {
     description: data.description,
     permissions: data.permissions as PluginPermission[],
     grantedPermissions: data.grantedPermissions as PluginPermission[] | undefined,
+    // Per-host outbound-fetch allowlist — required for the `network.outbound`
+    // permission to work. Dropping this field would silently turn every gated
+    // fetch into a "host not in allowlist" 403 even with the permission granted.
+    networkAllowedHosts: data.networkAllowedHosts ? [...data.networkAllowedHosts] : undefined,
     entrypoints: data.entrypoints,
     assetBasePath: data.assetBasePath,
     resources,

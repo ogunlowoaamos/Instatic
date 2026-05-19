@@ -605,6 +605,15 @@ globalThis.__buildApi = function buildApi() {
   // Handler is stored INSIDE the VM (not serialised) — the host carries
   // only the schedule metadata in plugin_schedules.
 
+  // The host namespaces schedule ids as <pluginId>.<localId> before
+  // storing them (see pluginScheduleRegistration.ts:registerPluginSchedule)
+  // and dispatches firings using the namespaced id. The VM's handler map
+  // must use the SAME key so __runSchedule can resolve a registered handler.
+  function namespaceScheduleId(localId) {
+    const prefix = meta.id + '.';
+    return localId.indexOf(prefix) === 0 ? localId : prefix + localId;
+  }
+
   function scheduleRegister(def) {
     assertPermission('cms.schedule');
     if (!def || typeof def !== 'object') throw new TypeError('schedule.register: argument must be an object');
@@ -612,7 +621,7 @@ globalThis.__buildApi = function buildApi() {
     if (typeof def.handler !== 'function') throw new TypeError("schedule.register: 'handler' must be a function");
     if (!def.cadence || typeof def.cadence !== 'object') throw new TypeError("schedule.register: 'cadence' is required");
     const scheduleId = String(def.id);
-    globalThis.__plugin_handlers.schedules[scheduleId] = def.handler;
+    globalThis.__plugin_handlers.schedules[namespaceScheduleId(scheduleId)] = def.handler;
     const overlap = def.overlap === 'queue' || def.overlap === 'parallel' ? def.overlap : 'skip';
     // Cap at the host-side maximum (5 minutes); a stricter cap can be
     // negotiated later via a per-plugin manifest field. Default 5_000ms
@@ -632,7 +641,7 @@ globalThis.__buildApi = function buildApi() {
   function scheduleCancel(id) {
     assertPermission('cms.schedule');
     const scheduleId = String(id);
-    delete globalThis.__plugin_handlers.schedules[scheduleId];
+    delete globalThis.__plugin_handlers.schedules[namespaceScheduleId(scheduleId)];
     return call('cms.schedule.cancel', [{ scheduleId: scheduleId }]);
   }
 
@@ -802,13 +811,22 @@ globalThis.__runLoopPreview = function runLoopPreview(sourceId, ctxJson) {
  * handler error. The host wraps this call in its eval deadline (set per
  * schedule to maxDurationMs) so a runaway handler is interrupted cleanly.
  *
+ * Lookup uses the namespaced id (e.g. 'acme.uptime.check-urls') because
+ * scheduleRegister stores handlers under that key — mirroring the host's
+ * pluginScheduleRegistration namespacing so both sides agree.
+ *
  * If the handler isn't registered (e.g. plugin upgraded between tick and
- * dispatch), we no-op rather than throw — the schedule row will eventually
- * be GC'd by the host once the boot-claim grace window expires.
+ * dispatch, or the schedule row outlived a deactivate), we log and no-op
+ * rather than throw — the schedule row will eventually be GC'd by the
+ * host once the boot-claim grace window expires. We log so the silent
+ * no-op surfaces during development if the handler-key ever drifts again.
  */
 globalThis.__runSchedule = async function runSchedule(scheduleId) {
   const handler = globalThis.__plugin_handlers.schedules[scheduleId];
-  if (typeof handler !== 'function') return;
+  if (typeof handler !== 'function') {
+    __log('warn', 'no handler registered for schedule "' + String(scheduleId) + '"');
+    return;
+  }
   await handler();
 };
 

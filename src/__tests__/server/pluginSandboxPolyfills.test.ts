@@ -559,3 +559,73 @@ describe('plugin sandbox: fetch + AbortSignal integration', () => {
     }
   })
 })
+
+describe('plugin sandbox: schedule register → dispatch round-trip', () => {
+  it('runs the registered handler when the host dispatches with the namespaced id', async () => {
+    // Regression for the silent-no-op scheduler bug: the host namespaces
+    // schedule ids as `<pluginId>.<localId>` and dispatches with the
+    // namespaced id (see pluginScheduleRegistration.ts:registerPluginSchedule
+    // + scheduler.ts:fireSchedule). Before the fix, the VM stored the handler
+    // under the local id only, so __runSchedule('acme.polyfills.tick')
+    // looked up an undefined entry and silently returned — the schedule run
+    // recorded `ok` with 0ms duration but the handler never executed.
+    const { env, recorder } = makeRecorderEnv({
+      grantedPermissions: ['cms.schedule'],
+    })
+    const vm = await createPluginVm({
+      env,
+      pluginSource: `
+        ;(function () {
+          const __plugin_exports = (globalThis.__plugin_exports = {});
+          __plugin_exports.activate = async function activate(api) {
+            api.cms.schedule.every(5, 'tick', async function () {
+              await __hostCall('test.record', ['tick-ran']);
+            });
+          };
+        })();
+      `,
+    })
+    try {
+      await vm.runLifecycle('activate')
+      // The host fires the schedule using the namespaced id — exactly like
+      // server/plugins/scheduler.ts:fireSchedule does at runtime.
+      await vm.runSchedule('acme.polyfills.tick', 5000)
+      const ran = recorder.some(
+        (e) => e.target === 'test.record' && e.args[0] === 'tick-ran',
+      )
+      expect(ran).toBe(true)
+    } finally {
+      vm.dispose()
+    }
+  })
+
+  it('cancel removes the handler so subsequent dispatches no-op', async () => {
+    const { env, recorder } = makeRecorderEnv({
+      grantedPermissions: ['cms.schedule'],
+    })
+    const vm = await createPluginVm({
+      env,
+      pluginSource: `
+        ;(function () {
+          const __plugin_exports = (globalThis.__plugin_exports = {});
+          __plugin_exports.activate = async function activate(api) {
+            api.cms.schedule.every(5, 'tick', async function () {
+              await __hostCall('test.record', ['tick-ran']);
+            });
+            api.cms.schedule.cancel('tick');
+          };
+        })();
+      `,
+    })
+    try {
+      await vm.runLifecycle('activate')
+      await vm.runSchedule('acme.polyfills.tick', 5000)
+      const ran = recorder.some(
+        (e) => e.target === 'test.record' && e.args[0] === 'tick-ran',
+      )
+      expect(ran).toBe(false)
+    } finally {
+      vm.dispose()
+    }
+  })
+})
