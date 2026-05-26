@@ -4,11 +4,14 @@
  * its own per-widget endpoint — fires in parallel with the rest of the
  * dashboard's data hooks and unblocks as soon as `installed_plugins`
  * has been scanned.
+ *
+ * Skeleton: `loading={stats === null}` — the Widget primitive renders
+ * the universal skeleton body while loading; we gate the real rows
+ * on `stats &&` so they never see a null value.
  */
 import { PlugSolidIcon } from 'pixel-art-icons/icons/plug-solid'
 import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { Widget } from '@ui/components/Widget'
-import { Skeleton, SkeletonCircle } from '@ui/components/Skeleton'
 import { usePluginsStats, type DashboardPluginRow } from '../hooks/useDashboardStats'
 import styles from './widgets.module.css'
 
@@ -23,10 +26,6 @@ function stateLabel(state: DashboardPluginRow['state']): string {
   if (state === 'error') return 'error'
   return 'off'
 }
-
-// Number of skeleton rows to render while loading — matches the
-// typical fresh-install row count (a few first-party + Analytics).
-const SKELETON_ROWS = 4
 
 export function PluginsWidget({ span, editing }: DashboardWidgetRendererProps) {
   const stats = usePluginsStats()
@@ -45,21 +44,6 @@ export function PluginsWidget({ span, editing }: DashboardWidgetRendererProps) {
       loading={isLoading}
     >
       <div>
-        {isLoading && Array.from({ length: SKELETON_ROWS }, (_, i) => (
-          // Skeleton row matches the real `.pluginRow` layout
-          // (icon, name+version, state dot+label) so when data lands
-          // the row positions are unchanged.
-          <div key={i} className={styles.pluginRow}>
-            <SkeletonCircle size={20} />
-            <span className={styles.pluginName}>
-              <Skeleton width={120} height="0.9em" />
-              <small style={{ marginTop: 2, display: 'inline-block' }}>
-                <Skeleton width={40} height="0.8em" />
-              </small>
-            </span>
-            <Skeleton width={50} height="0.8em" />
-          </div>
-        ))}
         {isEmpty && (
           <p className={styles.feedTime} style={{ padding: '12px 0' }}>
             No plugins installed yet.
@@ -68,7 +52,22 @@ export function PluginsWidget({ span, editing }: DashboardWidgetRendererProps) {
         {!isLoading && plugins.map((p) => (
           <div key={p.id} className={styles.pluginRow}>
             <span className={styles.pluginIcon}>
-              <PlugSolidIcon size={12} aria-hidden="true" />
+              {p.iconUrl ? (
+                // Plugin-declared icon (manifest.icon resolved against
+                // manifest.assetBasePath on the server). Same glyph the
+                // Plugins admin card renders — keeps the dashboard row
+                // visually identifiable with the plugin's brand mark.
+                <img
+                  src={p.iconUrl}
+                  alt=""
+                  className={styles.pluginIconImg}
+                  width={20}
+                  height={20}
+                  loading="lazy"
+                />
+              ) : (
+                <PlugSolidIcon size={12} aria-hidden="true" />
+              )}
             </span>
             <span className={styles.pluginName}>
               {p.name}

@@ -11,6 +11,7 @@ import {
 } from '@core/page-tree/slugs'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import s from '../SettingsModal.module.css'
 
 export function PagesSection() {
@@ -71,7 +72,7 @@ export function PagesSection() {
   }
 
   if (!site) {
-    return <div className={s.noSite}>Loading site...</div>
+    return <SkeletonBlock minHeight={200} ariaLabel="Loading site settings" />
   }
 
   return (

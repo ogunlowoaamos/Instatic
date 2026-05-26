@@ -89,3 +89,6 @@
     border-top: 1px solid var(--editor-border);
     background: var(--editor-surface-2);
 }
+
+/* The dialog body's skeleton is rendered via the shared
+ * `<SkeletonBlock>` primitive — see `src/ui/components/Skeleton/`. */

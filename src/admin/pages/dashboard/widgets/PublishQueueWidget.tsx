@@ -13,16 +13,11 @@
 import { CloudUploadSolidIcon } from 'pixel-art-icons/icons/cloud-upload-solid'
 import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { Widget } from '@ui/components/Widget'
-import { Skeleton } from '@ui/components/Skeleton'
 import {
   usePublishLineupStats,
   type DashboardPublishLineupRow,
 } from '../hooks/useDashboardStats'
 import styles from './widgets.module.css'
-
-// Number of skeleton rows shown while loading — matches the maximum
-// the server returns (3 scheduled + 2 published + 2 drafts = 7).
-const SKELETON_ROWS = 5
 
 function badgeClass(status: DashboardPublishLineupRow['status']): string {
   if (status === 'scheduled') return styles.badgeQueued
@@ -92,23 +87,6 @@ export function PublishQueueWidget({ span, editing }: DashboardWidgetRendererPro
       editing={editing}
       loading={isLoading}
     >
-      {isLoading && (
-        <ul className={styles.wlist} aria-hidden="true">
-          {Array.from({ length: SKELETON_ROWS }, (_, i) => (
-            // Skeleton matches each `wlist` row's two-line shape:
-            // a path on top + (badge, relative-time) below.
-            <li key={i}>
-              <span className={styles.wlistTitle}>
-                <Skeleton width={`${50 + (i % 3) * 12}%`} height="0.9em" />
-              </span>
-              <span className={styles.wlistMeta}>
-                <Skeleton width={56} height="0.75em" />
-                <Skeleton width={40} height="0.75em" />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
       {isEmpty && (
         <p className={styles.feedTime} style={{ padding: '12px 0' }}>
           Nothing in the lineup yet — schedule, publish, or draft a row to

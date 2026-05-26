@@ -27,7 +27,6 @@ import {
 } from '@core/persistence'
 import { StepUpCancelledMessage, useStepUp } from '@admin/shared/StepUp'
 import { pluginAdminUi } from '../PluginAdminUi'
-import styles from './PluginSettingsDialog.module.css'
 
 type SettingDefinition = PluginSettingsSchema[number]
 
@@ -107,6 +106,7 @@ export function PluginSettingsDialog({
       eyebrow="Plugin settings"
       title={pluginName}
       size="lg"
+      loading={loading}
       footer={
         <>
           <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={saving}>
@@ -124,7 +124,6 @@ export function PluginSettingsDialog({
         </>
       }
     >
-      {loading && <p className={styles.empty}>Loading settings...</p>}
       {loadError && (
         <pluginAdminUi.Alert tone="danger" title="Could not load settings">
           {loadError}

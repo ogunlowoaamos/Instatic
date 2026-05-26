@@ -98,6 +98,9 @@ export function UsersPage() {
       description="Manage admin access, custom roles, and security audit events."
       tabs={tabs}
     >
+      {/* No `loading` on the layout — the tabs below own their own
+          skeleton states, each matching their real (DataTable) layout
+          1:1 so the column ladder stays put when the data arrives. */}
       <div className={styles.body}>
         {data.error && <p className={styles.error} role="alert">{data.error}</p>}
 

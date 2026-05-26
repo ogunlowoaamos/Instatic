@@ -34,6 +34,14 @@ The first visit creates the site and admin account.
 
 `bun run dev` defaults to SQLite at `.tmp/dev.db`. Set `DATABASE_URL=postgres://...` to use Postgres instead.
 
+To try the app locally in production mode (built admin SPA from `./dist`, no Vite, no `--watch`, same SQLite dev DB):
+
+```sh
+bun run start
+```
+
+Builds the admin SPA, then starts the server on `http://localhost:3001`. If port 3001 is already held by a dev server (or a previous `bun run start`), you'll be prompted whether to kill the holder and take over. `bun run dev` uses the same prompt for ports 3001 and 5173.
+
 ## Production Deployment
 
 The default self-host install is **SQLite + one container** — recommended for most users (single sites, hobby and small-business installs, single-author or small editorial teams). No `.env` file required:

@@ -15,6 +15,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { useEditorStore } from '@site/store/store'
 import { Input, Textarea } from '@ui/components/Input'
 import { Button } from '@ui/components/Button'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { ImagesSolidIcon } from 'pixel-art-icons/icons/images-solid'
 import {
   listCmsMediaAssets,
@@ -40,7 +41,7 @@ export function GeneralSection() {
   const updateSiteSettings = useEditorStore((state) => state.updateSiteSettings)
 
   if (!site) {
-    return <div className={s.noSite}>Loading site...</div>
+    return <SkeletonBlock minHeight={200} ariaLabel="Loading site settings" />
   }
 
   const { settings } = site

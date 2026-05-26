@@ -51,6 +51,12 @@ export interface DashboardPluginRow {
   name: string
   version: string
   state: 'active' | 'disabled' | 'error'
+  /**
+   * Public URL for the plugin's manifest-declared icon, resolved on the
+   * server. `null` when the plugin omits an icon — the widget renders
+   * its fallback plug glyph in that case.
+   */
+  iconUrl: string | null
 }
 
 export interface DashboardPublishLineupRow {

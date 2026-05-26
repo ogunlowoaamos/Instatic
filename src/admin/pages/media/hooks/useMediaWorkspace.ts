@@ -180,7 +180,11 @@ function errorMessage(err: unknown, fallback: string): string {
 export function useMediaWorkspace(): UseMediaWorkspaceResult {
   const [folders, setFolders] = useState<CmsMediaFolder[]>([])
   const [assets, setAssets] = useState<CmsMediaAsset[]>([])
-  const [loading, setLoading] = useState(false)
+  // Start in `loading: true` so the canvas renders its skeleton on
+  // first mount — without this the empty `assets` array would flash
+  // the "No media yet" empty state for the duration of the first
+  // round-trip, which reads like a fresh-install empty library.
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [folderSelection, setFolderSelectionState] = useState<FolderSelection>(FOLDER_ALL)
   const [selectedAssetId, setSelectedAssetIdState] = useState<string | null>(null)

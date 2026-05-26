@@ -8,6 +8,7 @@ import { createUniquePageSlug, pagePublicPath } from '@core/page-tree/slugs'
 import { Panel, useAutoFocusPanel } from '@admin/shared/Panel'
 import { Button } from '@ui/components/Button'
 import { EmptyState } from '@ui/components/EmptyState'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import type { IconComponent } from 'pixel-art-icons/types'
 import { FilePlusSolidIcon } from 'pixel-art-icons/icons/file-plus-solid'
 import { FileTextSolidIcon } from 'pixel-art-icons/icons/file-text-solid'
@@ -278,7 +279,7 @@ export function SiteExplorerPanel({
         onClose={() => setSiteExplorerPanelOpen(false)}
       >
         {!site ? (
-            <EmptyState compact title="Loading site..." />
+            <SkeletonBlock minHeight={160} ariaLabel="Loading site" />
           ) : (
             <>
               <ExplorerSection

@@ -58,6 +58,9 @@ declare global {
   } | undefined
 }
 
+/** The frozen runtime shape we publish on `globalThis.__pagebuilder`. */
+type PluginRuntime = NonNullable<typeof globalThis.__pagebuilder>
+
 // Memoised install promise. The first caller triggers the dynamic
 // imports; concurrent / subsequent callers receive the same resolved
 // promise (idempotent).
@@ -157,6 +160,9 @@ async function doInstall(): Promise<void> {
       Widget: hostUiMod.Widget,
       WidgetList: hostUiMod.WidgetList,
       WidgetListRow: hostUiMod.WidgetListRow,
+      SkeletonBlock: hostUiMod.SkeletonBlock,
+      SkeletonCards: hostUiMod.SkeletonCards,
+      SkeletonRows: hostUiMod.SkeletonRows,
     }),
     hostHooks: Object.freeze({
       PluginContext: hostHooksMod.PluginContext,
@@ -193,5 +199,15 @@ async function doInstall(): Promise<void> {
   // overwrite `__pagebuilder.hostUi` etc. and substitute components.
   // The shim files in `public/runtime/*.js` rely on these references being
   // stable for the lifetime of the page.
-  globalThis.__pagebuilder = Object.freeze(runtime)
+  //
+  // The cast pins the runtime's React/ReactDOM/JSX-runtime members to the
+  // type-only namespace shape declared on `globalThis.__pagebuilder`. Under
+  // `verbatimModuleSyntax: true` + `moduleResolution: bundler` + no
+  // `esModuleInterop`, TS infers `await import('react')` as a wider union
+  // (it includes the synthetic CJS-interop default shape on top of the
+  // namespace). The runtime values ARE the namespaces — there is no second
+  // module instance in play — so the narrowing is a true statement, not a
+  // band-aid. This is the only place that knows how the dynamic-import
+  // results land in the strict global contract.
+  globalThis.__pagebuilder = Object.freeze(runtime) as PluginRuntime
 }

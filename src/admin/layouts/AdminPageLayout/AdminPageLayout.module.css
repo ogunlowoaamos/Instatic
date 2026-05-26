@@ -98,3 +98,6 @@
         justify-content: flex-start;
     }
 }
+
+/* The page body's skeleton is rendered via the shared
+ * `<SkeletonBlock>` primitive — see `src/ui/components/Skeleton/`. */

@@ -10,6 +10,12 @@ import { isSandboxRelatedError, usePluginsWorkspace } from './hooks/usePluginsWo
 import { notifyCmsPluginsChanged } from './utils/pluginEvents'
 import styles from './PluginsPage.module.css'
 
+// Number of skeleton plugin cards rendered while the installed-plugin
+// list is loading. Three matches a typical fresh-install showing
+// (e.g. host plugins + Analytics). PluginCard's `loading` prop owns
+// the actual skeleton markup — page-level code only decides count.
+const SKELETON_CARD_COUNT = 3
+
 export function PluginsPage() {
   const vm = usePluginsWorkspace()
   const {
@@ -83,9 +89,19 @@ export function PluginsPage() {
           />
         )}
 
-        <div className={styles.pluginsList} aria-label="Installed plugins">
+        <div
+          className={styles.pluginsList}
+          aria-label="Installed plugins"
+          aria-busy={loading || undefined}
+        >
           {loading ? (
-            <p className={styles.emptyState}>Loading plugins...</p>
+            // Render N skeleton cards while the plugins payload is in
+            // flight. PluginCard renders its own universal skeleton
+            // body when `loading` is set — no per-page skeleton markup,
+            // no mock data.
+            Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
+              <PluginCard key={i} loading />
+            ))
           ) : payload.plugins.length === 0 ? (
             <p className={styles.emptyState}>No plugins installed yet.</p>
           ) : (

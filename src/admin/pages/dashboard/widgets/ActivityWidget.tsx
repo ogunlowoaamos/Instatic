@@ -15,16 +15,11 @@ import type { ReactNode } from 'react'
 import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { UserAvatar } from '@admin/shared/UserAvatar'
 import { Widget } from '@ui/components/Widget'
-import { Skeleton, SkeletonCircle } from '@ui/components/Skeleton'
 import {
   useRecentActivityStats,
   type DashboardActivityEntry,
 } from '../hooks/useDashboardStats'
 import styles from './widgets.module.css'
-
-// Number of skeleton feed rows shown while loading — matches the
-// typical viewport of the Activity widget (5–6 rows).
-const SKELETON_ROWS = 6
 
 /**
  * Diameter of the actor avatar in the feed row. Picked to fit the
@@ -180,21 +175,6 @@ export function ActivityWidget({ span, editing }: DashboardWidgetRendererProps) 
       loading={isLoading}
     >
       <div className={styles.feed}>
-        {isLoading && Array.from({ length: SKELETON_ROWS }, (_, i) => (
-          // Match `.feedRow` shape: avatar + 2-line body + relative time.
-          // Vary the body width slightly per row so the feed reads as
-          // "different messages loading" rather than a perfectly
-          // uniform stack.
-          <div key={i} className={styles.feedRow}>
-            <SkeletonCircle size={AVATAR_SIZE} />
-            <span className={styles.feedBody}>
-              <Skeleton width={`${60 + (i % 4) * 8}%`} height="0.85em" />
-            </span>
-            <span className={styles.feedTime}>
-              <Skeleton width={28} height="0.75em" />
-            </span>
-          </div>
-        ))}
         {isEmpty && (
           <p className={styles.feedTime} style={{ padding: '12px 0' }}>
             Nothing has happened yet — edits, publishes, and plugin changes

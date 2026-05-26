@@ -30,6 +30,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { Toolbar, ToolbarDivider } from '@site/toolbar/Toolbar'
 import { SettingsButton } from '@site/toolbar/SettingsButton'
 import { AdminSectionNavigation } from '@admin/shared/AdminSectionNavigation'
+import { SkeletonCards } from '@ui/components/Skeleton'
 import { useEditorSelectPreference } from '@site/preferences/editorPreferences'
 import { useInstalledEditorPlugins } from '@admin/pages/plugins/hooks/useInstalledEditorPlugins'
 import { usePluginEventBridge } from '@admin/pages/plugins/hooks/usePluginEventBridge'
@@ -74,6 +75,15 @@ interface AdminPageLayoutProps {
   toolbarRightSlot?: ReactNode
   /** Optional id for the H1 — useful for `aria-labelledby` on the body. */
   titleId?: string
+  /**
+   * True while the page's primary content is being fetched. Renders a
+   * universal page-shaped skeleton in place of `children` (a heading
+   * line + 2 text lines + a content block) and sets `aria-busy="true"`
+   * on the `<main>` body. Same three-bar visual language the
+   * `<Widget>`, `<PluginCard>`, and `<Dialog>` primitives use. One
+   * prop, no per-page skeleton markup.
+   */
+  loading?: boolean
   /** Page body. */
   children?: ReactNode
 }
@@ -86,6 +96,7 @@ export function AdminPageLayout({
   actions,
   toolbarRightSlot,
   titleId,
+  loading = false,
   children,
 }: AdminPageLayoutProps) {
   // Lightweight admin-shell hydration:
@@ -129,7 +140,7 @@ export function AdminPageLayout({
         rightSlot={rightSlot}
       />
 
-      <main className={styles.body}>
+      <main className={styles.body} aria-busy={loading || undefined}>
         <div className={styles.container}>
           <header className={styles.header}>
             <div className={styles.titleGroup}>
@@ -147,7 +158,7 @@ export function AdminPageLayout({
               </div>
             )}
           </header>
-          {children}
+          {loading ? <SkeletonCards count={3} /> : children}
         </div>
       </main>
 
@@ -159,3 +170,4 @@ export function AdminPageLayout({
     </div>
   )
 }
+

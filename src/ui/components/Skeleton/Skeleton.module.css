@@ -1,52 +1,71 @@
-/* Skeleton — shimmering placeholder rectangle.
+/* Skeleton primitives — layout only.
  *
- * Two layers:
- *   1. Base fill          — `--editor-surface-3` (slightly elevated tone
- *                            relative to the widget card's
- *                            `--editor-surface-2`).
- *   2. Animated highlight — a horizontally-translated gradient using
- *                            `--editor-surface-4` so the shimmer reads
- *                            as a soft light pass.
+ * The shimmer paint, animation, and colour theming are owned by the
+ * `react-loading-skeleton` package via the `<SkeletonTheme>` in
+ * `src/admin/main.tsx`. This file only adds layout for the THREE
+ * editor-specific shapes:
  *
- * The animation duration / easing is tuned to feel like "active work"
- * (1.4 s linear loop) without crossing into nervous-blink territory.
+ *   • `.skeletonBlock`  — single three-bar block
+ *   • `.skeletonCards`  — vertical stack of skeleton cards
+ *   • `.skeletonRows`   — vertical stack of thin shimmer rows
+ *
+ * Plus the `.skeletonCard` card-chrome utility that matches the
+ * real `--editor-surface-2` cards on Plugins / Users / Posts pages.
  */
 
-.skeleton {
-    display: inline-block;
-    vertical-align: middle;
-    background-color: var(--editor-surface-3);
-    background-image: linear-gradient(
-        90deg,
-        var(--editor-surface-3) 0%,
-        var(--editor-surface-4) 50%,
-        var(--editor-surface-3) 100%
-    );
-    background-size: 200% 100%;
-    background-repeat: no-repeat;
-    animation: skeletonShimmer 1400ms ease-in-out infinite;
+/* --- SkeletonBlock --- */
+.skeletonBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
 }
 
+/* --- SkeletonCards --- */
+.skeletonCards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.skeletonCard {
+    background: var(--editor-surface-2);
+    border-radius: 16px;
+    padding: 14px 16px;
+}
+
+/* --- SkeletonRows --- */
+/* The package renders each row as a span with `display: inline-block`.
+ * `display: flex` + `flex-direction: column` on the wrapper isn't
+ * enough on its own because the package emits the rows inside its
+ * own container span. We add row gap via the inner spans below. */
+.skeletonRows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.skeletonRows :global(span.react-loading-skeleton) {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.skeletonRows :global(span.react-loading-skeleton:last-child) {
+    margin-bottom: 0;
+}
+
+/* --- SkeletonText --- */
 .textGroup {
     display: flex;
     flex-direction: column;
     width: 100%;
 }
 
-/* Stops the shimmer for users who opted out of motion. The bare fill
-   communicates "loading" through its presence + the surrounding
-   `aria-busy` semantic; no animation required. */
-@media (prefers-reduced-motion: reduce) {
-    .skeleton {
-        animation: none;
-    }
-}
-
-@keyframes skeletonShimmer {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
+/* --- accessibility helper --- */
+.statusContainer {
+    /* Container span the package wraps around each Skeleton. We use it
+     * as the `role="status"` host when the caller passes an aria label. */
+    display: inline-block;
 }

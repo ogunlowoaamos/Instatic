@@ -1,11 +1,23 @@
 import { StrictMode } from 'react'
 import { createRoot, type ErrorInfo } from 'react-dom/client'
 import { flushSync } from 'react-dom'
+import { SkeletonTheme } from 'react-loading-skeleton'
 import { Router } from './lib/routing'
 import { AdminRoutes } from './router'
 import { ErrorBoundary, flattenErrorChain, logErrorChain } from '@ui/components/ErrorBoundary'
 import { ToastProvider, pushToast } from '@ui/components/Toast'
+import 'react-loading-skeleton/dist/skeleton.css'
 import '../styles/globals.css'
+
+// Theme tokens shared with every <Skeleton>, <SkeletonBlock>, etc. across
+// the admin. Surface tones come from the editor's design tokens so the
+// shimmer reads as part of the dark surface palette instead of the
+// package's default light theme. Border radius matches `--editor-radius-sm`
+// (3 px) — the same radius the rest of the editor's small UI elements
+// use, so skeleton bars land flush with the chrome they replace.
+const SKELETON_THEME_BASE = '#323232'      // --editor-surface-3
+const SKELETON_THEME_HIGHLIGHT = '#4a4a4a'  // --editor-surface-4
+const SKELETON_THEME_RADIUS = 3              // --editor-radius-sm
 
 
 // `installPluginRuntime()` used to be called here, eagerly. That dragged
@@ -151,12 +163,19 @@ if (typeof window !== 'undefined' && (window as unknown as { __pbAuthed?: number
 flushSync(() => {
   root.render(
     <StrictMode>
-      <ErrorBoundary location="admin-shell">
-        <Router>
-          <AdminRoutes />
-        </Router>
-      </ErrorBoundary>
-      <ToastProvider />
+      <SkeletonTheme
+        baseColor={SKELETON_THEME_BASE}
+        highlightColor={SKELETON_THEME_HIGHLIGHT}
+        borderRadius={SKELETON_THEME_RADIUS}
+        duration={1.4}
+      >
+        <ErrorBoundary location="admin-shell">
+          <Router>
+            <AdminRoutes />
+          </Router>
+        </ErrorBoundary>
+        <ToastProvider />
+      </SkeletonTheme>
     </StrictMode>,
   )
 })

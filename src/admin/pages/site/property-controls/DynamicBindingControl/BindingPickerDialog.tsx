@@ -23,7 +23,7 @@ import { SearchBar } from '@ui/components/SearchBar'
 import { Separator } from '@ui/components/Separator'
 import { BracesIcon } from 'pixel-art-icons/icons/braces'
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
-import { LoaderIcon } from 'pixel-art-icons/icons/loader'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { ImageSolidIcon } from 'pixel-art-icons/icons/image-solid'
 import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
 import { getFieldIcon } from '@admin/pages/data/utils/fieldIcons'
@@ -861,9 +861,7 @@ export function BindingPickerDialog({
     if (previewLoading && previewItems.length === 0) {
       return (
         <div className={styles.previewPane}>
-          <div className={styles.loadingState} role="status" aria-label="Loading sample rows">
-            <LoaderIcon size={16} aria-hidden="true" />
-          </div>
+          <SkeletonBlock minHeight={140} ariaLabel="Loading sample rows" />
         </div>
       )
     }
@@ -925,11 +923,7 @@ export function BindingPickerDialog({
   // ─── Dialog body ───────────────────────────────────────────────────────
   function renderBody() {
     if (metaLoading) {
-      return (
-        <div className={styles.loadingState} role="status" aria-label="Loading data tables">
-          <LoaderIcon size={16} aria-hidden="true" />
-        </div>
-      )
+      return <SkeletonBlock minHeight={200} ariaLabel="Loading data tables" />
     }
     if (metaError) {
       return (

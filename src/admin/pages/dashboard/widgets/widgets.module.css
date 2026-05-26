@@ -159,6 +159,19 @@
     display: grid;
     place-items: center;
     color: var(--editor-text-secondary);
+    overflow: hidden;
+}
+
+/* Plugin-supplied icon image inside the tile. Sits comfortably inside
+   the 28px tile with a couple of pixels of padding so the glyph reads
+   as a contained mark, not edge-to-edge artwork. `object-fit: contain`
+   so non-square icons (rare, but valid) are letterboxed rather than
+   cropped. */
+.pluginIconImg {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    display: block;
 }
 
 .pluginName {

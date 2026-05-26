@@ -1,5 +1,6 @@
 import { Input, Textarea } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { cn } from '@ui/cn'
 import { Settings2SolidIcon } from 'pixel-art-icons/icons/settings-2-solid'
 import type { CmsMediaAsset } from '@core/persistence'
@@ -261,6 +262,11 @@ export function ContentSettingsPanel({
 }
 
 function ContentSettingsLoading() {
+  // Universal three-bar block — same visual as every other settings /
+  // dialog / panel loading region in the editor. The bespoke
+  // `settingsSkeleton*` shapes that used to render label / input /
+  // textarea silhouettes have been retired in favour of
+  // `<SkeletonBlock>`.
   return (
     <div
       className={styles.settingsSkeleton}
@@ -268,13 +274,7 @@ function ContentSettingsLoading() {
       aria-busy="true"
       aria-label="Loading content settings"
     >
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonLabel)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonInput)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonLabel)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonInput)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonLabel)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonTextarea)} />
-      <span className={cn(styles.skeletonShape, styles.settingsSkeletonCard)} />
+      <SkeletonBlock minHeight={200} />
     </div>
   )
 }

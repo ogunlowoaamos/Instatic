@@ -113,3 +113,44 @@
     color: var(--editor-text-subtle);
     cursor: grab;
 }
+
+/* The skeleton body is rendered via the shared `<SkeletonBlock>`
+ * primitive from `src/ui/components/Skeleton/` — see that module for
+ * the three-bar visual definition. No per-widget skeleton CSS lives
+ * here. */
+
+/* `<WidgetSkeleton>` placeholder used when the widget definition
+ * isn't yet registered (e.g. plugin widget mid-activation). Mirrors
+ * the real Widget chrome's tint-dot + title row so the layout slot
+ * reads as "loading" instead of an empty hole. */
+.dotPlaceholder {
+    background: var(--editor-surface-3);
+}
+
+.titlePlaceholder {
+    display: inline-flex;
+    align-items: center;
+}
+
+.titlePlaceholderBar {
+    display: inline-block;
+    width: 84px;
+    height: 9px;
+    border-radius: var(--editor-radius-sm);
+    background-color: var(--editor-surface-3);
+    background-image: linear-gradient(
+        90deg,
+        var(--editor-surface-3) 0%,
+        var(--editor-surface-4) 50%,
+        var(--editor-surface-3) 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skeletonShimmer 1400ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .titlePlaceholderBar {
+        animation: none;
+    }
+}

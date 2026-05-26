@@ -48,3 +48,6 @@ export const Textarea = G.Textarea
 export const Widget = G.Widget
 export const WidgetList = G.WidgetList
 export const WidgetListRow = G.WidgetListRow
+export const SkeletonBlock = G.SkeletonBlock
+export const SkeletonCards = G.SkeletonCards
+export const SkeletonRows = G.SkeletonRows

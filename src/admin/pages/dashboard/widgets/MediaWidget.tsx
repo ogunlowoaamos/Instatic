@@ -21,7 +21,6 @@ import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { Widget } from '@ui/components/Widget'
 import { Image } from '@ui/components/Image'
 import { Button } from '@ui/components/Button'
-import { Skeleton } from '@ui/components/Skeleton'
 import { listCmsMediaAssets, type CmsMediaAsset } from '@core/persistence/cmsMedia'
 import { MediaViewerWindow } from '@admin/pages/media/components/MediaViewerWindow/MediaViewerWindow'
 import { useStandaloneMediaEditor } from '@admin/pages/media/hooks/useStandaloneMediaEditor'
@@ -124,24 +123,7 @@ export function MediaWidget({ span, editing }: DashboardWidgetRendererProps) {
         editing={editing}
         loading={isLoading}
       >
-        {isLoading ? (
-          <>
-            <Skeleton width={88} height={32} />
-            <Skeleton width="55%" height="0.9em" />
-            {/* 8×2 grid of skeleton cells — same shape as the
-                real mosaic. */}
-            <div className={styles.mediaGrid} aria-hidden="true">
-              {Array.from({ length: 16 }, (_, i) => (
-                <Skeleton
-                  key={i}
-                  width="100%"
-                  height="100%"
-                  className={styles.mediaCell}
-                />
-              ))}
-            </div>
-          </>
-        ) : (<>
+        {!isLoading && (<>
         <StatValue
           value={(count ?? 0).toLocaleString()}
           sub={<span>files · {formatSize(totalBytes ?? 0)}</span>}

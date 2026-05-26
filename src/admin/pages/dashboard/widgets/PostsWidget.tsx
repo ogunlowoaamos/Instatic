@@ -3,12 +3,14 @@
  * last 28 days. Data comes from `usePostsStats()` (server-side
  * aggregated from `data_rows.published_at` across every
  * `kind: 'postType'` table).
+ *
+ * Skeleton: `loading={stats === null}` and the Widget primitive
+ * handles the rest.
  */
 import { PenSquareSolidIcon } from 'pixel-art-icons/icons/pen-square-solid'
 import { Bars, StatValue } from '@ui/components/charts'
 import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { Widget } from '@ui/components/Widget'
-import { Skeleton } from '@ui/components/Skeleton'
 import { usePostsStats } from '../hooks/useDashboardStats'
 
 // Last 6 days of the histogram are highlighted as the "current week".
@@ -16,8 +18,6 @@ const ACCENT_INDEXES = [22, 23, 24, 25, 26, 27]
 
 export function PostsWidget({ span, editing }: DashboardWidgetRendererProps) {
   const stats = usePostsStats()
-  const isLoading = stats === null
-
   return (
     <Widget
       widgetId="posts"
@@ -26,18 +26,9 @@ export function PostsWidget({ span, editing }: DashboardWidgetRendererProps) {
       tint="peach"
       span={span}
       editing={editing}
-      loading={isLoading}
+      loading={stats === null}
     >
-      {isLoading ? (
-        <>
-          <Skeleton width={72} height={32} />
-          <Skeleton width="65%" height="0.9em" />
-          {/* Bars-equivalent skeleton — a single full-width strip at the
-              same nominal height as <Bars/> so the histogram drops in
-              without reflow. */}
-          <Skeleton width="100%" height={48} />
-        </>
-      ) : (
+      {stats && (
         <>
           <StatValue
             value={stats.total.toLocaleString()}

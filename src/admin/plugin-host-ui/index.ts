@@ -75,10 +75,20 @@ export { Widget } from '@ui/components/Widget'
 export { RangeTabs } from '@ui/components/RangeTabs'
 export { Tabs, TabList, Tab, TabPanel } from '@ui/components/Tabs'
 export { WidgetList, WidgetListRow } from '@ui/components/WidgetList'
+export {
+  SkeletonBlock,
+  SkeletonCards,
+  SkeletonRows,
+} from '@ui/components/Skeleton'
 export type { WidgetProps, WidgetTint, WidgetIcon } from '@ui/components/Widget'
 export type { RangeTabsProps } from '@ui/components/RangeTabs'
 export type { TabsProps, TabListProps, TabProps, TabPanelProps } from '@ui/components/Tabs'
 export type { WidgetListProps, WidgetListRowProps } from '@ui/components/WidgetList'
+export type {
+  SkeletonBlockProps,
+  SkeletonCardsProps,
+  SkeletonRowsProps,
+} from '@ui/components/Skeleton'
 
 export type {
   PluginUiAlertProps as AlertProps,

@@ -259,3 +259,34 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--editor-text-muted);
 }
+
+/* ===========================================================================
+ * Global skeleton shimmer keyframes.
+ *
+ * Used by `.skeletonBar` in `Widget.module.css`, `PluginCard.module.css`,
+ * `Dialog.module.css`, `AdminPageLayout.module.css`, and the Skeleton
+ * primitive's `.skeleton` class. Living here (rather than duplicated in
+ * each module) means every skeleton on the page pulses in sync — same
+ * 1.4 s loop, same easing — so multiple loading regions read as one
+ * coordinated effect rather than independent twitches.
+ *
+ * The class definitions in those modules each render a shimmering
+ * `linear-gradient` with `background-size: 200% 100%`; this keyframe
+ * just animates the gradient's `background-position` from one edge to
+ * the other.
+ * ===========================================================================
+ */
+@keyframes skeletonShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* `prefers-reduced-motion` opt-out is enforced per-CSS-module on each
+ * skeleton class (each `.skeletonBar` rule has a paired `@media` that
+ * stops its animation). The static fill still communicates "this region
+ * is loading" via its surface tone + the `aria-busy="true"` semantic
+ * on the host wrapper. */

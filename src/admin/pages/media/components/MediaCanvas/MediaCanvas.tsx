@@ -19,6 +19,7 @@ import { EmptyState } from '@ui/components/EmptyState'
 import { FileUpload } from '@ui/components/FileUpload'
 import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import { Select } from '@ui/components/Select'
+import { Skeleton } from '@ui/components/Skeleton'
 import {
   ExplorerItemContextMenu,
   ExplorerRenameDialog,
@@ -230,10 +231,12 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
   const showingMatching = visibleAssets.length
 
   // The big EmptyState below carries the message whenever `showingMatching === 0`,
-  // so the status bar only narrates the non-empty cases (count, loading, error).
-  // Anything else would render two empty-state messages on top of each other.
+  // so the status bar only narrates the non-empty cases (count, error).
+  // While loading we leave the label empty — the canvas's own skeleton
+  // (or the empty grid) carries the "loading" signal visually; doubling
+  // it up with a text label is redundant.
   const headerLabel = useMemo(() => {
-    if (workspace.loading) return 'Loading…'
+    if (workspace.loading) return null
     if (workspace.error) return workspace.error
     if (showingMatching === 0) return null
     return `${showingMatching} ${showingMatching === 1 ? 'item' : 'items'}`
@@ -316,7 +319,76 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
       )}
 
       <div className={styles.body}>
-        {showingMatching === 0 ? (
+        {workspace.loading && showingMatching === 0 ? (
+          // Skeleton mirrors the actual `AssetTile` / `AssetRow`
+          // layout 1:1 so the swap is silent:
+          //   - Grid mode: square preview block + filename + size meta
+          //   - List mode: small preview + filename + size meta
+          // Each skeleton wraps in the same `.tileItem` / `.rowItem`
+          // chrome so the grid track / row spacing matches the
+          // populated state.
+          viewMode === 'grid' ? (
+            <ul
+              className={styles.grid}
+              role="list"
+              aria-busy="true"
+              aria-label="Loading media"
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <li
+                  key={`skeleton-tile-${i}`}
+                  className={styles.tileItem}
+                  aria-hidden="true"
+                >
+                  <span className={styles.tile}>
+                    <span className={styles.tilePreview}>
+                      <Skeleton
+                        width="100%"
+                        height="100%"
+                        style={{ display: 'block' }}
+                      />
+                    </span>
+                    <span className={styles.tileBody}>
+                      <span className={styles.tileLabel}>
+                        <Skeleton width={`${60 + (i % 4) * 10}%`} height={12} />
+                      </span>
+                      <span className={styles.tileMeta}>
+                        <Skeleton width={48} height={10} />
+                      </span>
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul
+              className={styles.list}
+              role="list"
+              aria-busy="true"
+              aria-label="Loading media"
+            >
+              {Array.from({ length: 6 }, (_, i) => (
+                <li
+                  key={`skeleton-row-${i}`}
+                  className={styles.rowItem}
+                  aria-hidden="true"
+                >
+                  <span className={styles.row}>
+                    <span className={styles.rowPreview}>
+                      <Skeleton width="100%" height="100%" />
+                    </span>
+                    <span className={styles.rowLabel}>
+                      <Skeleton width={`${50 + (i % 3) * 14}%`} height={12} />
+                    </span>
+                    <span className={styles.rowMeta}>
+                      <Skeleton width={56} height={10} />
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : showingMatching === 0 ? (
           <EmptyState
             variant="centered"
             icon={<ImagesSolidIcon size={28} />}

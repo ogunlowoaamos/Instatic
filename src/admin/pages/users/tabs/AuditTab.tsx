@@ -20,6 +20,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@ui/components/DataTable'
+import { Skeleton } from '@ui/components/Skeleton'
 import { Badge } from '../components/Badge'
 import { auditActor, auditDetails, auditTitle } from '../utils/audit'
 import { formatDateTime } from '../utils/format'
@@ -39,7 +40,28 @@ export function AuditTab({ data }: { data: UsersPageData }) {
           <p>Security and access changes across the admin area.</p>
         </div>
       </div>
-      {events.length > 0 ? (
+      {data.isLoading ? (
+        <DataTable aria-label="Loading audit events" density="compact" aria-busy="true">
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeader scope="col">Event</DataTableHeader>
+              <DataTableHeader scope="col">Actor</DataTableHeader>
+              <DataTableHeader scope="col">Details</DataTableHeader>
+              <DataTableHeader scope="col">Time</DataTableHeader>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {Array.from({ length: 4 }, (_, i) => (
+              <DataTableRow key={`skeleton-${i}`}>
+                <DataTableCell><Skeleton width={180} height={13} /></DataTableCell>
+                <DataTableCell><Skeleton width={120} height={12} /></DataTableCell>
+                <DataTableCell><Skeleton width={80} height={18} radius={999} /></DataTableCell>
+                <DataTableCell><Skeleton width={100} height={12} /></DataTableCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      ) : events.length > 0 ? (
         <DataTable aria-label="Audit events" density="compact">
           <DataTableHead>
             <DataTableRow>

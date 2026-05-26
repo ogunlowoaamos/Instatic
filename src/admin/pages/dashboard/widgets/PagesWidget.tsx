@@ -3,19 +3,21 @@
  * from `usePagesStats()`. The "+N this week" delta reads
  * `deltaPublishedThisWeek` from the server-side count of pages
  * whose `published_at` is within the trailing 7 days.
+ *
+ * Loading state: passing `loading={isLoading}` to `<Widget>` is the
+ * entire skeleton story. The Widget primitive renders the universal
+ * skeleton body until `stats` resolves; we gate the real children on
+ * `stats &&` so they never see a null value.
  */
 import { FileTextSolidIcon } from 'pixel-art-icons/icons/file-text-solid'
 import { StatValue, Delta } from '@ui/components/charts'
 import type { DashboardWidgetRendererProps } from '@core/dashboard'
 import { Widget } from '@ui/components/Widget'
-import { Skeleton } from '@ui/components/Skeleton'
 import { usePagesStats } from '../hooks/useDashboardStats'
 import styles from './widgets.module.css'
 
 export function PagesWidget({ span, editing }: DashboardWidgetRendererProps) {
   const stats = usePagesStats()
-  const isLoading = stats === null
-
   return (
     <Widget
       widgetId="pages"
@@ -24,22 +26,9 @@ export function PagesWidget({ span, editing }: DashboardWidgetRendererProps) {
       tint="lilac"
       span={span}
       editing={editing}
-      loading={isLoading}
+      loading={stats === null}
     >
-      {isLoading ? (
-        <>
-          {/* Skeleton matches the StatValue + sub-row + footer layout
-              so when data lands the layout doesn't shift. The big
-              number gets 48px of height (matches StatValue's `value`
-              font-size at the widget's typical density). */}
-          <Skeleton width={72} height={32} />
-          <Skeleton width="55%" height="0.9em" />
-          <div className={styles.subFootRow}>
-            <Skeleton width={72} height="0.85em" />
-            <Skeleton width={88} height="0.85em" />
-          </div>
-        </>
-      ) : (
+      {stats && (
         <>
           <StatValue
             value={stats.published.toLocaleString()}

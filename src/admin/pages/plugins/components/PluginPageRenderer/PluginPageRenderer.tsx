@@ -32,6 +32,7 @@ import {
   type PluginContextValue,
 } from '@admin/plugin-host-hooks'
 import { ensurePluginRuntime } from '@admin/pluginRuntimeBootstrap'
+import { SkeletonBlock, SkeletonRows } from '@ui/components/Skeleton'
 import styles from '../../PluginsPage.module.css'
 
 interface PluginPageRendererProps {
@@ -189,7 +190,11 @@ function PluginAppPage({
   return (
     <>
       {visibleState.kind === 'loading' && (
-        <p className={styles.emptyState}>Loading plugin app...</p>
+        // Universal three-bar skeleton — same visual as every other
+        // loading region in the editor (dashboard widgets, dialogs,
+        // page bodies). Plugin apps that take longer to load read
+        // identically to the host's own loading surfaces.
+        <SkeletonBlock minHeight={240} ariaLabel="Loading plugin app" />
       )}
       {visibleState.kind === 'error' && (
         <p className={styles.error} role="alert">{visibleState.message}</p>
@@ -295,7 +300,20 @@ function PluginResourcePage({ page }: { page: ResourcePluginPageRoute }) {
   return (
     <>
       {loading ? (
-        <p className={styles.emptyState}>Loading records...</p>
+        // Skeleton for the resource records page — a form-block + a few
+        // record rows. Same layout the loaded page renders.
+        <div
+          className={styles.resourceLayout}
+          aria-busy="true"
+          aria-label="Loading records"
+        >
+          <div className={styles.resourceForm}>
+            <SkeletonBlock minHeight={200} />
+          </div>
+          <div className={styles.resourceRecords}>
+            <SkeletonRows count={3} rowHeight={48} />
+          </div>
+        </div>
       ) : error ? (
         <p className={styles.error} role="alert">{error}</p>
       ) : resource ? (

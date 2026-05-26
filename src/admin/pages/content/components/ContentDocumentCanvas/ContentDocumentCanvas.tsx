@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type KeyboardEvent } from 'react'
 import { Button } from '@ui/components/Button'
 import { Textarea } from '@ui/components/Input'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { cn } from '@ui/cn'
 import { FilePlusSolidIcon } from 'pixel-art-icons/icons/file-plus-solid'
 import { createParagraphBlock } from '@core/markdown/blockModel'
@@ -171,6 +172,12 @@ function resizeTitleField(node: HTMLTextAreaElement | null) {
 }
 
 function ContentCanvasLoading() {
+  // Universal three-bar skeleton — matches every other loading region
+  // in the editor (dashboard widgets, plugin cards, dialogs, admin
+  // page bodies). The bespoke title / line / block shapes this file
+  // used to render have been retired in favour of `<SkeletonBlock>`
+  // so the document canvas loads with the same visual language as
+  // the rest of the app.
   return (
     <div
       className={styles.canvasLoading}
@@ -178,10 +185,7 @@ function ContentCanvasLoading() {
       aria-busy="true"
       aria-label="Loading content"
     >
-      <span className={cn(styles.skeletonShape, styles.canvasSkeletonTitle)} />
-      <span className={cn(styles.skeletonShape, styles.canvasSkeletonLine)} />
-      <span className={cn(styles.skeletonShape, styles.canvasSkeletonShortLine)} />
-      <span className={cn(styles.skeletonShape, styles.canvasSkeletonBlock)} />
+      <SkeletonBlock minHeight={240} />
     </div>
   )
 }

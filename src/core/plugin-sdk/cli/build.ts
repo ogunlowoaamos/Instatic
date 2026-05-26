@@ -237,6 +237,21 @@ async function bundleEntrypoint(
       splitting: false,
       minify: false,
       external,
+      // Force production JSX. Without this, Bun's transpiler emits
+      // `import { jsxDEV } from "react/jsx-dev-runtime"` for every JSX
+      // expression — and that's fatal in a production host because React
+      // 19's `react-jsx-dev-runtime.production.js` intentionally exports
+      // `jsxDEV` as `void 0`. Plugin bundles then crash with
+      // "TypeError: jsxDEV is not a function" as soon as any of their
+      // components render. The runtime shim at
+      // `public/runtime/react-jsx-dev-runtime.js` falls back to
+      // `jsx`/`jsxs` defensively (for third-party plugins not built with
+      // this CLI), but bundles built here should import the production
+      // runtime directly. Bun's transpiler keys this off
+      // `process.env.NODE_ENV`, so inlining it as a define is enough —
+      // the `jsx` build-config field exists in the type defs but is not
+      // honored by the transpiler in Bun 1.3.
+      define: { 'process.env.NODE_ENV': '"production"' },
     })
     if (!result.success) {
       const messages = result.logs.map((l) => l.message).join('\n')

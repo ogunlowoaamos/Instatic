@@ -13,6 +13,7 @@
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { EmptyState } from '@ui/components/EmptyState'
 import { DataGrid } from '../DataGrid/DataGrid'
+import { DataGridSkeleton } from '../DataGrid/DataGridSkeleton'
 import type { DataRow, DataRowStatus, DataTable } from '@core/data/schemas'
 // Reuse the site canvas surface token so the Data page matches
 // Site / Content / Media visual language.
@@ -28,6 +29,18 @@ export interface DataCanvasProps {
   tables: DataTable[]
   rows: DataRow[]
   loading: boolean
+  /**
+   * `true` while the table list itself is still loading. Shown as a
+   * full-canvas `DataGridSkeleton` so the user never sees the "Select
+   * a table" empty state during the first paint — that placeholder
+   * only fires after the table list arrives empty (no tables exist).
+   *
+   * Once a first table is auto-selected by the workspace, this turns
+   * `false` and the real `DataGrid` takes over with its own
+   * row-loading skeleton — visually identical chrome, so the swap
+   * reads as one continuous loading state.
+   */
+  loadingTables: boolean
   error: string | null
   selectedRowId: string | null
   onSelectRow: (rowId: string | null) => void
@@ -52,6 +65,7 @@ export function DataCanvas({
   tables,
   rows,
   loading,
+  loadingTables,
   error,
   selectedRowId,
   onSelectRow,
@@ -64,6 +78,19 @@ export function DataCanvas({
   canEdit,
   canDelete,
 }: DataCanvasProps) {
+  // Tables still loading — render the layout skeleton (toolbar + chip
+  // filter + grid placeholder) instead of the "Select a table" empty
+  // state. The workspace auto-selects the first table as soon as the
+  // list arrives, so the empty state only ever shows when the install
+  // genuinely has no tables.
+  if (!table && loadingTables) {
+    return (
+      <section className={`${canvasStyles.canvas} ${styles.canvas}`} aria-label="Loading data tables">
+        <DataGridSkeleton />
+      </section>
+    )
+  }
+
   if (!table) {
     return (
       <section className={`${canvasStyles.canvas} ${styles.canvasEmpty}`} aria-label="Data canvas">

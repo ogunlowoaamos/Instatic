@@ -143,7 +143,14 @@ a.pluginAttributionItem:hover {
     background: var(--panel-bg);
 }
 
-.pluginHeaderTitle span {
+/* Pill chrome shared by every pill element next to the plugin name
+ * (status, version, future pills). Was previously a bare
+ * `.pluginHeaderTitle span` selector — that caught the skeleton's
+ * `<span class="react-loading-skeleton">` placeholders too and gave
+ * them the pill border + padding, which read as weird "double-pill"
+ * outlines during loading. Anchoring on the explicit pill classes
+ * leaves the loading-state skeletons untouched. */
+.pluginHeaderTitle :is(.pluginStatusPill, .pluginVersionPill) {
     padding: 3px 7px;
     border: 1px solid var(--panel-border);
     border-radius: 999px;
@@ -231,3 +238,7 @@ a.pluginAttributionItem:hover {
         justify-content: flex-start;
     }
 }
+
+/* The skeleton body is rendered via the shared `<SkeletonBlock>`
+ * primitive — see `src/ui/components/Skeleton/`. No per-card skeleton
+ * CSS lives here. */

@@ -28,6 +28,7 @@
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { isSqliteUrl } from '../server/db'
+import { ensurePortFree } from './lib/freePort'
 
 const CMS_PORT = Number(process.env.PORT ?? '3001')
 const VITE_PORT = 5173
@@ -203,23 +204,6 @@ async function waitForPostgresReady(timeoutMs = 60_000): Promise<void> {
   fail(`Postgres did not become ready within ${timeoutMs}ms.`)
 }
 
-// --- port pre-flight ------------------------------------------------------
-
-function checkPortAvailable(port: number, name: string): void {
-  try {
-    const probe = Bun.serve({ port, fetch: () => new Response() })
-    probe.stop(true)
-  } catch (err) {
-    const code = (err as { code?: string } | null)?.code
-    if (code !== 'EADDRINUSE') throw err
-
-    log(`Port ${port} (${name}) is already in use.`)
-    log(`Run \`lsof -i :${port} -P -n\` to see which process owns it.`)
-    log('If it is a leftover docker container, run `docker compose down`.')
-    process.exit(1)
-  }
-}
-
 // --- main -----------------------------------------------------------------
 
 if (isSqliteUrl(DATABASE_URL)) {
@@ -238,8 +222,8 @@ if (isSqliteUrl(DATABASE_URL)) {
   await waitForPostgresReady()
 }
 
-checkPortAvailable(CMS_PORT, 'cms')
-checkPortAvailable(VITE_PORT, 'vite')
+await ensurePortFree(CMS_PORT, 'cms', log)
+await ensurePortFree(VITE_PORT, 'vite', log)
 
 log('')
 log(`Open the editor at:  http://localhost:${VITE_PORT}`)

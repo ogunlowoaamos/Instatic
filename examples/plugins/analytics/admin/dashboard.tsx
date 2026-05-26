@@ -11,6 +11,7 @@ import {
   Card,
   Heading,
   Select,
+  SkeletonBlock,
   Sparkline,
   Stack,
   Text,
@@ -108,18 +109,11 @@ function AnalyticsDashboard() {
         <Alert tone="danger" title="Failed to load analytics">{error}</Alert>
       )}
 
-      {/* Skeleton while loading for the first time */}
-      {loading && !stats && (
-        <Stack direction="row" gap={12}>
-          {[0, 1, 2, 3].map(i => (
-            <div key={i} style={{ flex: 1 }}>
-              <Card padding={16} bordered>
-                <Text variant="muted" size="sm">Loading…</Text>
-              </Card>
-            </div>
-          ))}
-        </Stack>
-      )}
+      {/* Skeleton while loading for the first time. Uses the host's
+          shared `<SkeletonBlock>` so the analytics plugin's loading
+          state reads identically to every other loading region in the
+          editor (same three-bar shape, same shimmer cadence). */}
+      {loading && !stats && <SkeletonBlock minHeight={240} ariaLabel="Loading analytics" />}
 
       {stats && (
         <Stack gap={24}>

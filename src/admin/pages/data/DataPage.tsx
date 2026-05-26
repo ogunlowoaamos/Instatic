@@ -233,6 +233,7 @@ export function DataPage() {
             tables={workspace.tables}
             rows={workspace.rows}
             loading={workspace.loadingRows}
+            loadingTables={workspace.loadingTables}
             error={workspace.rowsError}
             selectedRowId={workspace.selectedRowId}
             onSelectRow={handleSelectRow}

@@ -3,7 +3,7 @@ import { Button } from '@ui/components/Button'
 import { Dialog } from '@ui/components/Dialog'
 import { EmptyState } from '@ui/components/EmptyState'
 import { SearchBar } from '@ui/components/SearchBar'
-import { LoaderIcon } from 'pixel-art-icons/icons/loader'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { listCmsDataRows } from '@core/persistence/cmsData'
 import { readStringCell } from '@core/data/cells'
 import type { DataRow, DataTable } from '@core/data/schemas'
@@ -174,11 +174,7 @@ export const RelationPickerDialog = memo(function RelationPickerDialog({
             className={styles.search}
           />
 
-          {loading && (
-            <div className={styles.loadingState} role="status" aria-label="Loading rows">
-              <LoaderIcon size={16} aria-hidden="true" />
-            </div>
-          )}
+          {loading && <SkeletonBlock minHeight={140} ariaLabel="Loading rows" />}
 
           {!loading && loadError && (
             <EmptyState

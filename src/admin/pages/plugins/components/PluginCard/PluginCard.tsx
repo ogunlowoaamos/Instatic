@@ -12,6 +12,7 @@
  */
 import { Link } from '@admin/lib/routing'
 import { Button } from '@ui/components/Button'
+import { Skeleton } from '@ui/components/Skeleton'
 import { PowerIcon } from 'pixel-art-icons/icons/power'
 import { PowerOffIcon } from 'pixel-art-icons/icons/power-off'
 import { ReloadIcon } from 'pixel-art-icons/icons/reload'
@@ -39,7 +40,30 @@ function pluginStatus(plugin: InstalledPlugin): PluginStatusBadge {
   return { label: 'Active', status: 'active' }
 }
 
-interface PluginCardProps {
+/**
+ * Skeleton-only invocation: `<PluginCard loading />`. Renders the same
+ * card chrome (background, padding, radius) with a universal three-bar
+ * skeleton body. Callers that show a list of cards while the payload
+ * loads just render N skeleton cards — no mock data, no bespoke
+ * skeleton markup, no separate `PluginCardSkeleton` component to
+ * maintain.
+ */
+interface PluginCardLoadingProps {
+  loading: true
+  plugin?: never
+  busy?: never
+  editorActivationError?: never
+  onOpenSettings?: never
+  onOpenSchedules?: never
+  onInstallPack?: never
+  onRestart?: never
+  onReinstall?: never
+  onToggle?: never
+  onRemove?: never
+}
+
+interface PluginCardDataProps {
+  loading?: false
   plugin: InstalledPlugin
   /**
    * Disables every action button on this card while a lifecycle request
@@ -62,18 +86,53 @@ interface PluginCardProps {
   onRemove: (plugin: InstalledPlugin) => void
 }
 
-export function PluginCard({
-  plugin,
-  busy,
-  editorActivationError,
-  onOpenSettings,
-  onOpenSchedules,
-  onInstallPack,
-  onRestart,
-  onReinstall,
-  onToggle,
-  onRemove,
-}: PluginCardProps) {
+type PluginCardProps = PluginCardLoadingProps | PluginCardDataProps
+
+export function PluginCard(props: PluginCardProps) {
+  if (props.loading) {
+    // Skeleton mirrors the real card layout 1:1 so the swap is silent:
+    //   - 36 × 36 icon block (same dimensions as `.pluginIcon`)
+    //   - title row: name pill + version pill + status pill
+    //   - description line below the header
+    //   - right-aligned action button placeholders
+    return (
+      <article
+        className={styles.pluginCard}
+        aria-busy="true"
+        aria-label="Loading plugin"
+      >
+        <header className={styles.pluginHeader}>
+          <div className={styles.pluginHeaderInfo}>
+            <Skeleton width={36} height={36} radius={8} />
+            <div className={styles.pluginHeaderTitle}>
+              <Skeleton width={140} height={18} />
+              <Skeleton width={48} height={18} radius={999} />
+              <Skeleton width={56} height={18} radius={999} />
+            </div>
+          </div>
+          <div className={styles.pluginActions}>
+            <Skeleton width={72} height={28} radius={6} />
+            <Skeleton width={72} height={28} radius={6} />
+          </div>
+        </header>
+        <div className={styles.pluginBody}>
+          <Skeleton width="78%" height={12} />
+        </div>
+      </article>
+    )
+  }
+  const {
+    plugin,
+    busy,
+    editorActivationError,
+    onOpenSettings,
+    onOpenSchedules,
+    onInstallPack,
+    onRestart,
+    onReinstall,
+    onToggle,
+    onRemove,
+  } = props
   const status = pluginStatus(plugin)
   const iconSrc =
     plugin.manifest.icon && plugin.manifest.assetBasePath

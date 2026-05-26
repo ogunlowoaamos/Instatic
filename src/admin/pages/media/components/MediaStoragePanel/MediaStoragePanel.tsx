@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@ui/components/Button'
 import { Select } from '@ui/components/Select'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import type { MediaAssetRole, MediaStorageVerifyResult } from '@core/plugin-sdk'
 import {
   electCmsMediaAdapter,
@@ -239,7 +240,7 @@ export function MediaStoragePanel() {
   if (loading && !state) {
     return (
       <div className={styles.root}>
-        <p className={styles.empty} role="status">Loading…</p>
+        <SkeletonBlock minHeight={160} ariaLabel="Loading media storage" />
       </div>
     )
   }

@@ -26,6 +26,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@ui/components/DataTable'
+import { SkeletonRows } from '@ui/components/Skeleton'
 import { CircleAlertSolidIcon } from 'pixel-art-icons/icons/circle-alert-solid'
 import {
   listCmsLoginActivity,
@@ -145,7 +146,7 @@ export function ActivityTab() {
       )}
 
       {loading ? (
-        <p className={styles.emptyState}>Loading activity…</p>
+        <SkeletonRows count={6} rowHeight={32} ariaLabel="Loading activity" />
       ) : events.length === 0 ? (
         <p className={styles.emptyState}>No login activity yet.</p>
       ) : (

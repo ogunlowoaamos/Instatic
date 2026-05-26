@@ -246,13 +246,33 @@ async function tryServeMediaRedirect(
   })
 }
 
+/**
+ * Serve any file that the Vite build emits under `staticDir` (`dist/`):
+ *
+ *   - `/assets/<hashed>.{js,css,…}` — the bundler-emitted chunks.
+ *   - `/favicon.svg`               — the site favicon copied from `public/`.
+ *   - `/runtime/<shim>.js`         — plugin-runtime ESM shims that the
+ *                                    admin's import map re-exports
+ *                                    `react`, `react-dom`, `@pagebuilder/*`
+ *                                    from. Without these, plugin bundles
+ *                                    fail to fetch on a production install
+ *                                    (the dev server hides this because
+ *                                    Vite serves `public/` at the root).
+ *
+ * The handler is generic — `serveStaticFile` returns `null` when the
+ * resolved file doesn't exist, so non-static paths fall through to the
+ * downstream route handlers naturally. `/` and `/index.html` are
+ * deliberately skipped so `serveAdminApp` keeps ownership of the admin
+ * HTML pipeline (login skeleton + boot-API kickoff + prefetch hints).
+ */
 async function tryServeStaticAsset(
   _req: Request,
   runtime: ServerRuntime,
   _url: URL,
   pathname: string,
 ): Promise<Response | null> {
-  if (!runtime.staticDir || !pathname.startsWith('/assets/')) return null
+  if (!runtime.staticDir) return null
+  if (pathname === '/' || pathname === '/index.html') return null
   return await serveStaticFile(runtime.staticDir, pathname, _req)
 }
 

@@ -15,6 +15,7 @@ import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import type { Breakpoint } from '@core/page-tree'
 import s from '../SettingsModal.module.css'
 
@@ -80,7 +81,7 @@ export function BreakpointsSection() {
   }
 
   if (!site) {
-    return <div className={s.noSite}>Loading site...</div>
+    return <SkeletonBlock minHeight={200} ariaLabel="Loading site settings" />
   }
 
   return (

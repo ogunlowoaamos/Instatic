@@ -96,6 +96,14 @@ export interface PluginsStatsRow {
    * doesn't need to know the matrix.
    */
   state: 'active' | 'disabled' | 'error'
+  /**
+   * Public URL for the plugin's manifest-declared icon (resolved
+   * server-side from `manifest.icon` + `manifest.assetBasePath`).
+   * `null` when the plugin omits an icon — the widget renders its
+   * fallback plug glyph in that case. Same resolution rule as the
+   * Plugins admin page's `PluginCard`.
+   */
+  iconUrl: string | null
 }
 
 export interface PluginsStats {
@@ -316,8 +324,9 @@ async function readPluginsStats(db: DbClient): Promise<PluginsStats> {
     version: string
     enabled: boolean | number
     lifecycle_status: string
+    manifest_json: unknown
   }>`
-    select id, name, version, enabled, lifecycle_status
+    select id, name, version, enabled, lifecycle_status, manifest_json
     from installed_plugins
     order by installed_at desc
   `
@@ -346,7 +355,13 @@ async function readPluginsStats(db: DbClient): Promise<PluginsStats> {
     // include every plugin so the widget can show "12 plugins · 3
     // disabled" alongside the truncated list.
     if (out.length < 8) {
-      out.push({ id: r.id, name: r.name, version: r.version, state })
+      out.push({
+        id: r.id,
+        name: r.name,
+        version: r.version,
+        state,
+        iconUrl: resolveManifestIconUrl(r.manifest_json),
+      })
     }
   }
 
@@ -357,6 +372,40 @@ async function readPluginsStats(db: DbClient): Promise<PluginsStats> {
     errored,
     rows: out,
   }
+}
+
+/**
+ * Resolve the public URL of a plugin's manifest-declared icon
+ * (`manifest.icon`) against its `manifest.assetBasePath`. The same
+ * resolution rule the Plugins admin card uses — keep them in lockstep
+ * so the dashboard widget shows the same glyph the operator picked.
+ *
+ * Returns `null` when:
+ *   - the manifest has no `icon` field, or
+ *   - the manifest has no `assetBasePath` (broken / dev plugin), or
+ *   - the column value is not a parseable JSON object.
+ *
+ * The SQLite adapter auto-parses `*_json` strings on read, so the
+ * value normally arrives as an object on both dialects. The defensive
+ * `JSON.parse` covers the edge case of a corrupted row that the
+ * SQLite adapter handed back as the raw string.
+ */
+function resolveManifestIconUrl(manifestJson: unknown): string | null {
+  let manifest: unknown = manifestJson
+  if (typeof manifest === 'string') {
+    try {
+      manifest = JSON.parse(manifest)
+    } catch {
+      return null
+    }
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return null
+  const m = manifest as Record<string, unknown>
+  const icon = typeof m.icon === 'string' && m.icon.trim() ? m.icon.trim() : null
+  const assetBasePath =
+    typeof m.assetBasePath === 'string' && m.assetBasePath.trim() ? m.assetBasePath : null
+  if (!icon || !assetBasePath) return null
+  return `${assetBasePath.replace(/\/+$/, '')}/${icon.replace(/^\/+/, '')}`
 }
 
 /**

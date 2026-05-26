@@ -37,6 +37,7 @@ import {
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import type { DashboardWidgetDefinition } from '@core/dashboard'
 import { Button } from '@ui/components/Button'
+import { WidgetSkeleton } from '@ui/components/Widget'
 import { cn } from '@ui/cn'
 import {
   EDITING_GRID_GAP,
@@ -147,7 +148,38 @@ export function DashboardGrid({
     <GridSurface ref={gridRef} editing={editing} minHeight={gridMinHeight}>
       {items.map((item) => {
         const def = definitions.get(item.id)
-        if (!def) return null
+        // Definition not yet registered (typical for plugin-registered
+        // widgets that activate after first paint). Render a
+        // `<WidgetSkeleton>` placeholder in the slot so the grid keeps
+        // its exact `col / row / size / rows` footprint and the cell
+        // reads as "loading" instead of an empty hole. When the
+        // plugin's `activate()` hook runs and registers the widget,
+        // the real renderer swaps in with zero layout shift.
+        //
+        // Customize mode skips the placeholder — dragging an
+        // unregistered slot is meaningless until the widget itself is
+        // available — but we still render the cell wrapper so the
+        // layout footprint stays.
+        if (!def) {
+          return (
+            <div
+              key={item.id}
+              className={styles.cell}
+              data-span={item.size}
+              data-rows={item.rows}
+              data-col={item.col}
+              data-row={item.row}
+              style={{
+                ['--span' as string]: String(item.size),
+                ['--rows' as string]: String(item.rows),
+                ['--col' as string]: String(item.col),
+                ['--row' as string]: String(item.row),
+              }}
+            >
+              <WidgetSkeleton widgetId={item.id} span={item.size} />
+            </div>
+          )
+        }
         if (editing) {
           return (
             <DraggableCell

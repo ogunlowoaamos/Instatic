@@ -28,6 +28,7 @@ import type { IconComponent } from 'pixel-art-icons/types'
 import { DragAndDropSolidIcon } from 'pixel-art-icons/icons/drag-and-drop-solid'
 import { MoreHorizontalSolidIcon } from 'pixel-art-icons/icons/more-horizontal-solid'
 import { Button } from '@ui/components/Button'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { cn } from '@ui/cn'
 import styles from './Widget.module.css'
 
@@ -81,6 +82,59 @@ const TINT_TOKEN: Record<WidgetTint, string> = {
   peach: 'var(--rail-tint-peach)',
 }
 
+/**
+ * Renderless placeholder version of the widget chrome — used by the
+ * dashboard grid for layout slots whose widget definition isn't yet
+ * available (typical case: a plugin-registered widget that's still
+ * being loaded by `useInstalledEditorPlugins`).
+ *
+ * Without this, the grid would render `null` for those slots, leaving
+ * empty holes that then snap into a real widget without any skeleton.
+ * `WidgetSkeleton` paints a full Widget-shaped placeholder (dot +
+ * title placeholder + skeleton body) so the slot reads as "loading"
+ * from first paint until the real widget swaps in.
+ *
+ * Accepts only `span` — title / icon / tint aren't known until the
+ * definition arrives; the placeholder is intentionally generic.
+ */
+export interface WidgetSkeletonProps {
+  /** Stable id from the layout slot — used for DnD tracking + DOM diffing. */
+  widgetId: string
+  /** Grid column span (1 .. 12), read from the layout slot. */
+  span: number
+}
+
+export function WidgetSkeleton({ widgetId, span }: WidgetSkeletonProps) {
+  return (
+    <section
+      className={styles.widget}
+      data-widget={widgetId}
+      data-span={span}
+      aria-busy="true"
+      aria-label="Loading widget"
+    >
+      <header className={styles.head}>
+        <div className={styles.title}>
+          <span className={cn(styles.dot, styles.dotPlaceholder)} />
+          <SkeletonBlockTitle />
+        </div>
+      </header>
+      <SkeletonBlock />
+    </section>
+  )
+}
+
+/** Inline title placeholder — narrow shimmer line matching the
+ * widget's uppercase title text dimensions. Kept inline (not a full
+ * `SkeletonBlock`) so the title row's other adornments line up. */
+function SkeletonBlockTitle() {
+  return (
+    <span className={styles.titlePlaceholder}>
+      <span className={styles.titlePlaceholderBar} />
+    </span>
+  )
+}
+
 export function Widget({
   widgetId,
   title,
@@ -129,7 +183,7 @@ export function Widget({
           )}
         </div>
       </header>
-      {children}
+      {loading ? <SkeletonBlock /> : children}
     </section>
   )
 }

@@ -11,6 +11,7 @@
  */
 import { useRef, type CSSProperties } from 'react'
 import { Button } from '@ui/components/Button'
+import { Skeleton } from '@ui/components/Skeleton'
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { ArrowDownIcon } from 'pixel-art-icons/icons/arrow-down'
@@ -118,12 +119,31 @@ export function DataSidebar({
             body="bare"
             onClose={() => setDataSidebarCollapsed(true)}
           >
-            <div className={styles.tableList} role="listbox" aria-label="Data tables">
-              {loading && (
-                <p className={styles.loadingText} aria-live="polite">
-                  Loading…
-                </p>
-              )}
+            <div
+              className={styles.tableList}
+              role="listbox"
+              aria-label="Data tables"
+              aria-busy={loading || undefined}
+            >
+              {loading && Array.from({ length: 4 }, (_, i) => (
+                // Skeleton row mirrors the real `.tableButton` chrome
+                // (padding, gap, height, column ladder) via a plain
+                // div — using a disabled `<Button>` would inherit its
+                // `opacity: 0.38` and dim the shimmer so the row
+                // reads as "muted disabled state" rather than a
+                // proper loading skeleton.
+                <div
+                  key={`skeleton-${i}`}
+                  className={styles.tableSkeletonRow}
+                  aria-hidden="true"
+                >
+                  <Skeleton width={13} height={13} radius={3} />
+                  <span className={styles.tableLabel}>
+                    <Skeleton width={`${60 + (i % 3) * 14}%`} height={12} />
+                  </span>
+                  <Skeleton width={48} height={14} radius={999} />
+                </div>
+              ))}
 
               {!loading && error && (
                 <p role="alert" className={styles.errorText}>

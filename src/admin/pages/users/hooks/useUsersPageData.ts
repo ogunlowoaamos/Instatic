@@ -33,6 +33,12 @@ export interface UsersPageData {
   users: CmsCurrentUser[]
   roles: CmsRole[]
   events: CmsAuditEvent[]
+  /**
+   * True while the initial load is in flight. Surfaces so the page
+   * shell can show the universal skeleton instead of an empty list /
+   * "no users" message during the round-trip.
+   */
+  isLoading: boolean
   error: string | null
   /**
    * The first role id that admins can assign to a user (i.e. excludes the
@@ -59,6 +65,11 @@ export function useUsersPageData(access: UsersPageLoadAccess): UsersPageData {
   const [users, setUsers] = useState<CmsCurrentUser[]>([])
   const [roles, setRoles] = useState<CmsRole[]>([])
   const [events, setEvents] = useState<CmsAuditEvent[]>([])
+  // `isLoading` flips to false only after the FIRST round-trip
+  // completes. Without this, the page would render the "No users yet"
+  // empty state for the ~50-200 ms window between mount and first
+  // response — visually identical to a fresh install and tragic UX.
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Memoise the access object to keep the load effect / refresh stable
@@ -97,6 +108,9 @@ export function useUsersPageData(access: UsersPageLoadAccess): UsersPageData {
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load users')
       })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -109,6 +123,7 @@ export function useUsersPageData(access: UsersPageLoadAccess): UsersPageData {
     users,
     roles,
     events,
+    isLoading,
     error,
     defaultAssignableRoleId,
     setUsers,

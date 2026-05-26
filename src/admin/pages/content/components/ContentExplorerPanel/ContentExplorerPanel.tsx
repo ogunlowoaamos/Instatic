@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Button } from '@ui/components/Button'
 import { EmptyState } from '@ui/components/EmptyState'
+import { Skeleton } from '@ui/components/Skeleton'
 import { cn } from '@ui/cn'
 import { BookOpenSolidIcon } from 'pixel-art-icons/icons/book-open-solid'
 import { BookPlusSolidIcon } from 'pixel-art-icons/icons/book-plus-solid'
@@ -287,7 +288,11 @@ export function ContentExplorerPanel({
           <section className={explorerStyles.section} aria-label="Collections">
             <div className={explorerStyles.sectionHeader}>
               <h2 className={explorerStyles.sectionTitle}>Collections</h2>
-              <span className={explorerStyles.sectionCount}>{collections.length}</span>
+              {/* Hide the count while loading — `0` would look like an
+                  empty install. Same for the entries section below. */}
+              {!loading && (
+                <span className={explorerStyles.sectionCount}>{collections.length}</span>
+              )}
               {canCreateCollection && (
                 <Button
                   variant="ghost"
@@ -302,7 +307,25 @@ export function ContentExplorerPanel({
               )}
             </div>
             <div className={explorerStyles.rows}>
-              {collections.map((collection) => (
+              {loading
+                ? Array.from({ length: 2 }, (_, i) => (
+                    // Skeleton collection row mirrors the real row 1:1:
+                    // 14px icon + label text + small meta count slot.
+                    <div
+                      key={`skeleton-coll-${i}`}
+                      className={explorerStyles.row}
+                      aria-hidden="true"
+                    >
+                      <Skeleton width={14} height={14} radius={3} />
+                      <span className={explorerStyles.rowLabel}>
+                        <Skeleton width={`${56 + (i % 2) * 16}%`} height={12} />
+                      </span>
+                      <span className={explorerStyles.rowMeta}>
+                        <Skeleton width={16} height={10} />
+                      </span>
+                    </div>
+                  ))
+                : collections.map((collection) => (
                 <button
                   key={collection.id}
                   type="button"
@@ -327,7 +350,9 @@ export function ContentExplorerPanel({
           <section className={explorerStyles.section} aria-label={entryListLabel}>
             <div className={explorerStyles.sectionHeader}>
               <h2 className={explorerStyles.sectionTitle}>{entryListLabel}</h2>
-              <span className={explorerStyles.sectionCount}>{entries.length}</span>
+              {!loading && (
+                <span className={explorerStyles.sectionCount}>{entries.length}</span>
+              )}
               <Button
                 variant="ghost"
                 size="xs"
@@ -449,6 +474,13 @@ function EntryRowPreview({ asset }: { asset: CmsMediaAsset | null }) {
 }
 
 function ContentEntriesLoading() {
+  // Skeleton entry row mirrors the real `.entryRow` chrome 1:1:
+  //   - 28 × 28 thumbnail preview slot
+  //   - title + author stack (two lines)
+  //   - status meta on the right
+  // The wrapper is the same `.row` + `.entryRow` button skeleton so
+  // padding / hover ring / border-radius match the loaded state and
+  // there's no visual shift when entries swap in.
   return (
     <div
       className={explorerStyles.rows}
@@ -456,12 +488,21 @@ function ContentEntriesLoading() {
       aria-busy="true"
       aria-label="Loading entries"
     >
-      {[0, 1, 2].map((index) => (
-        <span key={index} className={styles.entriesSkeletonRow}>
-          <span className={cn(styles.skeletonShape, styles.entriesSkeletonIcon)} />
-          <span className={cn(styles.skeletonShape, styles.entriesSkeletonLabel)} />
-          <span className={cn(styles.skeletonShape, styles.entriesSkeletonMeta)} />
-        </span>
+      {Array.from({ length: 3 }, (_, i) => (
+        <div
+          key={`skeleton-entry-${i}`}
+          className={cn(explorerStyles.row, styles.entryRow)}
+          aria-hidden="true"
+        >
+          <Skeleton width={28} height={28} radius={4} />
+          <span className={styles.entryTitleStack}>
+            <Skeleton width={`${60 + (i % 3) * 12}%`} height={12} />
+            <Skeleton width={`${40 + (i % 2) * 14}%`} height={10} />
+          </span>
+          <span className={explorerStyles.rowMeta}>
+            <Skeleton width={48} height={10} radius={999} />
+          </span>
+        </div>
       ))}
     </div>
   )

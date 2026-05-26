@@ -22,6 +22,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@ui/components/DataTable'
+import { Skeleton, SkeletonCircle } from '@ui/components/Skeleton'
 import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
 import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
@@ -223,7 +224,13 @@ export function UsersTab({ data, canManageUsers }: UsersTabProps) {
       <div className={styles.sectionHeader}>
         <div>
           <h2 id="all-users-title">All Users</h2>
-          <p>{users.length} account{users.length === 1 ? '' : 's'} with admin access.</p>
+          {/* Suppress "0 accounts" while loading — looks like an empty
+              install. The skeleton table below carries the loading signal. */}
+          <p>
+            {data.isLoading
+              ? ' '
+              : `${users.length} account${users.length === 1 ? '' : 's'} with admin access.`}
+          </p>
         </div>
         {canManageUsers && (
           <Button type="button" variant="primary" size="sm" onClick={openCreate}>
@@ -232,7 +239,49 @@ export function UsersTab({ data, canManageUsers }: UsersTabProps) {
           </Button>
         )}
       </div>
-      {users.length > 0 ? (
+      {data.isLoading ? (
+        // Skeleton table — matches the real users table 1:1 (same
+        // header row, same 4-column layout, same identity cluster
+        // shape). Avoids the "no users yet" empty-state flash and
+        // keeps the column widths stable when real rows swap in.
+        <DataTable aria-label="Loading users" density="compact" aria-busy="true">
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeader scope="col">User</DataTableHeader>
+              <DataTableHeader scope="col">Access</DataTableHeader>
+              <DataTableHeader scope="col">Last login</DataTableHeader>
+              <DataTableHeader scope="col" className={styles.actionsHeader}>Actions</DataTableHeader>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {Array.from({ length: 3 }, (_, i) => (
+              <DataTableRow key={`skeleton-${i}`}>
+                <DataTableCell>
+                  <div className={styles.identityRow}>
+                    <SkeletonCircle size={32} />
+                    <div className={styles.identity}>
+                      <Skeleton width={140} height={13} />
+                      <Skeleton width={180} height={11} />
+                    </div>
+                  </div>
+                </DataTableCell>
+                <DataTableCell>
+                  <div className={styles.badges}>
+                    <Skeleton width={56} height={18} radius={999} />
+                    <Skeleton width={64} height={18} radius={999} />
+                  </div>
+                </DataTableCell>
+                <DataTableCell>
+                  <Skeleton width={100} height={12} />
+                </DataTableCell>
+                <DataTableCell className={styles.actionsCell}>
+                  <Skeleton width={24} height={24} radius={6} />
+                </DataTableCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      ) : users.length > 0 ? (
         <DataTable aria-label="Users" density="compact">
           <DataTableHead>
             <DataTableRow>

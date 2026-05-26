@@ -23,6 +23,7 @@
  */
 import { useEffect, useState } from 'react'
 import { Button } from '@ui/components/Button'
+import { SkeletonRows } from '@ui/components/Skeleton'
 import {
   DataTable,
   DataTableBody,
@@ -165,7 +166,7 @@ export function SessionsTab() {
       {status && <p className={styles.cardStatus} role="status">{status}</p>}
 
       {loading ? (
-        <p className={styles.emptyState}>Loading sessions…</p>
+        <SkeletonRows count={4} rowHeight={36} ariaLabel="Loading sessions" />
       ) : sessions.length === 0 ? (
         // The current session is always present, so this branch is only
         // reached on transient empty responses (e.g. the list raced with a

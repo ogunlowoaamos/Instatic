@@ -43,12 +43,35 @@ interface AdminSectionNavigationProps {
   onWorkspaceNavigateStart?: () => void
 }
 
+// Session-scoped cache of the plugin admin pages list. Without it the
+// nav re-fetched (and briefly emptied) every time `AdminSectionNavigation`
+// re-mounted — typical case: navigating between AdminPageLayout and
+// AdminCanvasLayout-backed routes unmounts the previous Toolbar, which
+// drops this state and reseeds from `[]` while the next fetch lands.
+// Caching at module scope means the existing pages render immediately
+// on remount; the SSE / CMS_PLUGINS_CHANGED_EVENT path still refreshes
+// when plugins genuinely change.
+let cachedPluginPages: PluginAdminPageRoute[] = []
+const cachedPluginPagesListeners = new Set<() => void>()
+function setCachedPluginPages(next: PluginAdminPageRoute[]): void {
+  const unchanged =
+    cachedPluginPages.length === next.length &&
+    cachedPluginPages.every((page, index) => page.route === next[index]?.route)
+  if (unchanged) return
+  cachedPluginPages = next
+  for (const listener of cachedPluginPagesListeners) listener()
+}
+
 export function AdminSectionNavigation({
   section,
   currentUser,
   onWorkspaceNavigateStart,
 }: AdminSectionNavigationProps) {
-  const [pluginPages, setPluginPages] = useState<PluginAdminPageRoute[]>([])
+  // Hydrate from the session cache so the nav links don't flash empty
+  // on every re-mount.
+  const [pluginPages, setPluginPages] = useState<PluginAdminPageRoute[]>(
+    () => cachedPluginPages,
+  )
   const sessionUser = useCurrentAdminUser()
   const effectiveUser = currentUser ?? sessionUser ?? null
   const unrestricted = !effectiveUser
@@ -58,21 +81,23 @@ export function AdminSectionNavigation({
   useEffect(() => {
     let cancelled = false
 
+    // Subscribe to the module-level cache so other mounts (or the
+    // CMS_PLUGINS_CHANGED refresh below) update every visible
+    // navigation in lockstep.
+    function onCacheChange(): void {
+      if (!cancelled) setPluginPages(cachedPluginPages)
+    }
+    cachedPluginPagesListeners.add(onCacheChange)
+
     async function loadPluginPages() {
       if (!canAccessPlugins) {
-        setPluginPages([])
+        setCachedPluginPages([])
         return
       }
       try {
         const payload = await listCmsPlugins()
         if (!cancelled) {
-          setPluginPages((current) => {
-            const next = payload.adminPages
-            const unchanged =
-              current.length === next.length &&
-              current.every((page, index) => page.route === next[index]?.route)
-            return unchanged ? current : next
-          })
+          setCachedPluginPages(payload.adminPages)
         }
       } catch {
         // Navigation remains usable when plugins cannot be loaded.
@@ -83,10 +108,16 @@ export function AdminSectionNavigation({
       void loadPluginPages()
     }
 
-    refreshPluginPages()
+    // Only fetch when the cache is empty (first session mount or after
+    // a sign-out clear) or on CMS_PLUGINS_CHANGED. Subsequent
+    // navigations hit the cached list instantly.
+    if (cachedPluginPages.length === 0) {
+      refreshPluginPages()
+    }
     window.addEventListener(CMS_PLUGINS_CHANGED_EVENT, refreshPluginPages)
     return () => {
       cancelled = true
+      cachedPluginPagesListeners.delete(onCacheChange)
       window.removeEventListener(CMS_PLUGINS_CHANGED_EVENT, refreshPluginPages)
     }
   }, [canAccessPlugins])

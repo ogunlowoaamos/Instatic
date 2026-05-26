@@ -21,6 +21,7 @@ import {
   DataTableHeader,
   DataTableRow,
 } from '@ui/components/DataTable'
+import { Skeleton } from '@ui/components/Skeleton'
 import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
 import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { EyeSolidIcon } from 'pixel-art-icons/icons/eye-solid'
@@ -199,7 +200,32 @@ export function RolesTab({ data, canManageRoles }: RolesTabProps) {
           </Button>
         )}
       </div>
-      {roles.length > 0 ? (
+      {data.isLoading ? (
+        <DataTable aria-label="Loading roles" density="compact" aria-busy="true">
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeader scope="col">Role</DataTableHeader>
+              <DataTableHeader scope="col">Description</DataTableHeader>
+              <DataTableHeader scope="col">Capabilities</DataTableHeader>
+              <DataTableHeader scope="col">Type</DataTableHeader>
+              <DataTableHeader scope="col" className={styles.actionsHeader}>Actions</DataTableHeader>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {Array.from({ length: 3 }, (_, i) => (
+              <DataTableRow key={`skeleton-${i}`}>
+                <DataTableCell><Skeleton width={120} height={13} /></DataTableCell>
+                <DataTableCell><Skeleton width="80%" height={12} /></DataTableCell>
+                <DataTableCell><Skeleton width={140} height={12} /></DataTableCell>
+                <DataTableCell><Skeleton width={56} height={18} radius={999} /></DataTableCell>
+                <DataTableCell className={styles.actionsCell}>
+                  <Skeleton width={24} height={24} radius={6} />
+                </DataTableCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      ) : roles.length > 0 ? (
         <DataTable aria-label="Roles" density="compact">
           <DataTableHead>
             <DataTableRow>

@@ -43,6 +43,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@ui/components/Button'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { cn } from '@ui/cn'
 import styles from './Dialog.module.css'
@@ -89,6 +90,14 @@ interface DialogProps {
   bodyClassName?: string
   /** Optional className on the footer row. */
   footerClassName?: string
+  /**
+   * True while the dialog body's contents are being fetched. Renders a
+   * universal three-bar skeleton in place of `children` and sets
+   * `aria-busy="true"` on the dialog. The footer stays visible (so the
+   * user can still Cancel) but its buttons should be disabled by the
+   * caller while loading. One prop, no per-dialog skeleton markup.
+   */
+  loading?: boolean
   /** Optional aria-label override (when no `title` is suitable for ATs). */
   ariaLabel?: string
   /**
@@ -117,6 +126,7 @@ export function Dialog({
   className,
   bodyClassName,
   footerClassName,
+  loading = false,
   ariaLabel,
   initialFocusRef,
   ref,
@@ -187,6 +197,7 @@ export function Dialog({
         aria-labelledby={ariaLabel ? undefined : titleId}
         aria-label={ariaLabel}
         aria-describedby={children ? descId : undefined}
+        aria-busy={loading || undefined}
         data-size={size}
         data-tone={tone}
         className={cn(styles.dialog, className)}
@@ -213,7 +224,11 @@ export function Dialog({
           )}
         </header>
 
-        {children !== undefined && children !== null && (
+        {loading ? (
+          <div id={descId} className={cn(styles.body, bodyClassName)}>
+            <SkeletonBlock minHeight={120} />
+          </div>
+        ) : children !== undefined && children !== null && (
           <div id={descId} className={cn(styles.body, bodyClassName)}>
             {children}
           </div>

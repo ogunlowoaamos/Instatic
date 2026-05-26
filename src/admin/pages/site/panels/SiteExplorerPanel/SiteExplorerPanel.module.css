@@ -120,6 +120,26 @@
     color: var(--editor-text-muted);
 }
 
+/* `react-loading-skeleton` wraps every Skeleton in an outer
+ * `<span aria-live="polite">` (a11y wrapper, no class) — that wrapper
+ * collapses to zero width inside the fixed 28×28 preview slot and
+ * renders the skeleton invisibly. Forcing the direct-child span to
+ * fill restores the shimmer. The selector only matches the skeleton
+ * case because loaded rows render an `<img>` / `<video>` directly
+ * inside `.mediaRowPreview`. Same fix used in MediaCanvas.module.css. */
+.mediaRowPreview > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    line-height: 0;
+}
+
+.mediaRowPreview :global(span.react-loading-skeleton) {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .mediaRowImage,
 .mediaRowVideo {
     display: block;
@@ -146,10 +166,32 @@
     display: grid;
     min-width: 0;
     min-height: 0;
+    /* Lock the preview slot to a 1:1 aspect ratio so:
+     *   - Loaded images render in a uniform square (cropped via object-fit)
+     *     instead of the variable heights they had previously.
+     *   - The skeleton preview reserves the exact final size during loading,
+     *     so the populated tile swap doesn't shift the surrounding tiles.
+     * Matches the MediaCanvas tile preview pattern. */
+    aspect-ratio: 1 / 1;
+    width: 100%;
     place-items: center;
     overflow: hidden;
     background: var(--editor-surface);
     color: var(--editor-text-muted);
+}
+
+/* Same wrapper fill as `.mediaRowPreview` for the aspect-1:1 grid tile. */
+.mediaTilePreview > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    line-height: 0;
+}
+
+.mediaTilePreview :global(span.react-loading-skeleton) {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .mediaTileImage,

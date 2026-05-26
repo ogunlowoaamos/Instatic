@@ -4,6 +4,7 @@
 import { useEditorStore } from '@site/store/store'
 import { resolveFrameworkPreferences } from '@core/framework/preferences'
 import { Switch } from '@ui/components/Switch'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import s from '../SettingsModal.module.css'
 
 export function PublishingSection() {
@@ -11,7 +12,7 @@ export function PublishingSection() {
   const updateFrameworkPreferences = useEditorStore((state) => state.updateFrameworkPreferences)
 
   if (!site) {
-    return <div className={s.noSite}>Loading site...</div>
+    return <SkeletonBlock minHeight={200} ariaLabel="Loading site settings" />
   }
 
   const frameworkPreferences = resolveFrameworkPreferences(site.settings.framework?.preferences)

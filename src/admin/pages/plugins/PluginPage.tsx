@@ -54,9 +54,12 @@ export function PluginPage() {
 
   if (loading) {
     return (
-      <AdminPageLayout workspace="pluginPage" title="Plugin page" titleId="plugin-page-title">
-        <p className={styles.emptyState}>Loading plugin page...</p>
-      </AdminPageLayout>
+      <AdminPageLayout
+        workspace="pluginPage"
+        title="Plugin page"
+        titleId="plugin-page-title"
+        loading
+      />
     )
   }
 

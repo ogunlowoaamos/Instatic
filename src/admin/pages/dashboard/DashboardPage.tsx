@@ -210,19 +210,22 @@ export function DashboardPage() {
     return map
   }, [widgets])
 
-  // Drop layout entries whose widget definition isn't currently in the
-  // registry — keeps the grid from rendering empty cells. This is render-
-  // only filtering: we do NOT persist the pruned list. Plugin widgets
-  // register asynchronously after mount (the activate() hook fires once
-  // `useInstalledEditorPlugins` finishes loading each editor entrypoint),
-  // so the layout legitimately contains ids the registry hasn't caught
-  // up to yet. Persisting the pruned list at mount would silently delete
-  // every plugin widget's layout slot every page load. Removals from the
-  // persisted layout only happen when the user explicitly drops a tile
-  // via the customize-mode kebab menu.
-  const visibleItems = useMemo(() => {
-    return layout.items.filter((item) => definitionsById.has(item.id))
-  }, [layout.items, definitionsById])
+  // KEEP layout entries whose widget definition isn't yet registered.
+  // The grid now renders a `<WidgetSkeleton>` placeholder for those
+  // slots so the layout reads as "loading" from first paint instead
+  // of empty holes that snap into a widget once the plugin activates.
+  //
+  // Plugin widgets register asynchronously after mount (the activate()
+  // hook fires once `useInstalledEditorPlugins` finishes loading each
+  // editor entrypoint) — keeping the slot in the grid means the
+  // skeleton placeholder reserves the exact `col / row / size / rows`
+  // footprint until the real widget swaps in, with zero layout shift.
+  //
+  // We deliberately do NOT prune the layout on mount; the layout
+  // legitimately contains ids the registry hasn't caught up to yet.
+  // Removals from the persisted layout only happen when the user
+  // explicitly drops a tile via the customize-mode kebab menu.
+  const visibleItems = useMemo(() => layout.items, [layout.items])
 
   const activeKeys = visibleItems.map((i) => i.id)
   const showOnboarding = !layout.onboardingDismissed && !facts.loading

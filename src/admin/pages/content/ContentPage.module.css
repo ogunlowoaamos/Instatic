@@ -84,40 +84,10 @@
     margin: 108px auto 0;
 }
 
-.skeletonShape {
-    display: block;
-    overflow: hidden;
-    border-radius: 8px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--editor-surface-2) 80%, transparent),
-        color-mix(in srgb, var(--editor-surface-3) 88%, white 12%),
-        color-mix(in srgb, var(--editor-surface-2) 80%, transparent)
-    );
-    background-size: 220% 100%;
-    animation: pbContentSkeleton 1200ms ease-in-out infinite;
-}
-
-.canvasSkeletonTitle {
-    width: min(440px, 72%);
-    height: 48px;
-}
-
-.canvasSkeletonLine {
-    width: min(620px, 90%);
-    height: 18px;
-}
-
-.canvasSkeletonShortLine {
-    width: min(520px, 76%);
-    height: 18px;
-}
-
-.canvasSkeletonBlock {
-    width: 100%;
-    height: 280px;
-    margin-top: 18px;
-}
+/* Bespoke skeleton shapes were retired in favour of `<SkeletonBlock>`
+ * (see `src/ui/components/Skeleton/`). The content document canvas's
+ * loading state now renders the universal three-bar skeleton through
+ * the shared `react-loading-skeleton` theme. */
 
 .error {
     color: var(--editor-danger);
@@ -200,36 +170,10 @@
     line-height: 1.15;
 }
 
-.entriesSkeletonRow {
-    display: grid;
-    /* Matches the live entry row column ladder so skeletons don't reflow once
-       the data arrives. */
-    grid-template-columns: 28px minmax(0, 1fr) 34px;
-    align-items: center;
-    gap: 8px;
-    height: 38px;
-    padding: 0 12px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--editor-surface-2) 50%, transparent);
-}
-
-.entriesSkeletonIcon {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--editor-radius-sm);
-}
-
-.entriesSkeletonLabel {
-    width: 72%;
-    height: 12px;
-    border-radius: 999px;
-}
-
-.entriesSkeletonMeta {
-    width: 100%;
-    height: 10px;
-    border-radius: 999px;
-}
+/* Bespoke skeleton shapes (entriesSkeleton*, settingsSkeleton*) were
+ * retired in favour of `<SkeletonRows>` / `<SkeletonBlock>` from
+ * `src/ui/components/Skeleton/`. The shared primitives keep every
+ * loading region in the editor visually identical. */
 
 .settingsBody {
     display: grid;
@@ -243,29 +187,6 @@
 .settingsSkeleton {
     display: grid;
     gap: 10px;
-}
-
-.settingsSkeletonLabel {
-    width: 84px;
-    height: 12px;
-    margin-top: 6px;
-    border-radius: 999px;
-}
-
-.settingsSkeletonInput {
-    width: 100%;
-    height: 42px;
-}
-
-.settingsSkeletonTextarea {
-    width: 100%;
-    height: 126px;
-}
-
-.settingsSkeletonCard {
-    width: 100%;
-    height: 88px;
-    margin-top: 8px;
 }
 
 .field {
@@ -336,22 +257,6 @@
 .featuredMediaField small {
     color: var(--editor-text-muted);
     font-size: 11px;
-}
-
-@keyframes pbContentSkeleton {
-    from {
-        background-position: 120% 0;
-    }
-
-    to {
-        background-position: -120% 0;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .skeletonShape {
-        animation: none;
-    }
 }
 
 @media (max-width: 720px) {

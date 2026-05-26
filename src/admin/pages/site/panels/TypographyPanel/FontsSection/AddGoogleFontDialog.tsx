@@ -28,6 +28,7 @@ import { Checkbox } from '@ui/components/Checkbox'
 import { Dialog } from '@ui/components/Dialog'
 import { FilterBar } from '@ui/components/FilterBar'
 import { SearchBar } from '@ui/components/SearchBar'
+import { SkeletonBlock } from '@ui/components/Skeleton'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import {
   estimateCmsGoogleFont,
@@ -407,7 +408,7 @@ function FamilyPickerStep({
       {loadError ? (
         <p role="alert" className={styles.errorAlert}>{loadError}</p>
       ) : loading ? (
-        <p className={styles.pickerInfo}>Loading Google Fonts…</p>
+        <SkeletonBlock minHeight={200} ariaLabel="Loading Google Fonts" />
       ) : families.length === 0 ? (
         <p className={styles.pickerEmpty}>No fonts match "{query}".</p>
       ) : (

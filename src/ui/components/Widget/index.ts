@@ -1,2 +1,7 @@
-export { Widget } from './Widget'
-export type { WidgetProps, WidgetTint, WidgetIcon } from './Widget'
+export { Widget, WidgetSkeleton } from './Widget'
+export type {
+  WidgetProps,
+  WidgetSkeletonProps,
+  WidgetTint,
+  WidgetIcon,
+} from './Widget'

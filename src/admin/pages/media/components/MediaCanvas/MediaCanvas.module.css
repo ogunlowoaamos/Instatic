@@ -98,6 +98,28 @@
     color: var(--editor-text-muted);
 }
 
+/* `react-loading-skeleton` wraps every Skeleton in an outer
+ * `<span aria-live="polite">` (a11y wrapper, no class). Inside
+ * `.tilePreview`'s flex layout that wrapper becomes a flex child with
+ * zero width — collapsing the inner skeleton to 0×16 and rendering the
+ * preview as an empty dark square. Forcing the direct-child span to
+ * fill the preview restores the expected behaviour. The selector is
+ * scoped to the SKELETON case because the loaded state renders an
+ * `<img>` / `<video>` / icon directly inside `.tilePreview` (no
+ * intermediate `<span>`), so this rule only matches during loading. */
+.tilePreview > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    line-height: 0;
+}
+
+.tilePreview :global(span.react-loading-skeleton) {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .tileImage,
 .tileVideo {
     width: 100%;
@@ -167,6 +189,20 @@
     border-radius: var(--editor-radius-sm);
     color: var(--editor-text-muted);
     overflow: hidden;
+}
+
+/* Same wrapper fill as `.tilePreview` for the list view's 24×24 thumb. */
+.rowPreview > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    line-height: 0;
+}
+
+.rowPreview :global(span.react-loading-skeleton) {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .rowImage {

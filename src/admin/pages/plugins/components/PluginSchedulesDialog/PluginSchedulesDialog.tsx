@@ -94,9 +94,8 @@ export function PluginSchedulesDialog({ pluginId, pluginName, onClose }: PluginS
       eyebrow="Scheduled jobs"
       title={pluginName}
       size="lg"
+      loading={loading}
     >
-      {loading && <p className={styles.empty}>Loading schedules...</p>}
-
       {error && (
         <pluginAdminUi.Alert tone="danger" title="Could not load schedules">
           {error}

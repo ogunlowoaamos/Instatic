@@ -23,11 +23,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
 } from 'react'
+import { cn } from '@ui/cn'
 import { Button } from '@ui/components/Button'
 import { Checkbox } from '@ui/components/Checkbox'
 import { EmptyState } from '@ui/components/EmptyState'
 import { FloatingActionBar } from '@ui/components/FloatingActionBar'
 import { SearchBar } from '@ui/components/SearchBar'
+import { Skeleton } from '@ui/components/Skeleton'
 import { ArrowDownIcon } from 'pixel-art-icons/icons/arrow-down'
 import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
@@ -455,9 +457,10 @@ export function DataGrid({
   const selectedCount = checkedIds.size
 
   const subtitleParts: string[] = []
-  if (loading) {
-    subtitleParts.push(`Loading ${table.pluralLabel.toLowerCase()}…`)
-  } else {
+  // While loading the visual skeleton rows below carry the "loading"
+  // signal — keep the toolbar subtitle empty so the user doesn't see
+  // two competing loading messages.
+  if (!loading) {
     subtitleParts.push(`${totalCount} ${totalNoun.toLowerCase()}`)
   }
   if (hasPublishWorkflow && (statusFilter === 'all' || statusFilter === 'pages' || statusFilter === 'templates') && totalCount > 0) {
@@ -676,12 +679,59 @@ export function DataGrid({
               />
             </div>
 
-            {/* ── Loading state ──────────────────────────────────────────── */}
-            {loading && (
-              <div className={styles.loadingState} role="status" aria-live="polite">
-                Loading rows…
+            {/* ── Loading state ────────────────────────────────────────────
+                Skeleton mirrors the real cell-by-cell row layout —
+                each skeleton row is a `display: contents` wrapper that
+                emits one cell per column track (checkbox + primary +
+                fields + actions). Shimmer bars sit INSIDE each cell,
+                so the column ladder reads identically to a populated
+                grid and the loaded rows swap in with zero shift.
+
+                Sticky behaviour: the checkbox + primary cells use the
+                same `data-sticky="checkbox"` / `data-sticky="primary"`
+                attributes as the real cells so the existing `.cell[data-sticky=…]`
+                selectors apply automatically — no skeleton-specific
+                sticky CSS needed. */}
+            {loading && Array.from({ length: 8 }, (_, rowIndex) => (
+              <div
+                key={`skeleton-row-${rowIndex}`}
+                className={styles.skeletonRow}
+                role="status"
+                aria-hidden="true"
+              >
+                {/* Checkbox column — empty cell preserves the track. */}
+                <div
+                  className={cn(styles.cell, styles.skeletonCell)}
+                  data-sticky="checkbox"
+                />
+                {/* Primary field cell — wider shimmer, sticky-positioned
+                    via `data-sticky="primary"` so it lines up with the
+                    loaded primary column under horizontal scroll. */}
+                <div
+                  className={cn(styles.cell, styles.primaryCell, styles.skeletonCell)}
+                  data-sticky="primary"
+                  style={primaryStickyLeft}
+                >
+                  <Skeleton width={`${50 + (rowIndex % 4) * 10}%`} height={12} />
+                </div>
+                {/* One cell per remaining field. */}
+                {orderedFields
+                  .filter((f) => f.id !== table.primaryFieldId)
+                  .map((field) => (
+                    <div
+                      key={`skeleton-${rowIndex}-${field.id}`}
+                      className={cn(styles.cell, styles.skeletonCell)}
+                    >
+                      <Skeleton
+                        width={`${40 + ((rowIndex + field.id.length) % 5) * 12}%`}
+                        height={12}
+                      />
+                    </div>
+                  ))}
+                {/* Actions cell — empty trailing track. */}
+                <div className={cn(styles.cell, styles.skeletonCell)} />
               </div>
-            )}
+            ))}
 
             {/* ── Empty state ──────────────────────────────────────────────
               * Outer span fills the full grid row (`grid-column: 1 / -1`).
