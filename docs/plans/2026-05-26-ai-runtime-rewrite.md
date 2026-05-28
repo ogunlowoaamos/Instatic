@@ -7,7 +7,8 @@ A plan to take the current single-provider, single-surface Claude Agent SDK inte
 ## Status (as of last update)
 
 - **Phases 1, 2, 3, 6 shipped** — runtime + drivers + credential/conversation stores; settings UI at `/admin/ai`; site editor rewired onto the new transport with model + conversation pickers + no-credential banner; cost meter + audit (price table at `server/ai/pricing.ts`, `ai.*` audit events, Audit tab with totals + by-user/by-surface/daily rollups, dashboard "AI usage" widget).
-- **Phase 4 (Content + Data workspaces)** and **Phase 5 (Plugin SDK)** are not yet built.
+- **Phase 4 — content workspace shipped.** AgentPanel docked in `ContentSidebar` (mirrors site editor's pattern, rail button + docked panel slot). 15 content tools (7 read + 8 write) covering collections, documents, fields, media, users. Bridge handle dispatches to live workspace state via refs. Body field exchanged as markdown via the existing `@core/markdown/markdownDocument.ts` converter. **Data workspace and Plugin SDK not yet built.**
+- **Phase 5 (Plugin SDK `ai.invoke`)** is the only remaining phase.
 
 ## TL;DR
 
@@ -19,7 +20,7 @@ A plan to take the current single-provider, single-surface Claude Agent SDK inte
 - One **tool registry** (`server/ai/tools/`) defined with TypeBox; drivers translate to their SDK's native shape (Anthropic gets a thin Zod wrapper required by the Claude Agent SDK's `tool()` API; OpenAI gets JSON Schema; Ollama gets the same JSON Schema).
 - **Encrypted credential store** (`ai_provider_credentials` table) — AES-256-GCM via Bun's `crypto.subtle`, master key from env var `PAGE_BUILDER_SECRET_KEY`. Multiple rows per provider allowed (different keys for different purposes). Plaintext never crosses the wire.
 - **Persistent conversations**: tables `ai_conversations` + `ai_messages`, scoped per user + per surface. Soft-delete with a nightly job that hard-purges rows older than 30 days. Conversations survive reload and device-switching.
-- **Four AI surfaces** with scoped toolsets and **independent message histories**: Site editor (24 tools, live), Content (Phase 4), Data (Phase 4), Plugin SDK (Phase 5).
+- **Four AI surfaces** with scoped toolsets and **independent message histories**: Site editor (24 tools, live), Content workspace (15 tools, live), Data workspace (Phase 4 follow-up), Plugin SDK (Phase 5).
 - **Model picker** in every chat: `(credentialId, modelId)` persisted per-surface. Defaults sourced from site-wide config with per-user override.
 - **New capabilities**: `ai.providers.manage` (set keys + site defaults), `ai.use` (invoke any AI surface, read own conversations), `ai.audit.read` (see all-user usage log).
 - **No-credential UX**: banner inside the chat panel with a "Open AI settings" deep-link to `/admin/ai`; Send button disabled until at least one credential exists.
@@ -658,14 +659,16 @@ Independent message histories: each scope has its own slice instance keyed by `s
 - System prompt unchanged, moved to `server/ai/tools/pageBuilder/systemPrompt.ts`.
 - Conversation sidebar shows the user's recent site-editor chats; opening one re-attaches the snapshot it was created with (so the agent can still reason about that page even if the user navigated elsewhere).
 
-### Content workspace
+### Content workspace ✅ shipped
 
-- Workspace gains a chat drawer toggle in the header (mirrors the site editor's Agent toggle).
-- Toolset:
-  - read: `list_posts`, `get_post`, `list_pages`, `get_page` (note: content "pages" are the post-typed pages, not visual-editor pages)
-  - write: `createPost`, `updatePost`, `deletePost`, `setPostStatus`
-  - assist (server-resolved, no DB mutation): `rewrite`, `summarise`, `translate` — these take a richtext blob + instruction and return the new text, which the workspace's editor inserts on user confirmation.
-- The assist tools intentionally **don't auto-mutate** — they return text and the workspace UI shows a diff with Accept/Reject. This is the right pattern for editorial flow.
+- `ContentSidebar` gains an "AI assistant" rail button (third button alongside Content + Media; lilac accent, `AiSettingsSolidIcon` — matches the site editor's rail). Clicking it docks the AgentPanel into the same sidebar slot the content + media panels share.
+- Toolset (15 tools, all under `server/ai/tools/content/`):
+  - Read: `list_collections`, `get_collection_schema`, `list_documents`, `get_document`, `search_documents`, `list_users`, `list_media`
+  - Write (browser-bridged): `create_document`, `delete_document`, `set_document_status`, `set_document_field`, `set_document_fields`, `set_document_author`, `set_active_document`, `set_active_collection`
+- **Auto-mutate, not Accept/Reject.** Decision shift from the original spec: the agent mutates the live draft state directly via the existing `useContentEntryDraft` setters. User sees changes immediately in the editor; undo lives in the workspace's normal save/publish flow rather than in a per-tool confirmation. The original "rewrite / summarise / translate" assist tools collapse into prompt-driven editing via `get_document` + `set_document_field` — no separate assist surface.
+- Body field is exchanged as **markdown** in both directions. The existing `@core/markdown/markdownDocument.ts` round-trips between markdown strings and TipTap JSON; the agent never sees ProseMirror node trees.
+- Snapshot includes the active document's id + tableId + status + every field value + the collection's field schema (with select options, media kind, relation targets), plus a light list of every postType/page collection (id, slug, label, kind, docCount).
+- Honest limits documented in the bridge: custom fields not yet writable (only built-ins flow through the draft); scheduled publishing rejected; field writes require the doc to be active.
 
 ### Data workspace
 
@@ -816,12 +819,28 @@ Each phase is independently shippable and leaves the app in a runnable state.
 
 ### Phase 4 — Content + Data workspaces
 
-- Define `server/ai/tools/content/` and `server/ai/tools/data/` toolsets.
-- Mount `<AiAssistantDrawer>` in Content and Data workspaces.
-- Implement `rewrite` / `summarise` / `translate` server-side tools.
-- Implement `generateRows` server-side tool.
+#### Content workspace ✅ shipped
 
-Deliverable: AI assistant in three workspaces.
+- `server/ai/tools/content/` — 15 tools (7 read + 8 write):
+  - **Read**: `list_collections`, `get_collection_schema`, `list_documents`, `get_document`, `search_documents`, `list_users`, `list_media`. All server-resolved against the existing `data` repositories with compact agent-friendly projections.
+  - **Write** (browser-bridged): `create_document`, `delete_document`, `set_document_status`, `set_document_field`, `set_document_fields`, `set_document_author`, `set_active_document`, `set_active_collection`. Body field exchanged as markdown — TipTap conversion via the existing `@core/markdown/markdownDocument.ts` round-trips on read/write.
+- `server/ai/tools/content/snapshot.ts` + `systemPrompt.ts` — `ContentSnapshot` shape (collections, active doc with fields + schema, current user) + scope system prompt.
+- Browser bridge: `src/admin/pages/content/agent/contentBridgeHandle.ts` (module-level imperative handle registry) + `contentBridge.ts` (TypeBox-validated dispatcher mapping the 8 write tool names to handle methods).
+- Per-mount Zustand store (`contentAgentStore.ts`) composing the same `createAgentSlice(config)` factory as the site editor with `scope: 'content'` + `dispatchTool: executeContentTool`. The slice's site-editor return type is cast into the slice-only store shape (runtime-safe because the slice only touches AgentSlice keys).
+- `ContentAgentMount` registers the bridge handle with refs (so methods always see live workspace + draft state without re-registration each render) and renders `<AgentPanel variant="docked">` wrapped in `<AgentStoreProvider>`.
+- `ContentSidebar` gains a third rail button ("AI assistant", lilac, `AiSettingsSolidIcon`) + an `agentPanel: ReactNode` slot mounted alongside the existing content + media panels. Same docked variant the site editor uses.
+- An `isVisible` prop on `ContentAgentMount` syncs the sidebar's `activePanel === 'agent'` into the store's `isAgentOpen` flag so the panel actually renders when the rail tab is active.
+- **Honest limits** surfaced as bridge errors (the agent retries on errors per the system prompt):
+  - Custom (non-built-in) fields aren't writable yet — only `title`, `slug`, `body`, `featuredMedia`, `seoTitle`, `seoDescription` flow through the draft state. Custom-field setters in `useContentEntryDraft` are a follow-up.
+  - Scheduled publishing rejected with a "use the schedule dialog" message.
+  - Field writes require the doc to be active — agent calls `set_active_document` first per the prompt; otherwise the bridge throws a clear error.
+
+#### Data workspace — not yet built
+
+- Define `server/ai/tools/data/` toolset (table/row CRUD + `generateRows`).
+- Mount the docked AgentPanel in the Data workspace sidebar following the same pattern.
+
+Decision parked in earlier session: the canonical "assist" tools the original plan listed (`rewrite` / `summarise` / `translate`) are intentionally **not** part of Phase 4 — they collapse into prompt-driven editing via the basic `get_document` + `set_document_field` pair, removing tool sprawl.
 
 ### Phase 5 — Plugin SDK `ai.invoke`
 
