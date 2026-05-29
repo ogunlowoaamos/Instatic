@@ -1,5 +1,5 @@
 /**
- * System binding sources — `page`, `site`, `viewer`, `route`.
+ * System binding sources — `page`, `site`, `route`.
  *
  * The dynamic binding picker lists these alongside post-types and data
  * tables in its left pane. Each entry declares the fields a binding can

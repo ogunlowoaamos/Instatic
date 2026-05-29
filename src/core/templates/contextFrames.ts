@@ -7,7 +7,6 @@
  *
  *   - `page`   — fields of the page currently being rendered
  *   - `site`   — site-level fields
- *   - `viewer` — currently authenticated user (or `null` for anonymous)
  *   - `route`  — URL frame for the current request
  *
  * Each frame is a flat `Record<string, unknown>` keyed by the field id the
