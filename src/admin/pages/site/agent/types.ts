@@ -10,27 +10,6 @@
  */
 
 // ---------------------------------------------------------------------------
-// Insert-tree input shape (consumed by the agent executor)
-//
-// Claude submits new subtrees through the `insertTree` MCP tool; the executor
-// recursively materialises them. Per-action discriminated-union types used to
-// live here, but the executor reads its inputs straight from the tool input
-// object, so the only public shape now is `InsertTreeNode`.
-// ---------------------------------------------------------------------------
-
-export interface InsertTreeNode {
-  moduleId: string
-  /** Initial prop values for the new node. */
-  props?: Record<string, unknown>
-  /**
-   * CSS classes to attach. Must be existing class IDs, existing class names,
-   * or names declared in insertTree.classes (those are created first).
-   */
-  classIds?: string[]
-  children?: InsertTreeNode[]
-}
-
-// ---------------------------------------------------------------------------
 // Execution result
 // ---------------------------------------------------------------------------
 //
@@ -40,8 +19,12 @@ export interface InsertTreeNode {
 
 export interface AgentActionResult {
   success: boolean
-  /** Set by insertNode / insertTree / createClass — the new node/class ID. */
+  /** Set by createClass — the new class ID. */
   nodeId?: string
+  /** Set by insertHtml / replaceNodeHtml — the inserted root node IDs. */
+  nodeIds?: string[]
+  /** Set by getNodeHtml — the rendered HTML for the subtree. */
+  html?: string
   /** Failure detail; Claude reads it from the tool_result block to retry. */
   error?: string
   /** Set by render_snapshot only — captured browser screenshot + layout. */
@@ -166,7 +149,7 @@ export interface AgentToolCall {
   id: string
   /** SDK tool_use id (`toolu_…`) — correlates UI badges with stream events. */
   externalId?: string
-  /** Tool name as Claude saw it (e.g. `mcp__page_builder__insertNode`). */
+  /** Tool name as Claude saw it (e.g. `mcp__page_builder__insertHtml`). */
   actionType: string
   /** Tool input as Claude produced it. */
   params: Record<string, unknown>

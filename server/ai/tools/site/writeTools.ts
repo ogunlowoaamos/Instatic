@@ -7,16 +7,15 @@
  * sentinel `execution: 'browser'`. There is NO server-side handler — the
  * runner routes browser-execution tools through the bridge instead.
  *
- * 14 mutation tools + render_snapshot = 15 total.
+ * 15 mutation tools + render_snapshot + getNodeHtml = 17 total.
  *
- * Input shapes mirror the existing browser executor at
- * `src/admin/pages/site/agent/executor.ts` (which already validates each
- * call against TypeBox schemas — the schemas defined here are the single
- * source of truth that the executor will read in Phase 3).
+ * Input shapes mirror the browser executor at
+ * `src/admin/pages/site/agent/executor.ts` (which validates each call
+ * against TypeBox schemas — the schemas defined here are the single source
+ * of truth that the executor reads in Phase 3).
  */
 
 import { Type } from '@core/utils/typeboxHelpers'
-import type { TSchema } from '@sinclair/typebox'
 import type { AiTool } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -39,60 +38,63 @@ const ClassDefinition = Type.Object({
   breakpointStyles: Type.Optional(BreakpointStyles),
 })
 
-// Recursive InsertTreeNode — `children` is an array of self. TypeBox's
-// `Type.Recursive` is the canonical pattern for this kind of self-reference
-// (the runtime ToolCall hand-walks the tree).
-const InsertTreeNodeSchema: TSchema = Type.Recursive((Self) =>
-  Type.Object({
-    moduleId: Type.String({ minLength: 1 }),
-    props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-    classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
-    children: Type.Optional(Type.Array(Self)),
-  }),
-)
+// ---------------------------------------------------------------------------
+// HTML-native write tools
+// ---------------------------------------------------------------------------
+
+const InsertHtmlInput = Type.Object({
+  parentId: Type.String({ minLength: 1 }),
+  index: Type.Optional(Type.Integer({ minimum: 0 })),
+  html: Type.String({ minLength: 1 }),
+  classes: Type.Optional(Type.Array(ClassDefinition)),
+})
+
+const insertHtmlTool: AiTool = {
+  name: 'insertHtml',
+  scope: 'site',
+  execution: 'browser',
+  description:
+    'Insert semantic HTML as a subtree of editable nodes under an existing parent. Write structure as HTML (<section>, <h1>, <a>, <button>, <img>, <ul>, ...); style via classes referenced from class= attributes or declared in `classes`. <style> blocks and style= attributes are stripped on import.',
+  inputSchema: InsertHtmlInput,
+}
+
+const GetNodeHtmlInput = Type.Object({
+  nodeId: Type.String({ minLength: 1 }),
+})
+
+const getNodeHtmlTool: AiTool = {
+  name: 'getNodeHtml',
+  scope: 'site',
+  execution: 'browser',
+  description:
+    'Return the current HTML the published page would emit for a node subtree. Use before replaceNodeHtml to read existing structure.',
+  inputSchema: GetNodeHtmlInput,
+}
+
+const ReplaceNodeHtmlInput = Type.Object({
+  nodeId: Type.String({ minLength: 1 }),
+  html: Type.String({ minLength: 1 }),
+  classes: Type.Optional(Type.Array(ClassDefinition)),
+})
+
+const replaceNodeHtmlTool: AiTool = {
+  name: 'replaceNodeHtml',
+  scope: 'site',
+  execution: 'browser',
+  description:
+    "Replace a node subtree's children with new HTML. The target node is preserved as the parent; its existing children are rebuilt from the HTML.",
+  inputSchema: ReplaceNodeHtmlInput,
+}
 
 // ---------------------------------------------------------------------------
 // Node-level write tools
 // ---------------------------------------------------------------------------
 
-const InsertNodeInput = Type.Object({
-  moduleId: Type.String({ minLength: 1 }),
-  parentId: Type.String({ minLength: 1 }),
-  index: Type.Optional(Type.Integer({ minimum: 0 })),
-  props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-  classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
-})
-
-export const insertNodeTool: AiTool = {
-  name: 'insertNode',
-  scope: 'site',
-  execution: 'browser',
-  description:
-    "Insert one node under an existing parent. Returns the new node's id. Prefer insertTree for multi-element sections. `classIds` accepts class ids OR names (unknown names fail — create first).",
-  inputSchema: InsertNodeInput,
-}
-
-const InsertTreeInput = Type.Object({
-  parentId: Type.String({ minLength: 1 }),
-  index: Type.Optional(Type.Integer({ minimum: 0 })),
-  classes: Type.Optional(Type.Array(ClassDefinition)),
-  tree: InsertTreeNodeSchema,
-})
-
-export const insertTreeTool: AiTool = {
-  name: 'insertTree',
-  scope: 'site',
-  execution: 'browser',
-  description:
-    "Insert a nested tree of nodes plus the supporting CSS classes in one call. `classes` are created first, then referenced by name from `tree.children[].classIds`. Returns the root node's id. Strongly preferred over chained insertNode for any multi-element section.",
-  inputSchema: InsertTreeInput,
-}
-
 const DeleteNodeInput = Type.Object({
   nodeId: Type.String({ minLength: 1 }),
 })
 
-export const deleteNodeTool: AiTool = {
+const deleteNodeTool: AiTool = {
   name: 'deleteNode',
   scope: 'site',
   execution: 'browser',
@@ -107,7 +109,7 @@ const UpdateNodePropsInput = Type.Object({
   patch: Type.Record(Type.String(), Type.Unknown()),
 })
 
-export const updateNodePropsTool: AiTool = {
+const updateNodePropsTool: AiTool = {
   name: 'updateNodeProps',
   scope: 'site',
   execution: 'browser',
@@ -122,7 +124,7 @@ const MoveNodeInput = Type.Object({
   newIndex: Type.Integer({ minimum: 0 }),
 })
 
-export const moveNodeTool: AiTool = {
+const moveNodeTool: AiTool = {
   name: 'moveNode',
   scope: 'site',
   execution: 'browser',
@@ -136,7 +138,7 @@ const RenameNodeInput = Type.Object({
   label: Type.String({ minLength: 1 }),
 })
 
-export const renameNodeTool: AiTool = {
+const renameNodeTool: AiTool = {
   name: 'renameNode',
   scope: 'site',
   execution: 'browser',
@@ -150,7 +152,7 @@ const DuplicateNodeInput = Type.Object({
   count: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
 })
 
-export const duplicateNodeTool: AiTool = {
+const duplicateNodeTool: AiTool = {
   name: 'duplicateNode',
   scope: 'site',
   execution: 'browser',
@@ -169,7 +171,7 @@ const CreateClassInput = Type.Object({
   breakpointStyles: Type.Optional(BreakpointStyles),
 })
 
-export const createClassTool: AiTool = {
+const createClassTool: AiTool = {
   name: 'createClass',
   scope: 'site',
   execution: 'browser',
@@ -184,7 +186,7 @@ const UpdateClassStylesInput = Type.Object({
   patch: StylePatch,
 })
 
-export const updateClassStylesTool: AiTool = {
+const updateClassStylesTool: AiTool = {
   name: 'updateClassStyles',
   scope: 'site',
   execution: 'browser',
@@ -198,7 +200,7 @@ const AssignClassInput = Type.Object({
   classId: Type.String({ minLength: 1 }),
 })
 
-export const assignClassTool: AiTool = {
+const assignClassTool: AiTool = {
   name: 'assignClass',
   scope: 'site',
   execution: 'browser',
@@ -212,7 +214,7 @@ const RemoveClassInput = Type.Object({
   classId: Type.String({ minLength: 1 }),
 })
 
-export const removeClassTool: AiTool = {
+const removeClassTool: AiTool = {
   name: 'removeClass',
   scope: 'site',
   execution: 'browser',
@@ -230,7 +232,7 @@ const AddPageInput = Type.Object({
   slug: Type.Optional(Type.String()),
 })
 
-export const addPageTool: AiTool = {
+const addPageTool: AiTool = {
   name: 'addPage',
   scope: 'site',
   execution: 'browser',
@@ -243,7 +245,7 @@ const DeletePageInput = Type.Object({
   pageId: Type.String({ minLength: 1 }),
 })
 
-export const deletePageTool: AiTool = {
+const deletePageTool: AiTool = {
   name: 'deletePage',
   scope: 'site',
   execution: 'browser',
@@ -258,7 +260,7 @@ const RenamePageInput = Type.Object({
   slug: Type.Optional(Type.String()),
 })
 
-export const renamePageTool: AiTool = {
+const renamePageTool: AiTool = {
   name: 'renamePage',
   scope: 'site',
   execution: 'browser',
@@ -273,7 +275,7 @@ const DuplicatePageInput = Type.Object({
   slug: Type.Optional(Type.String()),
 })
 
-export const duplicatePageTool: AiTool = {
+const duplicatePageTool: AiTool = {
   name: 'duplicatePage',
   scope: 'site',
   execution: 'browser',
@@ -290,7 +292,7 @@ const RenderSnapshotInput = Type.Object({
   breakpointId: Type.Optional(Type.String({ minLength: 1 })),
 })
 
-export const renderSnapshotTool: AiTool = {
+const renderSnapshotTool: AiTool = {
   name: 'render_snapshot',
   scope: 'site',
   execution: 'browser',
@@ -304,8 +306,9 @@ export const renderSnapshotTool: AiTool = {
 // ---------------------------------------------------------------------------
 
 export const siteWriteTools: AiTool[] = [
-  insertNodeTool,
-  insertTreeTool,
+  insertHtmlTool,
+  getNodeHtmlTool,
+  replaceNodeHtmlTool,
   deleteNodeTool,
   updateNodePropsTool,
   moveNodeTool,

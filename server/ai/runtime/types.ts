@@ -92,8 +92,8 @@ export interface AiTool {
   readonly inputSchema: TSchema
   /**
    * Does this tool mutate state? Read tools (snapshot, search, list) are
-   * pure reads against the db / store; write tools (setNodeProps,
-   * insertNode, deleteNode, …) cause user-visible state change.
+   * pure reads against the db / store; write tools (insertHtml,
+   * replaceNodeHtml, deleteNode, …) cause user-visible state change.
    *
    * The chat handler uses this to filter the registered toolset: a caller
    * with `ai.chat` but no `ai.tools.write` only sees `mutates !== true`

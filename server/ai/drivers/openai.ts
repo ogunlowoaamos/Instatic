@@ -231,8 +231,8 @@ function toolToSdkTool(
     name: aiTool.name,
     description: aiTool.description,
     parameters,
-    // `strict: false` — our schemas use optionals (which strict mode forbids)
-    // and recursive references (insertTree). Non-strict tolerates both.
+    // `strict: false` — our schemas use optionals (which strict mode forbids).
+    // Non-strict tolerates these.
     strict: false,
     async execute(input) {
       return callAiTool(aiTool, input, bridge, signal, toolContextBase)

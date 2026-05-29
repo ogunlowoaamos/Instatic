@@ -82,7 +82,7 @@ const CoreCapabilitySchema = Type.Union([
   // AI runtime — see docs/plans/2026-05-26-ai-runtime-rewrite.md.
   //   ai.chat              Open conversations + use read-only tools (snapshot,
   //                        search). Mutating tools require `ai.tools.write`.
-  //   ai.tools.write       Enable canvas write tools (setNodeProps, insertNode,
+  //   ai.tools.write       Enable canvas write tools (insertHtml, replaceNodeHtml,
   //                        deleteNode, etc.). The chat endpoint filters tool
   //                        registration by this cap.
   //   ai.providers.manage  Create/update/delete API-key credentials + per-scope

@@ -21,9 +21,12 @@ import { Type, type Static, parseValue } from '@core/utils/typeboxHelpers'
 import type { EditorStore } from '@site/store/types'
 import { registry } from '@core/module-engine/registry'
 import { sanitizeRichtext, isRichtextPropKey } from '@core/sanitize'
+import { importHtml } from '@core/htmlImport'
+import { renderNode } from '@core/publisher/renderNode'
+import type { RenderContext } from '@core/publisher/renderContext'
 import { getAgentStoreApi } from './storeRef'
 import { captureAgentRenderSnapshot } from './renderEvidence'
-import type { AgentActionResult, InsertTreeNode } from './types'
+import type { AgentActionResult } from './types'
 
 // Live access to the editor store. Routed through `./storeRef` so this module
 // has no static import edge back into `editor-store/store.ts`.
@@ -37,14 +40,6 @@ const getStoreState = (): EditorStore => getAgentStoreApi<EditorStore>().getStat
 // the SDK's Zod gate before sending toolRequest; this second pass is defence-
 // in-depth at the store boundary (Constraint #272).
 // ---------------------------------------------------------------------------
-
-const insertNodeSchema = Type.Object({
-  moduleId: Type.String({ minLength: 1 }),
-  parentId: Type.String({ minLength: 1 }),
-  index: Type.Optional(Type.Integer({ minimum: 0 })),
-  props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-  classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
-})
 
 const classStylePatchSchema = Type.Record(
   Type.String(),
@@ -62,20 +57,21 @@ const classDefinitionSchema = Type.Object({
   breakpointStyles: Type.Optional(classBreakpointStylesSchema),
 })
 
-const insertTreeNodeSchema = Type.Recursive((Self) =>
-  Type.Object({
-    moduleId: Type.String({ minLength: 1 }),
-    props: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-    classIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
-    children: Type.Optional(Type.Array(Self)),
-  }),
-)
-
-const insertTreeSchema = Type.Object({
+const insertHtmlSchema = Type.Object({
   parentId: Type.String({ minLength: 1 }),
   index: Type.Optional(Type.Integer({ minimum: 0 })),
+  html: Type.String({ minLength: 1 }),
   classes: Type.Optional(Type.Array(classDefinitionSchema)),
-  tree: insertTreeNodeSchema,
+})
+
+const getNodeHtmlSchema = Type.Object({
+  nodeId: Type.String({ minLength: 1 }),
+})
+
+const replaceNodeHtmlSchema = Type.Object({
+  nodeId: Type.String({ minLength: 1 }),
+  html: Type.String({ minLength: 1 }),
+  classes: Type.Optional(Type.Array(classDefinitionSchema)),
 })
 
 const deleteNodeSchema = Type.Object({
@@ -178,9 +174,6 @@ function resolveClassId(
   return matches[0]?.id ?? null
 }
 
-const EMPTY_TREE_CHILDREN: InsertTreeNode[] = []
-const EMPTY_TREE_CLASS_IDS: string[] = []
-const EMPTY_PROPS: Record<string, unknown> = {}
 const EMPTY_CLASS_STYLES: Record<string, string | number> = {}
 const EMPTY_BREAKPOINT_STYLES: Record<string, Record<string, string | number>> = {}
 
@@ -196,19 +189,6 @@ function resolveOrCreateClassId(
   } catch {
     return null
   }
-}
-
-function resolveKnownClassIds(
-  store: EditorStore,
-  classIdsOrNames: string[],
-): { classIds: string[]; missing: null } | { classIds: null; missing: string } {
-  const resolved: string[] = []
-  for (const classIdOrName of classIdsOrNames) {
-    const classId = resolveClassId(store, classIdOrName)
-    if (!classId) return { classIds: null, missing: classIdOrName }
-    if (!resolved.includes(classId)) resolved.push(classId)
-  }
-  return { classIds: resolved, missing: null }
 }
 
 function ensureClassIdWithStyles(
@@ -262,104 +242,42 @@ function applyClassBreakpointStyles(
   }
 }
 
-function validateRegisteredModule(moduleId: string): string | null {
-  const mod = registry.get(moduleId)
-  if (!mod) return `Module not found: ${moduleId}`
-  if (typeof mod.component !== 'function') return `Module component unavailable: ${moduleId}`
-  return null
-}
-
-function validateTreeModules(node: InsertTreeNode): string | null {
-  const moduleError = validateRegisteredModule(node.moduleId)
-  if (moduleError) return moduleError
-  for (const child of node.children ?? EMPTY_TREE_CHILDREN) {
-    const childError = validateTreeModules(child)
-    if (childError) return childError
+/**
+ * Locate a node by ID across every page and visual-component tree on the site.
+ *
+ * Mutations touch the active canvas tree, but the agent passes node IDs that
+ * may belong to any page or VC. We need the node's shape for various checks,
+ * so a single-shot cross-tree search is the simplest correct lookup.
+ */
+function findNodeAcrossSite(store: EditorStore, nodeId: string) {
+  const site = store.site
+  if (!site) return undefined
+  for (const page of site.pages) {
+    const node = page.nodes[nodeId]
+    if (node) return node
   }
-  return null
-}
-
-function sanitizeNodeProps(props: Record<string, unknown>): Record<string, unknown> {
-  const sanitizedProps: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(props)) {
-    sanitizedProps[key] = isRichtextPropKey(key) && typeof value === 'string'
-      ? sanitizeRichtext(value)
-      : value
+  for (const vc of site.visualComponents ?? []) {
+    const node = vc.tree.nodes[nodeId]
+    if (node) return node
   }
-  return sanitizedProps
-}
-
-function ensureTreeClassIds(
-  store: EditorStore,
-  node: InsertTreeNode,
-): string | null {
-  const resolved = resolveKnownClassIds(store, node.classIds ?? EMPTY_TREE_CLASS_IDS)
-  if (resolved.missing) return resolved.missing
-  for (const child of node.children ?? EMPTY_TREE_CHILDREN) {
-    const unresolved = ensureTreeClassIds(store, child)
-    if (unresolved) return unresolved
-  }
-  return null
-}
-
-function insertTreeNode(
-  store: EditorStore,
-  node: InsertTreeNode,
-  parentId: string,
-  index: number | undefined,
-): string {
-  const nodeId = store.insertNode(
-    node.moduleId,
-    sanitizeNodeProps(node.props ?? EMPTY_PROPS),
-    parentId,
-    index,
-  )
-
-  const resolved = resolveKnownClassIds(store, node.classIds ?? EMPTY_TREE_CLASS_IDS)
-  const classIds = resolved.classIds ?? EMPTY_TREE_CLASS_IDS
-  for (const classId of classIds) {
-    store.addNodeClass(nodeId, classId)
-  }
-
-  for (const child of node.children ?? EMPTY_TREE_CHILDREN) {
-    insertTreeNode(store, child, nodeId, undefined)
-  }
-
-  return nodeId
+  return undefined
 }
 
 // ---------------------------------------------------------------------------
 // Per-tool implementations
 // ---------------------------------------------------------------------------
 
-function runInsertNode(input: Static<typeof insertNodeSchema>): AgentActionResult {
-  const store = getStoreState()
-  const moduleError = validateRegisteredModule(input.moduleId)
-  if (moduleError) return { success: false, error: moduleError }
-
-  const resolvedClassIds = resolveKnownClassIds(store, input.classIds ?? EMPTY_TREE_CLASS_IDS)
-  if (resolvedClassIds.missing) {
-    return { success: false, error: `Class not found: ${resolvedClassIds.missing}` }
-  }
-  const classIds = resolvedClassIds.classIds ?? EMPTY_TREE_CLASS_IDS
-
-  const sanitizedProps = sanitizeNodeProps(input.props ?? EMPTY_PROPS)
-  const nodeId = store.insertNode(
-    input.moduleId,
-    sanitizedProps,
-    input.parentId,
-    input.index,
-  )
-  for (const classId of classIds) {
-    store.addNodeClass(nodeId, classId)
-  }
-  return { success: true, nodeId }
-}
-
-function runInsertTree(input: Static<typeof insertTreeSchema>): AgentActionResult {
-  const moduleError = validateTreeModules(input.tree as InsertTreeNode)
-  if (moduleError) return { success: false, error: moduleError }
-
+/**
+ * Insert an HTML snippet as page nodes under `parentId`.
+ *
+ * Pipeline (identical to the paste-import modal path):
+ *   1. Validate breakpoint keys in any class definitions.
+ *   2. Create / resolve each class by name so CSS exists before insertion.
+ *   3. importHtml(input.html) — parse → strip unsafe → walkAndMap → fragment.
+ *   4. insertImportedNodes(parentId, fragment, index) — one undo step.
+ */
+function runInsertHtml(input: Static<typeof insertHtmlSchema>): AgentActionResult {
+  // (1) Validate breakpoint keys before any mutation
   for (const classDef of input.classes ?? []) {
     const breakpointError = validateBreakpointStyles(
       getStoreState(),
@@ -368,6 +286,7 @@ function runInsertTree(input: Static<typeof insertTreeSchema>): AgentActionResul
     if (breakpointError) return { success: false, error: breakpointError }
   }
 
+  // (2) Create / resolve each class by name so it exists before insertion
   for (const classDef of input.classes ?? []) {
     const classId = ensureClassIdWithStyles(
       getStoreState(),
@@ -378,18 +297,119 @@ function runInsertTree(input: Static<typeof insertTreeSchema>): AgentActionResul
     if (!classId) return { success: false, error: `Class could not be created: ${classDef.name}` }
   }
 
-  const unresolvedClass = ensureTreeClassIds(getStoreState(), input.tree as InsertTreeNode)
-  if (unresolvedClass) {
-    return { success: false, error: `Class could not be resolved: ${unresolvedClass}` }
+  // (3) Parse and walk the HTML to produce a flat node fragment
+  const { nodes, rootIds } = importHtml(input.html)
+  if (rootIds.length === 0) {
+    return { success: false, error: 'HTML contained no importable elements.' }
   }
 
-  const nodeId = insertTreeNode(
-    getStoreState(),
-    input.tree as InsertTreeNode,
+  // (4) Insert via the store action — same path as the paste import modal
+  const insertedRootIds = getStoreState().insertImportedNodes(
     input.parentId,
+    { nodes, rootIds },
     input.index,
   )
-  return { success: true, nodeId }
+  if (insertedRootIds.length === 0) {
+    return {
+      success: false,
+      error: `Parent node not found or does not accept children: ${input.parentId}`,
+    }
+  }
+
+  return { success: true, nodeIds: insertedRootIds }
+}
+
+/**
+ * Render the subtree at `nodeId` to HTML using the publisher's renderNode.
+ * Read-only — no store mutation.
+ */
+function runGetNodeHtml(input: Static<typeof getNodeHtmlSchema>): AgentActionResult {
+  const store = getStoreState()
+  const site = store.site
+  if (!site) return { success: false, error: 'No active site.' }
+
+  // Find the page that contains this node
+  let targetPage: (typeof site.pages)[number] | undefined
+  for (const page of site.pages) {
+    if (page.nodes[input.nodeId]) {
+      targetPage = page
+      break
+    }
+  }
+  if (!targetPage) {
+    return { success: false, error: `Node not found: ${input.nodeId}` }
+  }
+
+  const ctx: RenderContext = {
+    page: targetPage,
+    site,
+    registry,
+    breakpointId: undefined,
+    cssMap: new Map(),
+  }
+
+  const html = renderNode(input.nodeId, ctx)
+  return { success: true, html }
+}
+
+/**
+ * Replace the children of `nodeId` with an HTML snippet.
+ *
+ * The target node itself is preserved as the parent container. Its current
+ * children (and their full subtrees) are deleted, then the imported HTML is
+ * inserted in their place.
+ */
+function runReplaceNodeHtml(input: Static<typeof replaceNodeHtmlSchema>): AgentActionResult {
+  const store = getStoreState()
+  if (!store.site) return { success: false, error: 'No active site.' }
+
+  // Verify the target node exists
+  const targetNode = findNodeAcrossSite(store, input.nodeId)
+  if (!targetNode) {
+    return { success: false, error: `Node not found: ${input.nodeId}` }
+  }
+
+  // Delete existing children so the target node is empty before insertion
+  const existingChildren = [...(targetNode.children ?? [])]
+  if (existingChildren.length > 0) {
+    getStoreState().deleteNodes(existingChildren)
+  }
+
+  // Validate breakpoint keys before any mutation
+  for (const classDef of input.classes ?? []) {
+    const breakpointError = validateBreakpointStyles(
+      getStoreState(),
+      classDef.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
+    )
+    if (breakpointError) return { success: false, error: breakpointError }
+  }
+
+  // Create / resolve each class by name
+  for (const classDef of input.classes ?? []) {
+    const classId = ensureClassIdWithStyles(
+      getStoreState(),
+      classDef.name,
+      classDef.styles ?? EMPTY_CLASS_STYLES,
+      classDef.breakpointStyles ?? EMPTY_BREAKPOINT_STYLES,
+    )
+    if (!classId) return { success: false, error: `Class could not be created: ${classDef.name}` }
+  }
+
+  // Import and insert the new HTML under the target node
+  const { nodes, rootIds } = importHtml(input.html)
+  if (rootIds.length === 0) {
+    return { success: false, error: 'HTML contained no importable elements.' }
+  }
+
+  const insertedRootIds = getStoreState().insertImportedNodes(
+    input.nodeId,
+    { nodes, rootIds },
+  )
+  if (insertedRootIds.length === 0) {
+    return { success: false, error: `Node does not accept children: ${input.nodeId}` }
+  }
+
+  return { success: true, nodeIds: insertedRootIds }
 }
 
 function runDeleteNode(input: Static<typeof deleteNodeSchema>): AgentActionResult {
@@ -441,28 +461,6 @@ function runUpdateNodeProps(input: Static<typeof updateNodePropsSchema>): AgentA
     store.updateNodeProps(input.nodeId, sanitizedPatch)
   }
   return { success: true }
-}
-
-/**
- * Locate a node by ID across every page and visual-component tree on the site.
- *
- * Mutations touch the active canvas tree, but the agent passes node IDs that
- * may belong to any page or VC. We need the node's `moduleId` to look the
- * schema up before calling `setBreakpointOverride`, so a single-shot
- * cross-tree search is the simplest correct lookup.
- */
-function findNodeAcrossSite(store: EditorStore, nodeId: string) {
-  const site = store.site
-  if (!site) return undefined
-  for (const page of site.pages) {
-    const node = page.nodes[nodeId]
-    if (node) return node
-  }
-  for (const vc of site.visualComponents ?? []) {
-    const node = vc.tree.nodes[nodeId]
-    if (node) return node
-  }
-  return undefined
 }
 
 function runMoveNode(input: Static<typeof moveNodeSchema>): AgentActionResult {
@@ -621,10 +619,12 @@ export async function executeAgentTool(
 ): Promise<AgentActionResult> {
   try {
     switch (toolName) {
-      case 'insertNode':
-        return runInsertNode(parseValue(insertNodeSchema, rawInput))
-      case 'insertTree':
-        return runInsertTree(parseValue(insertTreeSchema, rawInput))
+      case 'insertHtml':
+        return runInsertHtml(parseValue(insertHtmlSchema, rawInput))
+      case 'getNodeHtml':
+        return runGetNodeHtml(parseValue(getNodeHtmlSchema, rawInput))
+      case 'replaceNodeHtml':
+        return runReplaceNodeHtml(parseValue(replaceNodeHtmlSchema, rawInput))
       case 'deleteNode':
         return runDeleteNode(parseValue(deleteNodeSchema, rawInput))
       case 'updateNodeProps':

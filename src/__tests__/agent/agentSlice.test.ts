@@ -170,8 +170,8 @@ describe('processStreamEvent — toolRequest dispatches to executor', () => {
         {
           type: 'toolRequest',
           requestId: 'req-1',
-          toolName: 'insertNode',
-          input: { moduleId: 'base.text', parentId: rootId, props: { text: 'Hi' } },
+          toolName: 'insertHtml',
+          input: { parentId: rootId, html: '<p>Hi</p>' },
         },
         assistantId,
         () => {},
@@ -190,16 +190,15 @@ describe('processStreamEvent — toolRequest dispatches to executor', () => {
     expect(body.bridgeId).toBe('bridge-1')
     expect(body.requestId).toBe('req-1')
     // New wire shape: { ok, data?, error? } (was: { success, nodeId, ... }).
-    const result = body.result as { ok: boolean; data?: { nodeId?: string } }
+    const result = body.result as { ok: boolean }
     expect(result.ok).toBe(true)
-    expect(result.data?.nodeId).toBeTruthy()
 
     const page = useEditorStore.getState().site!.pages[0]
     expect(Object.values(page.nodes).some((n) => n.moduleId === 'base.text')).toBe(true)
   })
 
   it('reports an error result when the tool input is invalid', async () => {
-    const { assistantId, rootId } = freshAgentState()
+    const { assistantId } = freshAgentState()
     const bridge: AgentBridgeRuntime = { bridgeId: 'bridge-2' }
 
     const intercept = captureFetchByRoute({
@@ -211,8 +210,8 @@ describe('processStreamEvent — toolRequest dispatches to executor', () => {
         {
           type: 'toolRequest',
           requestId: 'req-2',
-          toolName: 'insertNode',
-          input: { moduleId: 'missing.module', parentId: rootId },
+          toolName: 'insertHtml',
+          input: { parentId: 'nonexistent-parent', html: '<p>Test</p>' },
         },
         assistantId,
         () => {},
@@ -228,7 +227,7 @@ describe('processStreamEvent — toolRequest dispatches to executor', () => {
     expect(intercept.calls).toHaveLength(1)
     const body = JSON.parse(intercept.calls[0].body) as { result: { ok: boolean; error?: string } }
     expect(body.result.ok).toBe(false)
-    expect(body.result.error).toContain('Module not found')
+    expect(body.result.error).toContain('not found')
   })
 })
 

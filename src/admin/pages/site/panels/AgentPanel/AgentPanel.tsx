@@ -420,7 +420,9 @@ function formatToolCallType(actionType: string): string {
 function formatActionLabel(actionType: string, params: unknown): string {
   const p = params as Record<string, unknown>
   switch (actionType) {
-    case 'insertNode': return `${String(p.moduleId ?? '')}`
+    case 'insertHtml': return `→ ${String(p.parentId ?? '').slice(0, 8)}`
+    case 'getNodeHtml': return `node ${String(p.nodeId ?? '').slice(0, 6)}…`
+    case 'replaceNodeHtml': return `node ${String(p.nodeId ?? '').slice(0, 6)}…`
     case 'deleteNode': return `node ${String(p.nodeId ?? '').slice(0, 6)}…`
     case 'updateNodeProps': return `node ${String(p.nodeId ?? '').slice(0, 6)}…`
     case 'moveNode': return `→ ${String(p.newParentId ?? '').slice(0, 6)}…`
