@@ -4,13 +4,15 @@
  * has selected a class via the Selectors panel.
  *
  * Renaming a class is a style edit — the pencil button is hidden for callers
- * without `site.style.edit`.
+ * without `site.style.edit`. Generated utility classes are locked and cannot
+ * be renamed, so the pencil is also hidden for them.
  */
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { useEditorPermissions } from '@site/editorPermissionsContext'
+import { isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import type { StyleRule } from '@core/page-tree'
 import styles from './PropertiesPanel.module.css'
 
@@ -23,8 +25,9 @@ export function SelectorHeader({ cls, onRename }: SelectorHeaderProps) {
   const [isEditing, setIsEditing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const selectorLabel = `.${cls.name}`
-  // Renaming a class is a style edit — gate on `site.style.edit`.
-  const canRename = useEditorPermissions().canEditStyle
+  // Renaming a class is a style edit — gate on `site.style.edit`. Generated
+  // utility classes are locked and never renameable.
+  const canRename = useEditorPermissions().canEditStyle && !isGeneratedClassLocked(cls)
 
   useEffect(() => {
     if (inputRef.current) {

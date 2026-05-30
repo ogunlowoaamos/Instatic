@@ -16,7 +16,7 @@ function generatedTextClass(): StyleRule {
     id: GENERATED_CLASS_ID,
     name: 'text-primary',
     styles: { color: 'var(--primary)' },
-    breakpointStyles: {},
+    contextStyles: {},
     generated: {
       origin: 'framework',
       family: 'color',
@@ -119,6 +119,20 @@ describe('generated utility classes in editor panels', () => {
     expect(within(panel).getByText('Generated utility')).toBeDefined()
     expect(within(panel).getByText(/utility classes have a single purpose/i)).toBeDefined()
     expect(within(panel).queryByRole('searchbox', { name: /search class style properties to add/i })).toBeNull()
+  })
+
+  it('hides the rename pencil in the selector header for generated utilities', () => {
+    useEditorStore.setState({
+      selectedNodeId: null,
+      selectedNodeIds: [],
+      activeClassId: GENERATED_CLASS_ID,
+      selectedSelectorClassId: GENERATED_CLASS_ID,
+    } as Parameters<typeof useEditorStore.setState>[0])
+
+    render(<PropertiesPanel variant="docked" />)
+
+    const panel = screen.getByTestId('properties-panel')
+    expect(within(panel).queryByRole('button', { name: /rename selector \.text-primary/i })).toBeNull()
   })
 
   it('marks generated utilities in the selectors panel and disables editing actions', () => {
