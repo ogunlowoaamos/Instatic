@@ -28,12 +28,15 @@ import { ComponentRefView } from './ComponentRefView'
 import { ComponentParamsOverview } from './ComponentParamsOverview'
 import { ConvertToComponentButton } from './ConvertToComponentButton'
 import { MultiSelectionInspector } from './MultiSelectionInspector'
+import { MultiSelectorInspector } from './MultiSelectorInspector'
 import { SelectorInspector } from './SelectorInspector'
 import styles from './PropertiesPanel.module.css'
 
 interface PropertiesPanelBodyProps {
   selectedSelectorClass: StyleRule | null
   selectedSelectorClassId: string | null
+  selectedSelectorClassIds: string[]
+  isSelectorMultiSelect: boolean
   activeBreakpointId: string | undefined
   isMultiSelect: boolean
   selectedNodeIds: string[]
@@ -53,6 +56,8 @@ export function PropertiesPanelBody(props: PropertiesPanelBodyProps): React.Reac
   const {
     selectedSelectorClass,
     selectedSelectorClassId,
+    selectedSelectorClassIds,
+    isSelectorMultiSelect,
     activeBreakpointId,
     isMultiSelect,
     selectedNodeIds,
@@ -68,6 +73,12 @@ export function PropertiesPanelBody(props: PropertiesPanelBodyProps): React.Reac
     onFocusClassPicker,
   } = props
   const permissions = useEditorPermissions()
+
+  // Selector multi-selection (Selectors panel checkboxes) takes priority — the
+  // user explicitly built a bulk set and expects the bulk action surface.
+  if (isSelectorMultiSelect) {
+    return <MultiSelectorInspector selectedSelectorClassIds={selectedSelectorClassIds} />
+  }
 
   if (selectedSelectorClass) {
     return (

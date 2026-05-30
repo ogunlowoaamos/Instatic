@@ -16,8 +16,11 @@ import { useEditorStore } from '@site/store/store'
 export function usePropertiesPanelAutoOpen() {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
   const selectedSelectorClassId = useEditorStore((s) => s.selectedSelectorClassId)
+  const hasSelectorMultiSelect = useEditorStore((s) => s.selectedSelectorClassIds.length > 0)
   const setPropertiesPanel = useEditorStore((s) => s.setPropertiesPanel)
   useEffect(() => {
-    setPropertiesPanel({ collapsed: !selectedNodeId && !selectedSelectorClassId })
-  }, [selectedNodeId, selectedSelectorClassId, setPropertiesPanel])
+    setPropertiesPanel({
+      collapsed: !selectedNodeId && !selectedSelectorClassId && !hasSelectorMultiSelect,
+    })
+  }, [selectedNodeId, selectedSelectorClassId, hasSelectorMultiSelect, setPropertiesPanel])
 }

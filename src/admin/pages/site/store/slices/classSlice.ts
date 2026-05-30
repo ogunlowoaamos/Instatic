@@ -18,8 +18,8 @@ import { nanoid } from 'nanoid'
 import type { Draft } from 'immer'
 import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
 import type { BaseNode, SiteDocument } from '@core/page-tree'
-import type { StyleRule, CSSPropertyBag, StyleCondition, ConditionalStyleLayer } from '@core/page-tree'
-import { classKindSelector } from '@core/page-tree'
+import type { StyleRule, CSSPropertyBag, Condition } from '@core/page-tree'
+import { classKindSelector, conditionId, makeConditionDef } from '@core/page-tree'
 import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree/classUtils'
 import { assertValidCssClassName } from '@core/page-tree/classNames'
 import { buildSiteHelpers } from './site/helpers'
@@ -32,7 +32,7 @@ export interface CreateAmbientRuleInput {
   selector: string
   name?: string
   styles?: Partial<CSSPropertyBag>
-  breakpointStyles?: Record<string, Partial<CSSPropertyBag>>
+  contextStyles?: Record<string, Partial<CSSPropertyBag>>
 }
 
 /**
@@ -66,22 +66,6 @@ function isValidCssSelector(selector: string): boolean {
     return true
   } catch {
     return false
-  }
-}
-
-/** Structural equality for two style conditions — used to dedupe layers. */
-function sameCondition(a: StyleCondition, b: StyleCondition): boolean {
-  if (a.kind !== b.kind) return false
-  switch (a.kind) {
-    case 'breakpoint':
-      return a.breakpointId === (b as Extract<StyleCondition, { kind: 'breakpoint' }>).breakpointId
-    case 'media':
-    case 'supports':
-      return a.query === (b as Extract<StyleCondition, { kind: 'media' | 'supports' }>).query
-    case 'container': {
-      const bb = b as Extract<StyleCondition, { kind: 'container' }>
-      return a.query === bb.query && (a.name ?? '') === (bb.name ?? '')
-    }
   }
 }
 
@@ -144,37 +128,61 @@ export interface ClassSlice {
   /** Shallow-merge a style patch into a class's base styles. */
   updateClassStyles(classId: string, patch: Partial<CSSPropertyBag>): void
 
-  /** Shallow-merge a style patch into a class's breakpoint-specific styles. */
-  setClassBreakpointStyles(
-    classId: string,
-    breakpointId: string,
-    patch: Partial<CSSPropertyBag>,
-  ): void
-
-  // ── Conditional style layers (custom @media / @container / @supports) ──────
+  // ── Per-context overrides (unified width-breakpoint + custom-condition axis) ─
   /**
-   * Add a conditional style layer to a rule. Returns the new layer's id, or
-   * null if the rule doesn't exist / is locked / a layer with the same
-   * condition already exists (in which case the existing id is returned).
+   * Shallow-merge a style patch into a class's override bag for one editing
+   * context. `contextId` is either a width-breakpoint id (`site.breakpoints`)
+   * or a custom-condition id (`site.conditions`). Keys set to undefined/null
+   * are removed. Replaces the old `setClassBreakpointStyles` +
+   * `updateConditionalLayerStyles` (they were the same operation twice).
    */
-  addConditionalLayer(classId: string, condition: StyleCondition): string | null
-
-  /** Shallow-merge a style patch into a conditional layer's styles. */
-  updateConditionalLayerStyles(
+  setClassContextStyles(
     classId: string,
-    layerId: string,
+    contextId: string,
     patch: Partial<CSSPropertyBag>,
   ): void
 
-  /** Remove a conditional layer entirely. */
-  removeConditionalLayer(classId: string, layerId: string): void
+  // ── Site-level reusable conditions (custom @media / @container / @supports) ─
+  /**
+   * Add a reusable condition to the site-level `site.conditions` registry,
+   * deduped by deterministic id. Returns the condition id (existing or new).
+   */
+  addCondition(condition: Condition, label?: string): string
 
   /**
-   * Fully remove a CSS property from a class — both from base styles and
-   * from every breakpoint override. Used by the X / clear affordances on
-   * visual switchers (LayoutSection) where "clear this property" must mean
-   * "make it disappear" regardless of which breakpoint tab is active.
-   * No-ops (and does NOT push history) if the property isn't set anywhere.
+   * Remove a condition from the registry AND clear its override bag from every
+   * class that used it. No-op if the condition id is unknown.
+   */
+  removeCondition(conditionId: string): void
+
+  /** Rename a condition's display label (registry only; id/condition unchanged). */
+  renameCondition(conditionId: string, label: string): void
+
+  /**
+   * Edit a condition's query/kind (and optionally label) in place, keeping its
+   * id stable so every class's `contextStyles[id]` overrides survive the edit.
+   * (The id no longer matches `conditionId(condition)` afterwards — that only
+   * affects future import dedup, an acceptable edge case.)
+   */
+  updateCondition(conditionId: string, condition: Condition, label?: string): void
+
+  /**
+   * Convenience for the style panel: ensure `condition` exists in the registry
+   * and that `classId` carries an (initially empty) override bag under it, so
+   * the context becomes editable. Returns the condition id, or null if the rule
+   * doesn't exist / is locked.
+   */
+  addClassCondition(classId: string, condition: Condition): string | null
+
+  /** Remove a class's override bag for one context (no registry change). */
+  removeClassContext(classId: string, contextId: string): void
+
+  /**
+   * Fully remove a CSS property from a class — from base styles and from every
+   * per-context override. Used by the X / clear affordances on visual switchers
+   * (LayoutSection) where "clear this property" must mean "make it disappear"
+   * regardless of which context is active. No-ops (and does NOT push history)
+   * if the property isn't set anywhere.
    */
   removeClassStyleProperty(classId: string, property: keyof CSSPropertyBag): void
 
@@ -187,12 +195,33 @@ export interface ClassSlice {
   /** Duplicate a reusable class. Returns the new class, or null if not found. */
   duplicateClass(classId: string): StyleRule | null
 
+  /**
+   * Duplicate several reusable classes at once (Selectors panel bulk action).
+   * Locked / non-user-visible ids are skipped. Returns the created copies.
+   */
+  duplicateClasses(classIds: string[]): StyleRule[]
+
   /** Delete a class and remove it from all nodes that reference it. */
   deleteClass(classId: string): void
+
+  /**
+   * Delete several classes in one batched mutation (Selectors panel bulk
+   * action) so the whole removal is a single undo step. Locked classes are
+   * skipped; every deleted id is scrubbed from node/VC class references and
+   * from the active / selected-selector state.
+   */
+  deleteClasses(classIds: string[]): void
 
   // ── Node ↔ class assignment ───────────────────────────────────────────────
   /** Append a classId to a node's classIds (no-op if already present). */
   addNodeClass(nodeId: string, classId: string): void
+
+  /**
+   * Append several classIds to a node in ONE batched mutation, so a bulk
+   * "apply" is a single undo step. Ambient rules and already-present ids are
+   * skipped. No-op (no history entry) when nothing new would be added.
+   */
+  addNodeClasses(nodeId: string, classIds: string[]): void
 
   /** Remove a classId from a node's classIds (no-op if not present). */
   removeNodeClass(nodeId: string, classId: string): void
@@ -241,30 +270,15 @@ function shallowEqualStyles(
   return true
 }
 
-function cloneBreakpointStyles(
-  breakpointStyles: StyleRule['breakpointStyles'],
-): StyleRule['breakpointStyles'] {
+function cloneContextStyles(
+  contextStyles: StyleRule['contextStyles'],
+): StyleRule['contextStyles'] {
   return Object.fromEntries(
-    Object.entries(breakpointStyles).map(([breakpointId, styles]) => [
-      breakpointId,
+    Object.entries(contextStyles).map(([contextId, styles]) => [
+      contextId,
       { ...styles },
     ]),
   )
-}
-
-/**
- * Deep-clone a rule's conditional layers with fresh layer ids, so a duplicated
- * / pasted rule owns independent layers (no shared mutable references).
- */
-function cloneConditionalLayers(
-  layers: ReadonlyArray<ConditionalStyleLayer>,
-): ConditionalStyleLayer[] {
-  return layers.map((layer) => ({
-    id: nanoid(),
-    condition: { ...layer.condition },
-    styles: { ...layer.styles },
-    order: layer.order,
-  }))
 }
 
 /**
@@ -421,7 +435,7 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       selector: classKindSelector(name),
       order: nextRuleOrder(site.styleRules),
       styles,
-      breakpointStyles: {},
+      contextStyles: {},
       createdAt: now,
       updatedAt: now,
     }
@@ -459,7 +473,7 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       selector,
       order: nextRuleOrder(site.styleRules),
       styles: input.styles ?? {},
-      breakpointStyles: input.breakpointStyles ?? {},
+      contextStyles: input.contextStyles ?? {},
       createdAt: now,
       updatedAt: now,
     }
@@ -494,25 +508,25 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
     })
   },
 
-  setClassBreakpointStyles(classId, breakpointId, patch) {
+  setClassContextStyles(classId, contextId, patch) {
     const { site } = get()
     const cls = site?.styleRules[classId]
     if (!cls) return
     if (isGeneratedClassLocked(cls)) return
-    const currentStyles = cls.breakpointStyles[breakpointId] ?? {}
+    const currentStyles = cls.contextStyles[contextId] ?? {}
     if (!hasStylePatchChanges(currentStyles, patch)) return
 
     mutateSite((site) => {
       const draftClass = site.styleRules[classId]
       if (!draftClass) return false
-      if (!draftClass.breakpointStyles[breakpointId]) {
-        draftClass.breakpointStyles[breakpointId] = {}
+      if (!draftClass.contextStyles[contextId]) {
+        draftClass.contextStyles[contextId] = {}
       }
-      Object.assign(draftClass.breakpointStyles[breakpointId], patch)
+      Object.assign(draftClass.contextStyles[contextId], patch)
       // Remove keys explicitly set to undefined/null
       for (const [k, v] of Object.entries(patch)) {
         if (v === undefined || v === null) {
-          delete draftClass.breakpointStyles[breakpointId][k]
+          delete draftClass.contextStyles[contextId][k]
         }
       }
       draftClass.updatedAt = Date.now()
@@ -520,74 +534,112 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
     })
   },
 
-  addConditionalLayer(classId, condition) {
+  addCondition(condition, label) {
+    const def = makeConditionDef(condition, label)
+    const { site } = get()
+    if (!site) return def.id
+    if ((site.conditions ?? []).some((c) => c.id === def.id)) return def.id
+
+    mutateSite((site) => {
+      if (!site.conditions) site.conditions = []
+      if (site.conditions.some((c) => c.id === def.id)) return false
+      site.conditions.push(def)
+      return true
+    })
+    return def.id
+  },
+
+  removeCondition(condId) {
+    const { site } = get()
+    if (!site) return
+    const exists = (site.conditions ?? []).some((c) => c.id === condId)
+    const usedByAnyClass = Object.values(site.styleRules).some(
+      (cls) => condId in cls.contextStyles,
+    )
+    if (!exists && !usedByAnyClass) return
+
+    mutateSite((site) => {
+      if (site.conditions) {
+        site.conditions = site.conditions.filter((c) => c.id !== condId)
+        if (site.conditions.length === 0) delete site.conditions
+      }
+      // Clear the override bag from every class that referenced it.
+      for (const cls of Object.values(site.styleRules)) {
+        if (condId in cls.contextStyles) {
+          delete cls.contextStyles[condId]
+          cls.updatedAt = Date.now()
+        }
+      }
+      return true
+    })
+  },
+
+  renameCondition(condId, label) {
+    const { site } = get()
+    if (!site) return
+    const trimmed = label.trim()
+    if (!trimmed) return
+    const current = (site.conditions ?? []).find((c) => c.id === condId)
+    if (!current || current.label === trimmed) return
+
+    mutateSite((site) => {
+      const def = site.conditions?.find((c) => c.id === condId)
+      if (!def || def.label === trimmed) return false
+      def.label = trimmed
+      return true
+    })
+  },
+
+  updateCondition(condId, condition, label) {
+    const { site } = get()
+    if (!site) return
+    const current = (site.conditions ?? []).find((c) => c.id === condId)
+    if (!current) return
+
+    mutateSite((site) => {
+      const def = site.conditions?.find((c) => c.id === condId)
+      if (!def) return false
+      def.condition = condition
+      if (label && label.trim()) def.label = label.trim()
+      return true
+    })
+  },
+
+  addClassCondition(classId, condition) {
     const { site } = get()
     const cls = site?.styleRules[classId]
     if (!cls) return null
     if (isGeneratedClassLocked(cls)) return null
 
-    // Reuse an existing layer with the same condition rather than duplicating.
-    const existing = (cls.conditionalLayers ?? []).find((l) =>
-      sameCondition(l.condition, condition),
-    )
-    if (existing) return existing.id
-
-    const newId = nanoid()
+    const id = conditionId(condition)
+    const def = makeConditionDef(condition)
     mutateSite((site) => {
+      if (!site.conditions) site.conditions = []
+      if (!site.conditions.some((c) => c.id === id)) site.conditions.push(def)
       const draftClass = site.styleRules[classId]
       if (!draftClass) return false
-      if (!draftClass.conditionalLayers) draftClass.conditionalLayers = []
-      const layer: ConditionalStyleLayer = {
-        id: newId,
-        condition,
-        styles: {},
-        order: draftClass.conditionalLayers.length,
+      // Ensure an (initially empty) override bag exists so the context surfaces
+      // as an editable tab even before any property is set under it.
+      if (!draftClass.contextStyles[id]) {
+        draftClass.contextStyles[id] = {}
+        draftClass.updatedAt = Date.now()
       }
-      draftClass.conditionalLayers.push(layer)
-      draftClass.updatedAt = Date.now()
       return true
     })
-    return newId
+    return id
   },
 
-  updateConditionalLayerStyles(classId, layerId, patch) {
+  removeClassContext(classId, contextId) {
     const { site } = get()
     const cls = site?.styleRules[classId]
     if (!cls) return
     if (isGeneratedClassLocked(cls)) return
-    const layer = (cls.conditionalLayers ?? []).find((l) => l.id === layerId)
-    if (!layer) return
-    if (!hasStylePatchChanges(layer.styles, patch)) return
+    if (!(contextId in cls.contextStyles)) return
 
     mutateSite((site) => {
       const draftClass = site.styleRules[classId]
-      const draftLayer = draftClass?.conditionalLayers?.find((l) => l.id === layerId)
-      if (!draftLayer) return false
-      Object.assign(draftLayer.styles, patch)
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === undefined || v === null) {
-          delete draftLayer.styles[k]
-        }
-      }
-      draftClass!.updatedAt = Date.now()
-      return true
-    })
-  },
-
-  removeConditionalLayer(classId, layerId) {
-    const { site } = get()
-    const cls = site?.styleRules[classId]
-    if (!cls) return
-    if (isGeneratedClassLocked(cls)) return
-    if (!(cls.conditionalLayers ?? []).some((l) => l.id === layerId)) return
-
-    mutateSite((site) => {
-      const draftClass = site.styleRules[classId]
-      if (!draftClass?.conditionalLayers) return false
-      draftClass.conditionalLayers = draftClass.conditionalLayers.filter((l) => l.id !== layerId)
-      if (draftClass.conditionalLayers.length === 0) {
-        delete draftClass.conditionalLayers
-      }
+      if (!draftClass || !(contextId in draftClass.contextStyles)) return false
+      delete draftClass.contextStyles[contextId]
       draftClass.updatedAt = Date.now()
       return true
     })
@@ -601,19 +653,12 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
 
     const propKey = property as string
     const isInBase = propKey in cls.styles
-    const breakpointIdsWithProperty = Object.entries(cls.breakpointStyles)
-      .filter(([, bpStyles]) => propKey in (bpStyles ?? {}))
+    // Every per-context override (width breakpoints AND custom conditions) lives
+    // in one map now — "clear everywhere" iterates it uniformly.
+    const contextIdsWithProperty = Object.entries(cls.contextStyles)
+      .filter(([, bag]) => propKey in (bag ?? {}))
       .map(([id]) => id)
-    // Conditional layers are part of "everywhere" too — a property set in a
-    // custom @media / @container / @supports layer must also clear.
-    const layerIdsWithProperty = (cls.conditionalLayers ?? [])
-      .filter((l) => propKey in (l.styles ?? {}))
-      .map((l) => l.id)
-    if (
-      !isInBase &&
-      breakpointIdsWithProperty.length === 0 &&
-      layerIdsWithProperty.length === 0
-    ) {
+    if (!isInBase && contextIdsWithProperty.length === 0) {
       return
     }
 
@@ -621,13 +666,9 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       const draftClass = site.styleRules[classId]
       if (!draftClass) return false
       delete (draftClass.styles as Record<string, unknown>)[propKey]
-      for (const bpId of breakpointIdsWithProperty) {
-        const bp = draftClass.breakpointStyles[bpId]
-        if (bp) delete (bp as Record<string, unknown>)[propKey]
-      }
-      for (const layerId of layerIdsWithProperty) {
-        const layer = draftClass.conditionalLayers?.find((l) => l.id === layerId)
-        if (layer) delete (layer.styles as Record<string, unknown>)[propKey]
+      for (const contextId of contextIdsWithProperty) {
+        const bag = draftClass.contextStyles[contextId]
+        if (bag) delete (bag as Record<string, unknown>)[propKey]
       }
       draftClass.updatedAt = Date.now()
       return true
@@ -660,7 +701,7 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       description: 'Node-scoped module style layer',
       scope: { type: 'node', nodeId, role: 'module-style' },
       styles: {},
-      breakpointStyles: {},
+      contextStyles: {},
       tags: ['module-instance'],
       createdAt: now,
       updatedAt: now,
@@ -736,12 +777,10 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       order: nextRuleOrder(site.styleRules),
       description: cls.description,
       styles: { ...cls.styles },
-      breakpointStyles: cloneBreakpointStyles(cls.breakpointStyles),
-      // Deep-clone conditional layers (custom @media / @container / @supports)
-      // with fresh layer ids so the copy is fully independent of the source.
-      ...(cls.conditionalLayers
-        ? { conditionalLayers: cloneConditionalLayers(cls.conditionalLayers) }
-        : {}),
+      // Per-context overrides reference the shared site-level conditions
+      // registry by id, so cloning the bags (independent copies) is enough —
+      // no per-rule condition definitions to clone.
+      contextStyles: cloneContextStyles(cls.contextStyles),
       tags: cls.tags ? [...cls.tags] : undefined,
       createdAt: now,
       updatedAt: now,
@@ -755,39 +794,70 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
     return newClass
   },
 
+  duplicateClasses(classIds) {
+    // Each duplicateClass() call re-reads the live registry, so cloning one at a
+    // time keeps copy-name uniqueness correct across the whole batch.
+    const copies: StyleRule[] = []
+    for (const classId of classIds) {
+      const copy = get().duplicateClass(classId)
+      if (copy) copies.push(copy)
+    }
+    return copies
+  },
+
   deleteClass(classId) {
+    get().deleteClasses([classId])
+  },
+
+  deleteClasses(classIds) {
     const { site } = get()
-    const cls = site?.styleRules[classId]
-    if (!cls) return
-    if (isGeneratedClassLocked(cls)) return
+    if (!site) return
+    // Resolve the deletable set up front: existing, non-locked classes only.
+    const targets = new Set(
+      classIds.filter((id) => {
+        const cls = site.styleRules[id]
+        return cls && !isGeneratedClassLocked(cls)
+      }),
+    )
+    if (targets.size === 0) return
 
     mutateSiteState((state, site) => {
-      if (!site.styleRules[classId]) return false
-      // Remove from registry
-      delete site.styleRules[classId]
-      // Remove from every node on every page AND every Visual Component
-      // tree — class IDs are global, so a deleted class must disappear
-      // from both surfaces or a VC keeps a dangling reference.
-      for (const page of site.pages) {
-        for (const node of Object.values(page.nodes)) {
-          if (node.classIds && node.classIds.includes(classId)) {
-            node.classIds = node.classIds.filter((id) => id !== classId)
+      let mutated = false
+      for (const classId of targets) {
+        if (!site.styleRules[classId]) continue
+        // Remove from registry
+        delete site.styleRules[classId]
+        mutated = true
+        // Remove from every node on every page AND every Visual Component
+        // tree — class IDs are global, so a deleted class must disappear
+        // from both surfaces or a VC keeps a dangling reference.
+        for (const page of site.pages) {
+          for (const node of Object.values(page.nodes)) {
+            if (node.classIds && node.classIds.includes(classId)) {
+              node.classIds = node.classIds.filter((id) => id !== classId)
+            }
+          }
+        }
+        for (const vc of site.visualComponents) {
+          for (const node of Object.values(vc.tree.nodes)) {
+            if (node.classIds && node.classIds.includes(classId)) {
+              node.classIds = node.classIds.filter((id) => id !== classId)
+            }
           }
         }
       }
-      for (const vc of site.visualComponents) {
-        for (const node of Object.values(vc.tree.nodes)) {
-          if (node.classIds && node.classIds.includes(classId)) {
-            node.classIds = node.classIds.filter((id) => id !== classId)
-          }
-        }
-      }
-      // Clear activeClassId if it pointed to the deleted class
-      if (state.activeClassId === classId) {
+      if (!mutated) return false
+      // Clear active / selected references that pointed at a deleted class.
+      if (state.activeClassId && targets.has(state.activeClassId)) {
         state.activeClassId = null
       }
-      if (state.selectedSelectorClassId === classId) {
+      if (state.selectedSelectorClassId && targets.has(state.selectedSelectorClassId)) {
         state.selectedSelectorClassId = null
+      }
+      if (state.selectedSelectorClassIds.length > 0) {
+        state.selectedSelectorClassIds = state.selectedSelectorClassIds.filter(
+          (id) => !targets.has(id),
+        )
       }
       return true
     })
@@ -817,6 +887,37 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
     mutateSiteState((state) => {
       const mutated = mutateNodeClassIds(state, nodeId, (classIds) => {
         if (!classIds.includes(classId)) classIds.push(classId)
+      })
+      return mutated
+    })
+  },
+
+  addNodeClasses(nodeId, classIds) {
+    const { site } = get()
+    const node = findNodeWithClassIds(site, nodeId)
+    if (!node) return
+    // Keep only class-kind rules the node doesn't already have. Ambient rules
+    // attach by selector matching, not by class attribute, so they're skipped
+    // (same invariant as addNodeClass).
+    const toAdd = classIds.filter((classId) => {
+      if (node.classIds?.includes(classId)) return false
+      const cls = site?.styleRules[classId]
+      if (cls && cls.kind && cls.kind !== 'class') {
+        console.error(
+          '[classSlice] addNodeClasses skipped an ambient rule',
+          { nodeId, classId, selector: cls.selector },
+        )
+        return false
+      }
+      return true
+    })
+    if (toAdd.length === 0) return
+
+    mutateSiteState((state) => {
+      const mutated = mutateNodeClassIds(state, nodeId, (existing) => {
+        for (const id of toAdd) {
+          if (!existing.includes(id)) existing.push(id)
+        }
       })
       return mutated
     })

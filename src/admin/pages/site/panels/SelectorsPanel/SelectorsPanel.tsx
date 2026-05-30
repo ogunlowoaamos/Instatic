@@ -1,14 +1,26 @@
-import { useEffect, useId, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import {
+  useDeferredValue,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { selectSelectedNode, useEditorStore } from '@site/store/store'
 import { styleRuleSelector } from '@core/page-tree/classNames'
 import { generatedClassKindLabel, isGeneratedClass, isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import type { StyleRule } from '@core/page-tree'
 import { Button } from '@ui/components/Button'
+import { Checkbox } from '@ui/components/Checkbox'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@ui/components/ContextMenu'
 import { Dialog } from '@ui/components/Dialog'
 import { EmptyState } from '@ui/components/EmptyState'
 import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import { Input } from '@ui/components/Input'
+import { Skeleton } from '@ui/components/Skeleton'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { Copy2SharpIcon } from 'pixel-art-icons/icons/copy-2-sharp'
 import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
@@ -16,12 +28,15 @@ import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { FilePlusSolidIcon } from 'pixel-art-icons/icons/file-plus-solid'
 import { PaintBucketSolidIcon } from 'pixel-art-icons/icons/paint-bucket-solid'
 import { Panel } from '@admin/shared/Panel'
+import { cn } from '@ui/cn'
 import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import {
+  buildSelectorUsageMap,
   formatSelectorUsage,
   getReusableClasses,
   getSelectorStyleSummary,
-  getSelectorUsage,
+  normalizeSelectorQuery,
+  selectorMatchesQuery,
 } from './selectorUsage'
 import styles from './SelectorsPanel.module.css'
 
@@ -29,12 +44,25 @@ interface SelectorsPanelProps {
   variant?: 'docked'
 }
 
-type SelectorFilter = 'all' | 'user' | 'utility'
+type SelectorFilter = 'all' | 'user' | 'utility' | 'unused'
+
+/**
+ * How many selector rows to mount per batch. A generated framework (e.g. the
+ * `text/bg/border-<token>-<step>` utility set) can produce many hundreds of
+ * rules; mounting them all in one synchronous frame is what made the panel lag
+ * on open. We render the first batch, then reveal the next as the user scrolls
+ * a sentinel into view.
+ */
+const SELECTOR_PAGE_SIZE = 100
+
+/** Placeholder rows shown on the first paint after the panel opens. */
+const SKELETON_ROW_COUNT = 10
 
 const SELECTOR_FILTER_ITEMS: FilterBarItem<SelectorFilter>[] = [
   { value: 'all', label: 'All' },
   { value: 'user', label: 'User' },
   { value: 'utility', label: 'Utility' },
+  { value: 'unused', label: 'Unused' },
 ]
 
 interface ContextMenuState {
@@ -65,6 +93,7 @@ function getEmptyFilterMessage(filter: SelectorFilter, query: string): string {
   if (normalized) return `No selectors match “${normalized}”.`
   if (filter === 'user') return 'No user selectors yet.'
   if (filter === 'utility') return 'No utility selectors yet.'
+  if (filter === 'unused') return 'No unused selectors — every selector is in use.'
   return 'No selectors match the current filters.'
 }
 
@@ -72,8 +101,12 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   const site = useEditorStore((s) => s.site)
   const isOpen = useEditorStore((s) => s.selectorsPanelOpen)
   const selectedSelectorClassId = useEditorStore((s) => s.selectedSelectorClassId)
+  const selectedSelectorClassIds = useEditorStore(useShallow((s) => s.selectedSelectorClassIds))
   const setSelectorsPanelOpen = useEditorStore((s) => s.setSelectorsPanelOpen)
   const setSelectedSelectorClassId = useEditorStore((s) => s.setSelectedSelectorClassId)
+  const toggleSelectorMultiSelect = useEditorStore((s) => s.toggleSelectorMultiSelect)
+  const setSelectedSelectorClassIds = useEditorStore((s) => s.setSelectedSelectorClassIds)
+  const clearSelectorMultiSelect = useEditorStore((s) => s.clearSelectorMultiSelect)
   const setActiveClass = useEditorStore((s) => s.setActiveClass)
   const setPropertiesPanel = useEditorStore((s) => s.setPropertiesPanel)
   const setFocusedPanel = useEditorStore((s) => s.setFocusedPanel)
@@ -94,23 +127,77 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   const [createAmbientDialogOpen, setCreateAmbientDialogOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<StyleRule | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StyleRule | null>(null)
+  const [visibleCount, setVisibleCount] = useState(SELECTOR_PAGE_SIZE)
+  // Tracks the inputs that define a "fresh" result set; when they change we
+  // reset the visible window back to the first batch during render (React's
+  // recommended alternative to a setState-in-effect, which avoids the extra
+  // commit + cascading-render the lint rule flags).
+  const [listResetKey, setListResetKey] = useState('')
+
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   const reusableClasses = getReusableClasses(site?.styleRules ?? {})
-  const normalizedQuery = query.trim().toLowerCase()
+  // One pass over the whole tree, memoized against `site` by the React Compiler.
+  // Replaces a per-row scan that scaled with selector count × node count.
+  const usageMap = buildSelectorUsageMap(site)
+  const normalizedQuery = normalizeSelectorQuery(query)
+  const selectedIdSet = new Set(selectedSelectorClassIds)
+  const selecting = selectedSelectorClassIds.length > 0
   const filteredClasses = reusableClasses.filter((cls) => {
     if (filter === 'user' && isGeneratedClass(cls)) return false
     if (filter === 'utility' && !isGeneratedClass(cls)) return false
-    if (normalizedQuery && !cls.name.toLowerCase().includes(normalizedQuery)) return false
+    if (filter === 'unused' && (usageMap.get(cls.id) ?? 0) > 0) return false
+    // Search matches the selector name AND its declared CSS (property names and
+    // `name: value` pairs) so users can hunt by style, not just by name.
+    if (!selectorMatchesQuery(cls, normalizedQuery)) return false
     return true
   })
+
+  // New filter / search / re-open → start again at the first batch.
+  const resetKey = `${isOpen}|${filter}|${normalizedQuery}`
+  if (resetKey !== listResetKey) {
+    setListResetKey(resetKey)
+    setVisibleCount(SELECTOR_PAGE_SIZE)
+  }
+
+  const effectiveVisibleCount = resetKey === listResetKey ? visibleCount : SELECTOR_PAGE_SIZE
+  const allFilteredSelected =
+    filteredClasses.length > 0 && filteredClasses.every((cls) => selectedIdSet.has(cls.id))
+  const visibleClasses = filteredClasses.slice(0, effectiveVisibleCount)
+  const hasMore = filteredClasses.length > visibleClasses.length
   const selectedClass = reusableClasses.find((cls) => cls.id === selectedSelectorClassId) ?? null
   const contextClass = contextMenu ? site?.styleRules[contextMenu.classId] ?? null : null
+
+  // The panel stays mounted and returns null while closed, so opening it is a
+  // re-render rather than a remount. `deferredOpen` lags `isOpen` by one
+  // commit, letting us paint the row skeleton instantly on the urgent frame
+  // and stream the real rows in on the deferred follow-up.
+  const deferredOpen = useDeferredValue(isOpen)
+  const showSkeleton = isOpen && !deferredOpen
 
   useEffect(() => {
     if (selectedSelectorClassId && !selectedClass) {
       setSelectedSelectorClassId(null)
     }
   }, [selectedSelectorClassId, selectedClass, setSelectedSelectorClassId])
+
+  // Reveal the next batch when the tail sentinel scrolls into the panel body.
+  useEffect(() => {
+    if (!hasMore || showSkeleton) return
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => count + SELECTOR_PAGE_SIZE)
+        }
+      },
+      { root: scrollRef.current, rootMargin: '200px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, showSkeleton, visibleCount])
 
   if (!isOpen || variant !== 'docked') return null
 
@@ -130,6 +217,25 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   function openSelectorInProperties(classId: string) {
     setSelectedSelectorClassId(classId)
     setActiveClass(classId)
+    setPropertiesPanel({ collapsed: false })
+    setFocusedPanel('properties')
+  }
+
+  function handleToggleSelect(classId: string) {
+    const willSelect = !selectedIdSet.has(classId)
+    toggleSelectorMultiSelect(classId)
+    // Adding to the multi-set opens the bulk inspector; the last removal lets
+    // the Properties panel auto-close via its selection-driven open effect.
+    if (willSelect) {
+      setPropertiesPanel({ collapsed: false })
+      setFocusedPanel('properties')
+    }
+  }
+
+  function handleSelectAllFiltered() {
+    // "Select all" respects the active filter + search — it selects exactly the
+    // rows currently visible in the list.
+    setSelectedSelectorClassIds(filteredClasses.map((cls) => cls.id))
     setPropertiesPanel({ collapsed: false })
     setFocusedPanel('properties')
   }
@@ -196,6 +302,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
         panelId="selectors"
         title="Selectors"
         testId="selectors-panel"
+        bodyRef={scrollRef}
         onClose={() => setSelectorsPanelOpen(false)}
         headerActions={
           <>
@@ -236,7 +343,9 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
             groupLabel="Selector type"
           />
 
-          {reusableClasses.length === 0 ? (
+          {showSkeleton ? (
+            <SelectorRowsSkeleton />
+          ) : reusableClasses.length === 0 ? (
             <EmptyState
               title="No reusable selectors yet."
               action={
@@ -248,19 +357,47 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
           ) : filteredClasses.length === 0 ? (
             <EmptyState title={getEmptyFilterMessage(filter, query)} />
           ) : (
-            <div className={styles.rows} aria-label="Reusable selectors">
-              {filteredClasses.map((cls) => (
+            <div
+              className={cn(styles.rows, selecting && styles.rowsSelecting)}
+              aria-label="Reusable selectors"
+            >
+              {visibleClasses.map((cls) => (
                 <SelectorRow
                   key={cls.id}
                   cls={cls}
                   active={selectedSelectorClassId === cls.id}
-                  usage={formatSelectorUsage(getSelectorUsage(site, cls.id))}
+                  selected={selectedIdSet.has(cls.id)}
+                  selecting={selecting}
+                  usage={formatSelectorUsage(usageMap.get(cls.id) ?? 0)}
                   summary={getSelectorStyleSummary(cls)}
                   onSelect={() => openSelectorInProperties(cls.id)}
+                  onToggleSelect={() => handleToggleSelect(cls.id)}
                   onContextMenu={(event) => openContextMenu(cls.id, event)}
                   onKeyDown={(event) => openKeyboardContextMenu(cls.id, event)}
                 />
               ))}
+              {hasMore && <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />}
+            </div>
+          )}
+
+          {selecting && (
+            <div className={styles.selectionBar} role="group" aria-label="Selection actions">
+              <span className={styles.selectionCount}>
+                {selectedSelectorClassIds.length} selected
+              </span>
+              <div className={styles.selectionActions}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={handleSelectAllFiltered}
+                  disabled={allFilteredSelected}
+                >
+                  Select all
+                </Button>
+                <Button variant="ghost" size="xs" onClick={clearSelectorMultiSelect}>
+                  Deselect all
+                </Button>
+              </div>
             </div>
           )}
       </Panel>
@@ -326,7 +463,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
       {deleteTarget && (
         <DeleteSelectorDialog
           cls={deleteTarget}
-          usage={formatSelectorUsage(getSelectorUsage(site, deleteTarget.id))}
+          usage={formatSelectorUsage(usageMap.get(deleteTarget.id) ?? 0)}
           onCancel={() => setDeleteTarget(null)}
           onDelete={() => handleDelete(deleteTarget)}
         />
@@ -338,9 +475,12 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
 interface SelectorRowProps {
   cls: StyleRule
   active: boolean
+  selected: boolean
+  selecting: boolean
   usage: string
   summary: string
   onSelect: () => void
+  onToggleSelect: () => void
   onContextMenu: (event: MouseEvent<HTMLButtonElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void
 }
@@ -348,9 +488,12 @@ interface SelectorRowProps {
 function SelectorRow({
   cls,
   active,
+  selected,
+  selecting,
   usage,
   summary,
   onSelect,
+  onToggleSelect,
   onContextMenu,
   onKeyDown,
 }: SelectorRowProps) {
@@ -362,34 +505,75 @@ function SelectorRow({
     ? 'Ambient'
     : generatedClassKindLabel(cls)
 
+  // The leading slot is a paint-bucket icon at rest; on row hover (or whenever a
+  // multi-selection is in progress) it becomes a checkbox so the user can build
+  // a bulk set without leaving the panel.
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      active={active}
+    <div
       className={styles.row}
-      aria-label={`Edit selector ${selectorLabel}`}
-      onClick={onSelect}
-      onContextMenu={onContextMenu}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onSelect()
-          return
-        }
-        onKeyDown(event)
-      }}
+      data-selecting={selecting || undefined}
+      data-selected={selected || undefined}
     >
-      <PaintBucketSolidIcon size={13} aria-hidden="true" />
-      <span className={styles.rowText}>
-        <span className={styles.rowLabel}>{selectorLabel}</span>
-        <span className={styles.rowMeta}>{summary}</span>
+      <span className={styles.rowCheck}>
+        <PaintBucketSolidIcon size={13} aria-hidden="true" className={styles.rowCheckIcon} />
+        <Checkbox
+          checked={selected}
+          onCheckedChange={onToggleSelect}
+          boxSize="sm"
+          className={styles.rowCheckControl}
+          aria-label={`Select selector ${selectorLabel}`}
+        />
       </span>
-      <span className={styles.rowAside}>
-        {kindLabel && <span className={styles.utilityBadge}>{kindLabel}</span>}
-        <span className={styles.rowUsage}>{usage}</span>
-      </span>
-    </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        active={active}
+        className={styles.rowMain}
+        aria-label={`Edit selector ${selectorLabel}`}
+        onClick={onSelect}
+        onContextMenu={onContextMenu}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onSelect()
+            return
+          }
+          onKeyDown(event)
+        }}
+      >
+        <span className={styles.rowText}>
+          <span className={styles.rowLabel}>{selectorLabel}</span>
+          <span className={styles.rowMeta}>{summary}</span>
+        </span>
+        <span className={styles.rowAside}>
+          {kindLabel && <span className={styles.utilityBadge}>{kindLabel}</span>}
+          <span className={styles.rowUsage}>{usage}</span>
+        </span>
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * Loading placeholder for the selector list. Mirrors `SelectorRow`'s grid
+ * (icon · two-line text · trailing badge) so the swap to real rows doesn't
+ * shift layout. Painted on the first frame after the panel opens; the real
+ * rows stream in on the deferred follow-up render.
+ */
+function SelectorRowsSkeleton() {
+  return (
+    <div className={styles.rows} aria-busy="true" aria-label="Loading selectors">
+      {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+        <div key={i} className={styles.skeletonRow} aria-hidden="true">
+          <Skeleton width={13} height={13} radius={3} />
+          <span className={styles.skeletonRowText}>
+            <Skeleton width="55%" height={11} />
+            <Skeleton width="32%" height={9} />
+          </span>
+          <Skeleton width={46} height={16} radius={999} />
+        </div>
+      ))}
+    </div>
   )
 }
 

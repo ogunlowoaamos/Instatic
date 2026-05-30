@@ -39,6 +39,7 @@ import { PropertiesPanelBody } from './PropertiesPanelBody'
 import { NodeHeader } from './NodeHeader'
 import { SelectorHeader } from './SelectorHeader'
 import { MultiSelectionHeader } from './MultiSelectionInspector'
+import { MultiSelectorHeader } from './MultiSelectorInspector'
 import { type ClassPickerHandle } from './ClassPicker'
 import { useEditorStore } from '@site/store/store'
 import { PanelHeader } from '@admin/shared/PanelHeader'
@@ -99,7 +100,12 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
     }
   }
 
-  if (data.collapsed || (!data.selectedNodeId && !data.selectedSelectorClass)) return null
+  if (
+    data.collapsed ||
+    (!data.selectedNodeId && !data.selectedSelectorClass && !data.isSelectorMultiSelect)
+  ) {
+    return null
+  }
 
   // ── Module tab content — pre-rendered, passed to StyleSurface as a ReactNode.
   // The dispatch lives in `renderModuleTabContent` (own file) to keep this
@@ -149,6 +155,8 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
         title="Properties"
         titleContent={renderHeaderTitleContent({
           selectedSelectorClass: data.selectedSelectorClass,
+          isSelectorMultiSelect: data.isSelectorMultiSelect,
+          selectedSelectorClassIdsCount: data.selectedSelectorClassIds.length,
           isMultiSelect: data.isMultiSelect,
           selectedNodeIdsCount: data.selectedNodeIds.length,
           selectedNode: data.selectedNode,
@@ -174,6 +182,8 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
         <PropertiesPanelBody
           selectedSelectorClass={data.selectedSelectorClass}
           selectedSelectorClassId={data.selectedSelectorClassId}
+          selectedSelectorClassIds={data.selectedSelectorClassIds}
+          isSelectorMultiSelect={data.isSelectorMultiSelect}
           activeBreakpointId={data.activeBreakpointId}
           isMultiSelect={data.isMultiSelect}
           selectedNodeIds={data.selectedNodeIds}
@@ -202,6 +212,8 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
 
 interface HeaderTitleArgs {
   selectedSelectorClass: ReturnType<typeof usePropertiesPanelData>['selectedSelectorClass']
+  isSelectorMultiSelect: boolean
+  selectedSelectorClassIdsCount: number
   isMultiSelect: boolean
   selectedNodeIdsCount: number
   selectedNode: ReturnType<typeof usePropertiesPanelData>['selectedNode']
@@ -214,6 +226,8 @@ interface HeaderTitleArgs {
 function renderHeaderTitleContent(args: HeaderTitleArgs): React.ReactNode {
   const {
     selectedSelectorClass,
+    isSelectorMultiSelect,
+    selectedSelectorClassIdsCount,
     isMultiSelect,
     selectedNodeIdsCount,
     selectedNode,
@@ -223,6 +237,9 @@ function renderHeaderTitleContent(args: HeaderTitleArgs): React.ReactNode {
     renameNode,
   } = args
 
+  if (isSelectorMultiSelect) {
+    return <MultiSelectorHeader count={selectedSelectorClassIdsCount} />
+  }
   if (selectedSelectorClass) {
     return (
       <SelectorHeader

@@ -6,10 +6,10 @@ import { join } from 'path'
 import { SelectorsPanel } from '@site/panels/SelectorsPanel'
 import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
 import {
+  buildSelectorUsageMap,
   formatSelectorUsage,
   getReusableClasses,
   getSelectorStyleSummary,
-  getSelectorUsage,
 } from '@site/panels/SelectorsPanel/selectorUsage'
 import { useEditorStore } from '@site/store/store'
 import type { StyleRule } from '@core/page-tree'
@@ -31,6 +31,7 @@ function resetStore() {
     hoveredNodeId: null,
     activeClassId: null,
     selectedSelectorClassId: null,
+    selectedSelectorClassIds: [],
     selectorsPanelOpen: false,
     siteExplorerPanelOpen: false,
     mediaExplorerPanelOpen: false,
@@ -58,7 +59,7 @@ function makeClass(
     id,
     name,
     styles,
-    breakpointStyles: {},
+    contextStyles: {},
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -84,7 +85,7 @@ function loadSiteWithSelectors() {
       pages: [page],
       styleRules: {
         'hero-title': makeClass('hero-title', 'hero-title', { fontSize: '48px', color: '#111' }, {
-          breakpointStyles: { mobile: { fontSize: '32px' } },
+          contextStyles: { mobile: { fontSize: '32px' } },
         }),
         'cta-button': makeClass('cta-button', 'cta-button', { padding: '12px' }),
         'unused-card': makeClass('unused-card', 'unused-card'),
@@ -123,12 +124,13 @@ describe('selectorUsage helpers', () => {
       'unused-card',
       'text-m',
     ])
-    expect(getSelectorUsage(state.site, 'hero-title')).toBe(2)
-    expect(getSelectorUsage(state.site, 'unused-card')).toBe(0)
+    const usage = buildSelectorUsageMap(state.site)
+    expect(usage.get('hero-title') ?? 0).toBe(2)
+    expect(usage.get('unused-card') ?? 0).toBe(0)
     expect(formatSelectorUsage(0)).toBe('Unused')
     expect(formatSelectorUsage(1)).toBe('Used 1 time')
     expect(formatSelectorUsage(2)).toBe('Used 2 times')
-    expect(getSelectorStyleSummary(state.site!.styleRules['hero-title'])).toBe('2 props · 1 breakpoint')
+    expect(getSelectorStyleSummary(state.site!.styleRules['hero-title'])).toBe('2 props · 1 context')
     expect(getSelectorStyleSummary(state.site!.styleRules['unused-card'])).toBe('No styles')
   })
 })
@@ -153,7 +155,7 @@ describe('SelectorsPanel', () => {
     expect(within(panel).getByText('.unused-card')).toBeDefined()
     expect(within(panel).queryByText('Text instance text-1')).toBeNull()
     expect(within(panel).getByText('Used 2 times')).toBeDefined()
-    expect(within(panel).getByText('2 props · 1 breakpoint')).toBeDefined()
+    expect(within(panel).getByText('2 props · 1 context')).toBeDefined()
   })
 
   it('filters selectors by All / User / Utility', () => {
@@ -200,6 +202,232 @@ describe('SelectorsPanel', () => {
     expect(within(panel).getByRole('button', { name: /edit selector \.cta-button/i })).toBeDefined()
     expect(within(panel).queryByRole('button', { name: /edit selector \.hero-title/i })).toBeNull()
     expect(within(panel).queryByRole('button', { name: /edit selector \.text-m/i })).toBeNull()
+  })
+
+  it('filters to only unused selectors', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('button', { name: /^unused$/i }))
+
+    // unused-card (no nodes) and text-m (no nodes) are unused; hero-title and
+    // cta-button are referenced by page nodes.
+    expect(within(panel).getByRole('button', { name: /edit selector \.unused-card/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.hero-title/i })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.cta-button/i })).toBeNull()
+  })
+
+  it('searches selector property names and values, not just names', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    const search = within(panel).getByRole('searchbox', { name: /search selectors/i })
+
+    // Property name match: both hero-title (48px) and text-m (16px) set font-size.
+    fireEvent.change(search, { target: { value: 'font-size' } })
+    expect(within(panel).getByRole('button', { name: /edit selector \.hero-title/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.cta-button/i })).toBeNull()
+
+    // Property name + value match narrows to the one rule with that declaration.
+    fireEvent.change(search, { target: { value: 'font-size: 16px' } })
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.hero-title/i })).toBeNull()
+  })
+
+  it('multi-selects selectors via row checkboxes and shows the bulk inspector', () => {
+    loadSiteWithSelectors()
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.hero-title/i }))
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual(['hero-title'])
+    expect(screen.getByText(/1 selector selected/i)).toBeDefined()
+
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.cta-button/i }))
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual(['hero-title', 'cta-button'])
+    expect(screen.getByText(/2 selectors selected/i)).toBeDefined()
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    expect(within(propertiesPanel).getByRole('button', { name: /duplicate/i })).toBeDefined()
+    expect(within(propertiesPanel).getByRole('button', { name: /delete/i })).toBeDefined()
+  })
+
+  it('bulk-applies selected selectors to the selected element', () => {
+    const { textNodeId } = loadSiteWithSelectors()
+    useEditorStore.setState({ selectedNodeId: textNodeId } as Parameters<typeof useEditorStore.setState>[0])
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.cta-button/i }))
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    fireEvent.click(within(propertiesPanel).getByRole('button', { name: /^apply$/i }))
+
+    expect(useEditorStore.getState().site!.pages[0].nodes[textNodeId].classIds ?? []).toContain('cta-button')
+  })
+
+  it('keeps bulk apply enabled for locked utility selectors', () => {
+    const { textNodeId } = loadSiteWithSelectors()
+    useEditorStore.setState({ selectedNodeId: textNodeId } as Parameters<typeof useEditorStore.setState>[0])
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    // text-m is a locked generated utility — "locked" must not block applying it
+    // to an element (applying utilities is their whole purpose).
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.text-m/i }))
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    const apply = within(propertiesPanel).getByRole('button', { name: /^apply$/i }) as HTMLButtonElement
+    expect(apply.disabled).toBe(false)
+
+    fireEvent.click(apply)
+    expect(useEditorStore.getState().site!.pages[0].nodes[textNodeId].classIds ?? []).toContain('text-m')
+  })
+
+  it('shows a sticky selection toolbar with select-all and deselect-all', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    // No toolbar until a selection exists.
+    expect(within(panel).queryByRole('group', { name: /selection actions/i })).toBeNull()
+
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.hero-title/i }))
+    const toolbar = within(panel).getByRole('group', { name: /selection actions/i })
+    expect(within(toolbar).getByText(/1 selected/i)).toBeDefined()
+
+    // Select all → every reusable selector in the current (unfiltered) view.
+    fireEvent.click(within(toolbar).getByRole('button', { name: /^select all$/i }))
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual([
+      'hero-title',
+      'cta-button',
+      'unused-card',
+      'text-m',
+    ])
+
+    // Deselect all → clears the set and hides the toolbar.
+    fireEvent.click(within(toolbar).getByRole('button', { name: /^deselect all$/i }))
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual([])
+    expect(within(panel).queryByRole('group', { name: /selection actions/i })).toBeNull()
+  })
+
+  it('select-all respects the active filter', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('button', { name: /^user$/i }))
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.hero-title/i }))
+    fireEvent.click(within(panel).getByRole('button', { name: /^select all$/i }))
+
+    // text-m (utility) is filtered out, so it is not selected.
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual([
+      'hero-title',
+      'cta-button',
+      'unused-card',
+    ])
+  })
+
+  it('bulk-applies as a single undo step', () => {
+    const { textNodeId } = loadSiteWithSelectors()
+    useEditorStore.setState({ selectedNodeId: textNodeId } as Parameters<typeof useEditorStore.setState>[0])
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    // text-1 starts with [hero-title]; apply two more in one batch.
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.cta-button/i }))
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.text-m/i }))
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    fireEvent.click(within(propertiesPanel).getByRole('button', { name: /^apply$/i }))
+
+    const afterApply = useEditorStore.getState().site!.pages[0].nodes[textNodeId].classIds ?? []
+    expect(afterApply).toEqual(['hero-title', 'cta-button', 'text-m'])
+
+    // A single undo reverts the entire batch, not one class at a time.
+    useEditorStore.getState().undo()
+    expect(useEditorStore.getState().site!.pages[0].nodes[textNodeId].classIds ?? []).toEqual(['hero-title'])
+  })
+
+  it('disables bulk delete and duplicate for locked utility selectors', () => {
+    loadSiteWithSelectors()
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    // text-m is a locked generated utility — neither delete nor duplicate applies.
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.text-m/i }))
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    // These buttons carry a tooltip, so the Button primitive uses aria-disabled
+    // (keeps the explanatory tooltip reachable) rather than the native attribute.
+    const deleteBtn = () => within(propertiesPanel).getByRole('button', { name: /^delete$/i })
+    const duplicateBtn = () => within(propertiesPanel).getByRole('button', { name: /^duplicate$/i })
+    expect(deleteBtn().getAttribute('aria-disabled')).toBe('true')
+    expect(duplicateBtn().getAttribute('aria-disabled')).toBe('true')
+
+    // Add a normal user class → both re-enable (they act on the editable subset).
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.cta-button/i }))
+    expect(deleteBtn().getAttribute('aria-disabled')).toBeNull()
+    expect(duplicateBtn().getAttribute('aria-disabled')).toBeNull()
+
+    // Deleting only removes the editable one; the locked utility survives.
+    fireEvent.click(deleteBtn())
+    const rules = useEditorStore.getState().site!.styleRules
+    expect(rules['cta-button']).toBeUndefined()
+    expect(rules['text-m']).toBeDefined()
+  })
+
+  it('bulk-deletes selected selectors', () => {
+    loadSiteWithSelectors()
+    render(
+      <>
+        <SelectorsPanel variant="docked" />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.unused-card/i }))
+    fireEvent.click(within(panel).getByRole('checkbox', { name: /select selector \.cta-button/i }))
+
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    // No ConfirmDeleteProvider in this render → confirmDelete commits immediately.
+    fireEvent.click(within(propertiesPanel).getByRole('button', { name: /^delete$/i }))
+
+    const rules = useEditorStore.getState().site!.styleRules
+    expect(rules['unused-card']).toBeUndefined()
+    expect(rules['cta-button']).toBeUndefined()
+    expect(rules['hero-title']).toBeDefined()
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual([])
   })
 
   it('shows an empty utility message when no utility classes exist', () => {

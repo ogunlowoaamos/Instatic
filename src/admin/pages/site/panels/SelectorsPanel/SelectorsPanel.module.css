@@ -6,7 +6,69 @@
     gap: 1px;
 }
 
+/* Row wrapper: leading checkbox/icon control + main select button. */
 .row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 2px;
+}
+
+/* Main select button — fills the row, holds the two-line label + trailing aside. */
+.rowMain {
+    display: grid;
+    width: 100%;
+    min-height: 34px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 8px;
+}
+
+/* Leading control: paint-bucket icon at rest, Checkbox primitive on hover /
+ * while selecting. Both occupy the same 22px slot so swapping them never
+ * shifts the row. */
+.rowCheck {
+    display: inline-flex;
+    width: 22px;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.rowCheckIcon {
+    display: inline-flex;
+}
+
+.rowCheckControl {
+    display: none;
+}
+
+/* Reveal the checkbox on hover, whenever a multi-selection is active, or when
+ * this row is itself selected. */
+.row:hover .rowCheckIcon,
+.row[data-selecting] .rowCheckIcon {
+    display: none;
+}
+
+.row:hover .rowCheckControl,
+.row[data-selecting] .rowCheckControl,
+.row[data-selected] .rowCheckControl {
+    display: inline-flex;
+}
+
+.rowText {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    text-align: left;
+}
+
+/* Skeleton row — mirrors `.row`'s grid so the loading state lines up exactly
+ * with the real rows it stands in for (icon · two-line text · trailing aside). */
+.skeletonRow {
     display: grid;
     width: 100%;
     min-height: 34px;
@@ -16,11 +78,18 @@
     padding: 3px 8px;
 }
 
-.rowText {
+.skeletonRowText {
     display: grid;
     min-width: 0;
-    gap: 2px;
+    gap: 4px;
     text-align: left;
+}
+
+/* Invisible probe at the tail of the rendered batch. When it scrolls into the
+ * panel body, the next 100 rows are revealed. */
+.sentinel {
+    width: 100%;
+    height: 1px;
 }
 
 .rowLabel {
@@ -68,6 +137,50 @@
     line-height: 1;
     padding: 3px 5px;
     text-transform: uppercase;
+}
+
+/* Sticky multi-select toolbar — pinned to the bottom of the panel with a
+ * gradient fade over the list, mirroring StyleSurface's `.searchBarRow`. The
+ * panel shell (`.panel`) is the positioned ancestor, so `position: absolute`
+ * keeps the bar fixed at the panel bottom instead of scrolling with the rows. */
+.selectionBar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 28px 12px 12px;
+    background: linear-gradient(0, var(--editor-bg) 55%, transparent);
+    pointer-events: none;
+}
+
+/* Re-enable interaction on the controls (the bar itself is click-through so
+ * the gradient never blocks the rows it fades over). */
+.selectionCount,
+.selectionActions {
+    pointer-events: auto;
+}
+
+.selectionCount {
+    color: var(--editor-text-muted);
+    font-size: 11px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.selectionActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Leave room so the last rows can scroll clear of the sticky bar. */
+.rowsSelecting {
+    padding-bottom: 52px;
 }
 
 .dialogCopy {

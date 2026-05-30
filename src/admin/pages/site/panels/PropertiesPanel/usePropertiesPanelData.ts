@@ -62,6 +62,8 @@ export interface PropertiesPanelData {
   activeClassId: string | null
   selectedSelectorClass: StyleRule | null
   selectedSelectorClassId: string | null
+  selectedSelectorClassIds: string[]
+  isSelectorMultiSelect: boolean
 
   // ─── Loop / dynamic-binding context ────────────────────────────────────
   enclosingLoopSource: LoopEntitySource | undefined
@@ -105,6 +107,7 @@ export function usePropertiesPanelData(): PropertiesPanelData {
   const activePageId = useEditorStore((s) => s.activePageId)
   const activeClassId = useEditorStore((s) => s.activeClassId)
   const selectedSelectorClassId = useEditorStore((s) => s.selectedSelectorClassId)
+  const selectedSelectorClassIds = useEditorStore(useShallow((s) => s.selectedSelectorClassIds))
   const panelState = useEditorStore((s) => s.propertiesPanel)
   const setPropertiesPanelMode = useEditorStore((s) => s.setPropertiesPanelMode)
   const togglePropertiesPanel = useEditorStore((s) => s.togglePropertiesPanel)
@@ -116,6 +119,7 @@ export function usePropertiesPanelData(): PropertiesPanelData {
 
   // ─── Derivations ────────────────────────────────────────────────────────
   const isMultiSelect = selectedNodeIds.length > 1
+  const isSelectorMultiSelect = selectedSelectorClassIds.length > 0
 
   // Resolve active VC for ComponentParamsOverview (null when not in VC canvas mode).
   const activeVc = activeDocument?.kind === 'visualComponent'
@@ -228,6 +232,8 @@ export function usePropertiesPanelData(): PropertiesPanelData {
     activeClassId,
     selectedSelectorClass,
     selectedSelectorClassId,
+    selectedSelectorClassIds,
+    isSelectorMultiSelect,
 
     enclosingLoopSource,
     enclosingLoopTableId,

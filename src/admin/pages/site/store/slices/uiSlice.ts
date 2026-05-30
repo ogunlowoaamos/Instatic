@@ -152,6 +152,20 @@ export interface UiSlice {
   setSelectedSelectorClassId: (classId: string | null) => void
 
   /**
+   * Multi-selection set built from the Selectors panel row checkboxes. When
+   * non-empty the Properties panel shows the bulk MultiSelectorInspector
+   * instead of a single selector / node inspector. Mutually exclusive with the
+   * single `selectedSelectorClassId` — entering one clears the other.
+   */
+  selectedSelectorClassIds: string[]
+  /** Add / remove a selector from the multi-selection. Clears single-select. */
+  toggleSelectorMultiSelect: (classId: string) => void
+  /** Replace the whole multi-selection set. Clears single-select when non-empty. */
+  setSelectedSelectorClassIds: (classIds: string[]) => void
+  /** Clear the selector multi-selection. */
+  clearSelectorMultiSelect: () => void
+
+  /**
    * Atomically open a page in the canvas and clear any active VC document.
    * Use this instead of calling setActivePage + setActiveDocument separately to
    * avoid intermediate states where activeDocument is still 'visualComponent'
@@ -255,6 +269,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   activeEditorFileId: null,
   activeDocument: null,
   selectedSelectorClassId: null,
+  selectedSelectorClassIds: [],
   dataSidebarCollapsed: false,
   importHtmlModalOpen: false,
   importHtmlModalParentId: null,
@@ -455,8 +470,38 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
       }),
 
   setSelectedSelectorClassId: (classId) => {
-    if (Object.is(get().selectedSelectorClassId, classId)) return
-    set({ selectedSelectorClassId: classId })
+    const state = get()
+    // Single-select and multi-select are mutually exclusive surfaces. Opening a
+    // single selector for editing clears any pending checkbox multi-selection.
+    const clearMulti = classId !== null && state.selectedSelectorClassIds.length > 0
+    if (Object.is(state.selectedSelectorClassId, classId) && !clearMulti) return
+    set(clearMulti
+      ? { selectedSelectorClassId: classId, selectedSelectorClassIds: [] }
+      : { selectedSelectorClassId: classId })
+  },
+
+  toggleSelectorMultiSelect: (classId) =>
+    set((state) => {
+      const current = state.selectedSelectorClassIds
+      const next = current.includes(classId)
+        ? current.filter((id) => id !== classId)
+        : [...current, classId]
+      return {
+        selectedSelectorClassIds: next,
+        // Checking a box leaves single-edit mode so the bulk inspector takes over.
+        selectedSelectorClassId: next.length > 0 ? null : state.selectedSelectorClassId,
+      }
+    }),
+
+  setSelectedSelectorClassIds: (classIds) =>
+    set((state) => ({
+      selectedSelectorClassIds: classIds,
+      selectedSelectorClassId: classIds.length > 0 ? null : state.selectedSelectorClassId,
+    })),
+
+  clearSelectorMultiSelect: () => {
+    if (get().selectedSelectorClassIds.length === 0) return
+    set({ selectedSelectorClassIds: [] })
   },
 
   setDataSidebarCollapsed: (collapsed) => set({ dataSidebarCollapsed: collapsed }),
