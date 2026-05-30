@@ -137,7 +137,16 @@ const CONDITION_FORM_ID = 'add-condition-form'
 function isValidConditionQuery(kind: ConditionKind, query: string): boolean {
   const q = query.trim()
   if (!q) return false
-  if (typeof document === 'undefined') return true
+  // Structural safety first: a brace / style-terminator / semicolon could
+  // break out of the emitted @-block or <style> element. Reject outright,
+  // independent of engine support (mirrors the publisher's emission guard).
+  if (/[{}]/.test(q) || /<\//.test(q) || /;/.test(q)) return false
+
+  // Prefer the real CSS engine when constructable stylesheets are available
+  // (Chrome/Edge, Safari 16.4+, Firefox 101+). When they're not (older
+  // engines / non-DOM), fall back to the structural check above rather than
+  // blocking every condition.
+  if (typeof CSSStyleSheet === 'undefined') return true
   const wrapped =
     kind === 'media' ? `@media ${q} {}`
     : kind === 'container' ? `@container ${ensureParens(q)} {}`

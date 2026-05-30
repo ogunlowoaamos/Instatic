@@ -253,6 +253,21 @@ function cloneBreakpointStyles(
 }
 
 /**
+ * Deep-clone a rule's conditional layers with fresh layer ids, so a duplicated
+ * / pasted rule owns independent layers (no shared mutable references).
+ */
+function cloneConditionalLayers(
+  layers: ReadonlyArray<ConditionalStyleLayer>,
+): ConditionalStyleLayer[] {
+  return layers.map((layer) => ({
+    id: nanoid(),
+    condition: { ...layer.condition },
+    styles: { ...layer.styles },
+    order: layer.order,
+  }))
+}
+
+/**
  * Find a node by id anywhere in the site — pages **and** Visual Component
  * trees. Returns null when the node doesn't exist anywhere.
  *
@@ -589,7 +604,18 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
     const breakpointIdsWithProperty = Object.entries(cls.breakpointStyles)
       .filter(([, bpStyles]) => propKey in (bpStyles ?? {}))
       .map(([id]) => id)
-    if (!isInBase && breakpointIdsWithProperty.length === 0) return
+    // Conditional layers are part of "everywhere" too — a property set in a
+    // custom @media / @container / @supports layer must also clear.
+    const layerIdsWithProperty = (cls.conditionalLayers ?? [])
+      .filter((l) => propKey in (l.styles ?? {}))
+      .map((l) => l.id)
+    if (
+      !isInBase &&
+      breakpointIdsWithProperty.length === 0 &&
+      layerIdsWithProperty.length === 0
+    ) {
+      return
+    }
 
     mutateSite((site) => {
       const draftClass = site.styleRules[classId]
@@ -598,6 +624,10 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       for (const bpId of breakpointIdsWithProperty) {
         const bp = draftClass.breakpointStyles[bpId]
         if (bp) delete (bp as Record<string, unknown>)[propKey]
+      }
+      for (const layerId of layerIdsWithProperty) {
+        const layer = draftClass.conditionalLayers?.find((l) => l.id === layerId)
+        if (layer) delete (layer.styles as Record<string, unknown>)[propKey]
       }
       draftClass.updatedAt = Date.now()
       return true
@@ -707,6 +737,11 @@ export const createClassSlice: EditorStoreSliceCreator<ClassSlice> = (set, get) 
       description: cls.description,
       styles: { ...cls.styles },
       breakpointStyles: cloneBreakpointStyles(cls.breakpointStyles),
+      // Deep-clone conditional layers (custom @media / @container / @supports)
+      // with fresh layer ids so the copy is fully independent of the source.
+      ...(cls.conditionalLayers
+        ? { conditionalLayers: cloneConditionalLayers(cls.conditionalLayers) }
+        : {}),
       tags: cls.tags ? [...cls.tags] : undefined,
       createdAt: now,
       updatedAt: now,

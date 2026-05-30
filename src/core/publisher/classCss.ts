@@ -239,11 +239,24 @@ export function generateClassCSS(
 }
 
 /**
+ * Reject a condition query / container name that could break out of the
+ * generated `@<kind> <query> { … }` block or the surrounding `<style>`
+ * element. Mirrors `sanitiseCssValue`'s structural guards: a brace would close
+ * the @-block early and let arbitrary rules follow; `</` could terminate the
+ * style element (CWE-79). The query is author/importer-controlled, but this is
+ * the defence-in-depth boundary at emission — an unsafe query drops the whole
+ * layer rather than emitting injectable CSS.
+ */
+function isSafeConditionText(text: string): boolean {
+  return !/[{}]/.test(text) && !/<\//.test(text) && !/;/.test(text)
+}
+
+/**
  * Build the `@<kind> <query>` prelude for a conditional layer's condition.
- * Returns null when a `breakpoint`-kind condition references an unknown
- * breakpoint id (nothing sensible to emit). The query text is the author's /
- * importer's verbatim string; it has already been through the browser's CSS
- * parser at import time, so we trust its syntax here.
+ * Returns null when:
+ *   - a `breakpoint`-kind condition references an unknown breakpoint id, or
+ *   - the query / container name fails the structural safety check (the layer
+ *     is then dropped, not emitted).
  */
 export function conditionPrelude(
   condition: StyleCondition,
@@ -255,13 +268,16 @@ export function conditionPrelude(
       return width === undefined ? null : `@media (max-width: ${width}px)`
     }
     case 'media':
-      return `@media ${condition.query}`
-    case 'container':
+      return isSafeConditionText(condition.query) ? `@media ${condition.query}` : null
+    case 'container': {
+      if (!isSafeConditionText(condition.query)) return null
+      if (condition.name !== undefined && !isSafeConditionText(condition.name)) return null
       return condition.name
         ? `@container ${condition.name} ${wrapParens(condition.query)}`
         : `@container ${wrapParens(condition.query)}`
+    }
     case 'supports':
-      return `@supports ${wrapParens(condition.query)}`
+      return isSafeConditionText(condition.query) ? `@supports ${wrapParens(condition.query)}` : null
     default:
       return null
   }

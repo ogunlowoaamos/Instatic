@@ -60,6 +60,20 @@ export function cloneScopedClassesForNodeMap(
       breakpointStyles: Object.fromEntries(
         Object.entries(cls.breakpointStyles).map(([bp, s]) => [bp, { ...s }]),
       ),
+      // Deep-clone conditional layers with fresh ids — the bare `...cls`
+      // spread would share the same layer objects with the source rule, so
+      // editing the clone's conditions would silently mutate the original
+      // (the same shared-reference hazard F-0005 addresses for scoped styles).
+      ...(cls.conditionalLayers !== undefined
+        ? {
+            conditionalLayers: cls.conditionalLayers.map((layer) => ({
+              id: nanoid(),
+              condition: { ...layer.condition },
+              styles: { ...layer.styles },
+              order: layer.order,
+            })),
+          }
+        : {}),
       ...(cls.tags !== undefined ? { tags: [...cls.tags] } : {}),
       createdAt: now,
       updatedAt: now,

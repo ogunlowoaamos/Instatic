@@ -316,6 +316,34 @@ describe('generateClassCSS — conditional layers (Part 2a)', () => {
     expect(css).toContain('@supports (display: grid) {')
     expect(css).not.toContain('((display: grid))')
   })
+
+  it('drops a layer whose query would break out of the @-block or <style> (injection guard)', () => {
+    const evil = (query: string) => ({
+      ...makeClass('foo', { color: 'red' }),
+      conditionalLayers: [
+        { id: 'x', condition: { kind: 'media' as const, query }, styles: { color: 'blue' }, order: 0 },
+      ],
+    })
+    for (const q of ['(max-width: 1px) {} body', '(x) </style', '(x); color: red']) {
+      const css = generateClassCSS({ foo: evil(q) }, [])
+      // The base rule still emits; the unsafe layer is dropped entirely.
+      expect(css).toContain('.foo {')
+      expect(css).not.toContain('color: blue')
+      expect(css).not.toContain('</style')
+    }
+  })
+
+  it('drops a container layer with an unsafe container name', () => {
+    const rule = {
+      ...makeClass('foo', { color: 'red' }),
+      conditionalLayers: [
+        { id: 'c', condition: { kind: 'container' as const, name: 'evil {} body', query: 'min-width: 1px' }, styles: { color: 'blue' }, order: 0 },
+      ],
+    }
+    const css = generateClassCSS({ foo: rule }, [])
+    expect(css).not.toContain('color: blue')
+    expect(css).not.toContain('@container evil')
+  })
 })
 
 describe('generateClassCSS', () => {
