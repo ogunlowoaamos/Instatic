@@ -12,7 +12,7 @@
  *   affected nodes re-render per selection/hover event (O(2) not O(N)).
  */
 
-import { memo, use, useCallback, useSyncExternalStore } from 'react'
+import { memo, use, useSyncExternalStore } from 'react'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { resolveProps } from '@core/page-tree/selectors'
 import { registry } from '@core/module-engine/registry'
@@ -39,9 +39,7 @@ interface NodeRendererProps {
 export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererProps) {
   // Per-node subscription — editing this node's props only re-renders THIS component.
   // Uses selectActiveCanvasPage (Task #438) so VC canvas mode works alongside page mode.
-  const node = useEditorStore(
-    useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null, [nodeId]),
-  )
+  const node = useEditorStore((s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null)
   const breakpointId = use(CanvasBreakpointContext)
   const templateContext = use(CanvasTemplateContext)
 
@@ -53,86 +51,67 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
   // in a multi-selection shows the selection ring. The selector still resolves
   // to a boolean, so per-node memoization isn't disturbed — only rows whose
   // `includes(nodeId)` result flips will re-render.
-  const isSelected = useEditorStore(
-    useCallback((s) => s.selectedNodeIds.includes(nodeId), [nodeId]),
-  )
+  const isSelected = useEditorStore((s) => s.selectedNodeIds.includes(nodeId))
   const isHovered = useEditorStore(
-    useCallback(
-      (s) =>
-        s.hoveredNodeId === nodeId &&
-        (!s.hoveredBreakpointId || s.hoveredBreakpointId === breakpointId),
-      [nodeId, breakpointId],
-    ),
+    (s) =>
+      s.hoveredNodeId === nodeId &&
+      (!s.hoveredBreakpointId || s.hoveredBreakpointId === breakpointId),
   )
   const previewClassAssignment = useEditorStore(
-    useCallback(
-      (s) => s.previewClassAssignment?.nodeId === nodeId ? s.previewClassAssignment : null,
-      [nodeId],
-    ),
+    (s) => s.previewClassAssignment?.nodeId === nodeId ? s.previewClassAssignment : null,
   )
-  const mcClassName = useEditorStore(
-    useCallback((s) => {
-      const canvasNode = selectActiveCanvasPage(s)?.nodes[nodeId]
-      const preview = s.previewClassAssignment?.nodeId === nodeId ? s.previewClassAssignment : null
-      return getCanvasNodeClassName(canvasNode?.classIds, preview, nodeId, s.site?.styleRules)
-    }, [nodeId]),
-  )
+  const mcClassName = useEditorStore((s) => {
+    const canvasNode = selectActiveCanvasPage(s)?.nodes[nodeId]
+    const preview = s.previewClassAssignment?.nodeId === nodeId ? s.previewClassAssignment : null
+    return getCanvasNodeClassName(canvasNode?.classIds, preview, nodeId, s.site?.styleRules)
+  })
   const { onNodeClick, onNodeHover, onNodeContextMenu, onNodeDoubleClick } = use(CanvasSelectionContext)
 
-  const handleNodeClick = useCallback(
-    (clickedNodeId: string, e: React.MouseEvent) => {
-      // B3 — VC lock-down: redirect clicks inside inlined VC bodies to the ref node.
-      // Imperative store access is correct here (event handler, not render path).
+  const handleNodeClick = (clickedNodeId: string, e: React.MouseEvent) => {
+    // B3 — VC lock-down: redirect clicks inside inlined VC bodies to the ref node.
+    // Imperative store access is correct here (event handler, not render path).
+    const state = useEditorStore.getState()
+    if (state.activeDocument?.kind !== 'visualComponent') {
+      const page = selectActiveCanvasPage(state)
+      if (page) {
+        const enclosing = findEnclosingComponentRef(
+          page.nodes as Record<string, AnnotatedPageNode>,
+          clickedNodeId,
+        )
+        if (enclosing !== null && !enclosing.isInsideSlotContent) {
+          // Clicked inside a VC body (not slot content) — route to the ref.
+          onNodeClick(enclosing.refId, e, breakpointId)
+          return
+        }
+      }
+    }
+    onNodeClick(clickedNodeId, e, breakpointId)
+  }
+
+  const handleNodeContextMenu = (clickedNodeId: string, e: React.MouseEvent) => {
+    onNodeContextMenu(clickedNodeId, e, breakpointId)
+  }
+
+  const handleNodeHover = (hoveredNodeId: string | null) => {
+    if (hoveredNodeId !== null) {
+      // B3 — VC lock-down: clamp hover ring to the ref node for VC body nodes.
       const state = useEditorStore.getState()
       if (state.activeDocument?.kind !== 'visualComponent') {
         const page = selectActiveCanvasPage(state)
         if (page) {
           const enclosing = findEnclosingComponentRef(
             page.nodes as Record<string, AnnotatedPageNode>,
-            clickedNodeId,
+            hoveredNodeId,
           )
           if (enclosing !== null && !enclosing.isInsideSlotContent) {
-            // Clicked inside a VC body (not slot content) — route to the ref.
-            onNodeClick(enclosing.refId, e, breakpointId)
+            onNodeHover(enclosing.refId, breakpointId)
             return
           }
         }
       }
-      onNodeClick(clickedNodeId, e, breakpointId)
-    },
-    [breakpointId, onNodeClick],
-  )
-
-  const handleNodeContextMenu = useCallback(
-    (clickedNodeId: string, e: React.MouseEvent) => {
-      onNodeContextMenu(clickedNodeId, e, breakpointId)
-    },
-    [breakpointId, onNodeContextMenu],
-  )
-
-  const handleNodeHover = useCallback(
-    (hoveredNodeId: string | null) => {
-      if (hoveredNodeId !== null) {
-        // B3 — VC lock-down: clamp hover ring to the ref node for VC body nodes.
-        const state = useEditorStore.getState()
-        if (state.activeDocument?.kind !== 'visualComponent') {
-          const page = selectActiveCanvasPage(state)
-          if (page) {
-            const enclosing = findEnclosingComponentRef(
-              page.nodes as Record<string, AnnotatedPageNode>,
-              hoveredNodeId,
-            )
-            if (enclosing !== null && !enclosing.isInsideSlotContent) {
-              onNodeHover(enclosing.refId, breakpointId)
-              return
-            }
-          }
-        }
-      }
-      onNodeHover(hoveredNodeId, breakpointId)
-    },
-    [breakpointId, onNodeHover],
-  )
+    }
+    onNodeHover(hoveredNodeId, breakpointId)
+  }
 
   // Subscribe to module registry changes so plugin module packs that activate
   // after the canvas mounted trigger a re-render — otherwise the canvas would
