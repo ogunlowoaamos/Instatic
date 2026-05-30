@@ -26,7 +26,7 @@ Read [`docs/architecture.md`](docs/architecture.md) for the system overview, [`d
 
 - **Runtime:** Bun (server + tooling). Use Bun, not Node.
 - **Language:** TypeScript everywhere.
-- **Frontend:** React 19 + Vite, Zustand + Immer for state, CodeMirror for code-editing UI, `@dnd-kit/core` for drag-and-drop.
+- **Frontend:** React 19 with the **React Compiler enabled** (Babel preset in `vite.config.ts`) + Vite, Zustand + Immer for state, CodeMirror for code-editing UI, `@dnd-kit/core` for drag-and-drop. The compiler auto-memoizes — do not hand-write `useMemo`/`useCallback`/`memo`. See "React Compiler and memoization".
 - **Server:** `Bun.serve` with a hand-written router (`server/router.ts`). CMS modules at `server/{repositories,handlers/cms,auth,plugins,publish}/`. Deep dive: [`docs/server.md`](docs/server.md).
 - **Database:** Postgres (`Bun.sql`) OR SQLite (`bun:sqlite`), selected by `DATABASE_URL`. One `DbClient` interface, two adapters, two migration files with identical IDs. Rules: [`docs/reference/database-dialects.md`](docs/reference/database-dialects.md).
 - **Content model:** All content lives in `data_tables` + `data_rows`. The three system tables (`posts`, `pages`, `components`) are seeded and locked from rename/delete. There are no separate `pages` or `page_versions` tables.
@@ -139,6 +139,23 @@ Shared primitives at `src/ui/components/`. **Every interactive control in `src/a
 - **`Input`, `Switch`, `Select`, `SearchBar`, `ColorInput`, `FileUpload`, `Separator`, `ContextMenu`, `FilterBar`** — for the corresponding control type.
 - **`Tree*`** (`src/admin/pages/site/ui/Tree/`) — for tree rows in DOM/site panels.
 - **Class composition:** `cn` from `@ui/cn` — an in-house 3-line helper.
+
+---
+
+## React Compiler and memoization
+
+The **React Compiler is enabled** for the whole app (`babel({ presets: [reactCompilerPreset()] })` in `vite.config.ts`, linted by `eslint-plugin-react-compiler`). It auto-memoizes every component and hook. Manual memoization is therefore **noise** — it adds clutter without improving performance and must not be written.
+
+- **Default: no `useMemo`, no `useCallback`, no `memo()`.** Write the plain value, the plain function, the plain component. The compiler memoizes them for you. New code MUST NOT introduce manual memoization, and existing manual memoization is being removed.
+- **`useState(() => …)` lazy initializers and `useRef(…)` are NOT memoization** — they are always fine and unaffected by this rule.
+
+There are exactly three exceptions where memoization stays — keep it, and add a one-line comment saying why:
+
+1. **The value/function is referenced in a `useEffect` (or other hook) dependency array.** The static `react-hooks/exhaustive-deps` lint rule can't see the compiler's runtime memoization, so it still demands a stable identity there. Wrapping a *function* used as a dep in `useCallback` (and the transitive closure it depends on) is required to keep `bun run lint` clean. If a removable plain value feeds a dep array, that's fine — only functions trip the rule.
+2. **A `React.memo` re-render bailout on a hot, list-rendered component** (e.g. a recursive per-node canvas renderer). `React.memo` skips re-rendering on equal props — a *different* mechanism from the compiler's within-component memoization — so dropping it on an O(N) critical path is not behavior-preserving without runtime perf validation. Rare; justify in a comment.
+3. **The compiler genuinely cannot compile a function** (escape hatch). Add the `"use no memo"` directive at the top of that function body, or the existing `eslint-disable react-compiler/react-compiler` pattern, and keep the manual memoization it needs.
+
+**Gate:** `react-doctor` (`bun run doctor`) flags violations as `react-doctor/react-compiler-no-manual-memoization`; `eslint-plugin-react-compiler` flags functions the compiler had to bail out on. A new component that ships `useMemo`/`useCallback`/`memo` outside the three exceptions above is drift — remove the memoization.
 
 ---
 
@@ -289,7 +306,7 @@ The bar is: **your work is clean.**
 2. Never preserve backward compatibility, never leave band-aids, never duplicate "old vs new" code paths.
 3. If the architecture would be cleaner with a multi-file refactor — do the refactor, in this change.
 4. Every untyped boundary goes through TypeBox. `as Foo` at a JSON boundary is a bug. The only legitimate `zod` use is `server/handlers/agent/tools.ts`.
-5. UI uses shared primitives from `src/ui/`, design tokens from `src/styles/globals.css`, CSS Modules only.
+5. UI uses shared primitives from `src/ui/`, design tokens from `src/styles/globals.css`, CSS Modules only. The React Compiler is on — no manual `useMemo`/`useCallback`/`memo` (see "React Compiler and memoization" for the three exceptions).
 6. Published output stays clean: clean HTML, clean CSS, clean TypeScript. No exceptions.
 7. Documentation tracks code — update [`docs/`](docs/) in the same change. Read [`docs/README.md`](docs/README.md) for orientation.
 8. Verify once at the end. Pre-existing failures from parallel sessions are not yours to fix.
