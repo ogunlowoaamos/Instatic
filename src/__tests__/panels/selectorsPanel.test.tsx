@@ -11,7 +11,7 @@ import {
   getReusableClasses,
   getSelectorStyleSummary,
 } from '@site/panels/SelectorsPanel/selectorUsage'
-import { useEditorStore } from '@site/store/store'
+import { selectRightSidebarExpanded, useEditorStore } from '@site/store/store'
 import type { StyleRule } from '@core/page-tree'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import '@modules/base/index'
@@ -259,6 +259,11 @@ describe('SelectorsPanel', () => {
     const propertiesPanel = screen.getByTestId('properties-panel')
     expect(within(propertiesPanel).getByRole('button', { name: /duplicate/i })).toBeDefined()
     expect(within(propertiesPanel).getByRole('button', { name: /delete/i })).toBeDefined()
+
+    // The docked right sidebar must expand (take layout width) for a selector
+    // multi-selection, even with no node / single selector active — otherwise
+    // the bulk options would render at zero width.
+    expect(selectRightSidebarExpanded(useEditorStore.getState())).toBe(true)
   })
 
   it('bulk-applies selected selectors to the selected element', () => {
