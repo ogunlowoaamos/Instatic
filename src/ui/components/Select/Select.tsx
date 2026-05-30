@@ -51,6 +51,15 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'siz
   menuAnchorRef?: React.RefObject<HTMLElement | null>
   options?: SelectOption[]
   placeholder?: string
+  /**
+   * Optional hover-preview hook. Fired with an option's value while the
+   * pointer is over its row in the open dropdown, so callers can transiently
+   * apply the value (e.g. preview a CSS value on the canvas) without
+   * committing. `onOptionPreviewClear` fires when the menu closes (commit,
+   * dismiss, or escape) so the caller can tear the preview down.
+   */
+  onOptionPreview?: (value: string) => void
+  onOptionPreviewClear?: () => void
   'data-testid'?: string
   /** React 19: ref is a regular prop on function components. */
   ref?: Ref<HTMLSelectElement>
@@ -67,6 +76,8 @@ export function Select({
   value,
   defaultValue,
   onChange,
+  onOptionPreview,
+  onOptionPreviewClear,
   id,
   name,
   required,
@@ -144,6 +155,10 @@ export function Select({
     setActiveIndex(-1)
     clearMenuSizing()
     resolvedAnchorRef.current = null
+    // Tear down any transient hover preview when the menu goes away — by
+    // commit, dismiss, or escape. commitValue calls closeMenu before firing
+    // onChange, so the preview is cleared just before the real value lands.
+    onOptionPreviewClear?.()
   }
 
   function openMenu() {
@@ -300,6 +315,7 @@ export function Select({
           activeIndex={resolvedActiveIndex}
           selectedValue={selectedValue}
           onHover={setActiveIndex}
+          onOptionPreview={onOptionPreview}
           onSelect={commitValue}
           onClose={closeMenu}
         />

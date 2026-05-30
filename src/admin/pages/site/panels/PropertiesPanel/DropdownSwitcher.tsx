@@ -19,10 +19,11 @@
  * `position`, and any future CSS property that fits this three-state mold.
  */
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@ui/components/Button'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
 import { SegmentedControl } from '@ui/components/SegmentedControl'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import styles from './LayoutSection.module.css'
@@ -46,6 +47,15 @@ interface DropdownSwitcherProps {
   allOptions: ReadonlyArray<string>
   onChange: (value: string) => void
   onClear: () => void
+  /**
+   * Optional hover-preview hooks. When provided (and the `hoverPreview`
+   * editor preference is on), hovering a value in the dropdown transiently
+   * applies it via `onPreview`; closing / leaving the menu fires
+   * `onClearPreview`. Lets the Layout / Position switchers preview a display
+   * or position value on the canvas before the user commits.
+   */
+  onPreview?: (value: string) => void
+  onClearPreview?: () => void
 }
 
 export function DropdownSwitcher({
@@ -55,9 +65,31 @@ export function DropdownSwitcher({
   allOptions,
   onChange,
   onClear,
+  onPreview,
+  onClearPreview,
 }: DropdownSwitcherProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+
+  // Hover previews are gated by the shared "Preview suggestions on hover"
+  // preference; when off we don't fire preview callbacks at all.
+  const hoverPreviewEnabled = useEditorPreference('hoverPreview')
+  const previewActive = hoverPreviewEnabled && onPreview != null
+
+  // Defensive: clear any live preview if the preference flips off mid-hover.
+  useEffect(() => {
+    if (!hoverPreviewEnabled) onClearPreview?.()
+  }, [hoverPreviewEnabled, onClearPreview])
+
+  const closeMenu = () => {
+    onClearPreview?.()
+    setMenuOpen(false)
+  }
+
+  const toggleMenu = () => {
+    if (menuOpen) closeMenu()
+    else setMenuOpen(true)
+  }
 
   const capitalized = capitalize(property)
   const testId = `css-${property}-switcher`
@@ -74,7 +106,8 @@ export function DropdownSwitcher({
       side="bottom"
       offset={6}
       ariaLabel={`${capitalized} values`}
-      onClose={() => setMenuOpen(false)}
+      onClose={closeMenu}
+      onMouseLeave={previewActive ? onClearPreview : undefined}
     >
       {allOptions.map((opt) => (
         <ContextMenuItem
@@ -82,9 +115,10 @@ export function DropdownSwitcher({
           role="menuitemradio"
           aria-checked={value === opt}
           active={value === opt}
+          onMouseEnter={previewActive ? () => onPreview?.(opt) : undefined}
           onClick={() => {
             onChange(opt)
-            setMenuOpen(false)
+            closeMenu()
           }}
         >
           {opt}
@@ -113,7 +147,7 @@ export function DropdownSwitcher({
             aria-label={`${capitalized}: ${value}`}
             tooltip={`Change ${property} value`}
             className={styles.displayChip}
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={toggleMenu}
           >
             <span className={styles.displayChipKicker}>{property}</span>
             <span className={styles.displayChipValue}>{value}</span>
@@ -166,7 +200,7 @@ export function DropdownSwitcher({
             aria-label={`More ${property} values`}
             tooltip={`More ${property} values`}
             className={trailingClassName}
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={toggleMenu}
           >
             <ChevronDownIcon size={14} color="currentColor" />
           </Button>

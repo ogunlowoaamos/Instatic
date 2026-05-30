@@ -55,6 +55,13 @@ interface PositionSectionProps {
   onRemove: (property: keyof CSSPropertyBag) => void
   /** Fully clear a property — see ClassComposer.handleClearProperty. */
   onClearProperty: (property: keyof CSSPropertyBag) => void
+  /**
+   * Patch-shaped hover-preview channel (see ClassComposer.handlePreview).
+   * Forwarded to the position dropdown, the offset token inputs, and the
+   * z-index row so hovering a suggestion previews on the canvas.
+   */
+  onPreview?: (patch: Partial<CSSPropertyBag>) => void
+  onClearPreview?: () => void
 }
 
 /** Position values that honor top/right/bottom/left and reveal the
@@ -73,9 +80,18 @@ export function PositionSection({
   onChange,
   onRemove,
   onClearProperty,
+  onPreview,
+  onClearPreview,
 }: PositionSectionProps) {
   const position = readString(currentStyles, 'position')
   const positionIsActive = position != null && POSITIONED_VALUES.has(position)
+
+  // Per-property adapter over the patch-shaped preview channel, used by the
+  // offset token inputs and the z-index row (each owns a single property).
+  const previewProperty = onPreview
+    ? (property: keyof CSSPropertyBag, value: string | number | undefined) =>
+        onPreview({ [property]: value ?? null } as Partial<CSSPropertyBag>)
+    : undefined
 
   const zIndexStored = storedStyles.zIndex
   const zIndexIsSet = hasStyleValue(zIndexStored)
@@ -98,6 +114,8 @@ export function PositionSection({
         allOptions={POSITION_OPTIONS}
         onChange={(v) => onChange('position', v)}
         onClear={() => onClearProperty('position')}
+        onPreview={onPreview ? (v) => onPreview({ position: v } as Partial<CSSPropertyBag>) : undefined}
+        onClearPreview={onClearPreview}
       />
       {positionIsActive && (
         <div className={styles.positionDirectionsGrid}>
@@ -110,6 +128,8 @@ export function PositionSection({
             tokens={spacingTokens}
             onChange={onChange}
             onClear={onClearProperty}
+            onPreview={previewProperty}
+            onClearPreview={onClearPreview}
           />
           <DirectionInput
             property="right"
@@ -120,6 +140,8 @@ export function PositionSection({
             tokens={spacingTokens}
             onChange={onChange}
             onClear={onClearProperty}
+            onPreview={previewProperty}
+            onClearPreview={onClearPreview}
           />
           <DirectionInput
             property="bottom"
@@ -130,6 +152,8 @@ export function PositionSection({
             tokens={spacingTokens}
             onChange={onChange}
             onClear={onClearProperty}
+            onPreview={previewProperty}
+            onClearPreview={onClearPreview}
           />
           <DirectionInput
             property="left"
@@ -140,6 +164,8 @@ export function PositionSection({
             tokens={spacingTokens}
             onChange={onChange}
             onClear={onClearProperty}
+            onPreview={previewProperty}
+            onClearPreview={onClearPreview}
           />
         </div>
       )}
@@ -155,6 +181,8 @@ export function PositionSection({
         isSet={zIndexIsSet}
         onChange={onChange}
         onRemove={onRemove}
+        onPreview={previewProperty}
+        onClearPreview={onClearPreview}
       />
     </>
   )
@@ -195,6 +223,9 @@ interface DirectionInputProps {
   tokens: ReadonlyArray<Token>
   onChange: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
   onClear: (property: keyof CSSPropertyBag) => void
+  /** Per-property hover / as-you-type preview adapter. */
+  onPreview?: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
+  onClearPreview?: () => void
 }
 
 function DirectionInput({
@@ -206,6 +237,8 @@ function DirectionInput({
   tokens,
   onChange,
   onClear,
+  onPreview,
+  onClearPreview,
 }: DirectionInputProps) {
   const isSet = hasStyleValue(storedValue)
   const placeholder = !isSet
@@ -229,6 +262,8 @@ function DirectionInput({
         placeholder={placeholder}
         tokens={tokens}
         onCommit={(resolved) => onChange(property, resolved)}
+        onPreview={onPreview ? (resolved) => onPreview(property, resolved) : undefined}
+        onClearPreview={onClearPreview}
         className={styles.directionInput}
       />
       {isSet && (

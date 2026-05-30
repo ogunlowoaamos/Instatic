@@ -23,6 +23,15 @@ interface TokenizedColorFieldProps {
   onTextBlur: () => void
   onSwatchChange: (value: string) => void
   onTokenSelect: (value: string) => void
+  /**
+   * Optional hover-preview hooks. When provided, hovering a colour-token
+   * option fires `onTokenPreview` with its `var(--…)` reference; leaving the
+   * row / closing the menu fires `onTokenPreviewClear`. The caller
+   * (ColorControl) only passes these when the `hoverPreview` preference is on,
+   * so this field stays preview-agnostic.
+   */
+  onTokenPreview?: (value: string) => void
+  onTokenPreviewClear?: () => void
 }
 
 export function TokenizedColorField({
@@ -39,6 +48,8 @@ export function TokenizedColorField({
   onTextBlur,
   onSwatchChange,
   onTokenSelect,
+  onTokenPreview,
+  onTokenPreviewClear,
 }: TokenizedColorFieldProps) {
   const colorSettings = useEditorStore((state) => state.site?.settings.framework?.colors)
   const [open, setOpen] = useState(false)
@@ -69,6 +80,7 @@ export function TokenizedColorField({
     if (event.relatedTarget instanceof HTMLElement && event.currentTarget.parentElement?.contains(event.relatedTarget)) {
       return
     }
+    onTokenPreviewClear?.()
     window.setTimeout(() => setOpen(false), 0)
   }
 
@@ -83,6 +95,7 @@ export function TokenizedColorField({
   }
 
   function commitToken(variable: ColorVariable) {
+    onTokenPreviewClear?.()
     onTokenSelect(`var(${variable.name})`)
     setOpen(false)
   }
@@ -98,6 +111,7 @@ export function TokenizedColorField({
 
     if (event.key === 'Escape') {
       event.preventDefault()
+      onTokenPreviewClear?.()
       setOpen(false)
     } else if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -151,6 +165,7 @@ export function TokenizedColorField({
             role="listbox"
             aria-label={`${inputLabel} color tokens`}
             className={styles.colorTokenMenu}
+            onMouseLeave={() => onTokenPreviewClear?.()}
           >
             {filteredVariables.map((variable, index) => (
               <button
@@ -159,7 +174,10 @@ export function TokenizedColorField({
                 role="option"
                 aria-selected={index === activeIndex}
                 className={styles.colorTokenOption}
-                onMouseEnter={() => setActiveIndex(index)}
+                onMouseEnter={() => {
+                  setActiveIndex(index)
+                  onTokenPreview?.(`var(${variable.name})`)
+                }}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => commitToken(variable)}
               >

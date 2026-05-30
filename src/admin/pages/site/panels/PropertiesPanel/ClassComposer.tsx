@@ -6,15 +6,13 @@
  * navigation are owned by the parent (StyleSurface).
  */
 
-import { useState } from 'react'
 import { useEditorStore } from '@site/store/store'
-import type { StyleRule, CSSPropertyBag, StyleCondition } from '@core/page-tree'
+import type { StyleRule, CSSPropertyBag } from '@core/page-tree'
 import { ClassPropertyRow } from './ClassPropertyRow'
 import { Section } from '@ui/components/Section'
 import { SpacingBoxControl } from './SpacingBoxControl/SpacingBoxControl'
 import { BorderControl } from './BorderControl/BorderControl'
 import { CustomPropertiesSection } from './CustomPropertiesSection'
-import { ConditionTabs, type StyleTarget } from './ConditionTabs'
 import { LayoutSection } from './LayoutSection'
 import { PositionSection } from './PositionSection'
 import {
@@ -32,9 +30,6 @@ const SPACING_SECTION_ID = 'spacing'
 const LAYOUT_SECTION_ID = 'layout'
 const POSITION_SECTION_ID = 'position'
 const BORDER_SECTION_ID = 'border'
-
-/** Stable empty-array reference for rules with no conditional layers. */
-const EMPTY_LAYERS: ReadonlyArray<import('@core/page-tree').ConditionalStyleLayer> = []
 
 // ---------------------------------------------------------------------------
 // Props
@@ -59,49 +54,47 @@ export function ClassComposer({
   mode: _mode = 'contextual',
 }: ClassComposerProps) {
   const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
+  // The editing context is owned by the canvas toolbar's context switcher:
+  // either the active viewport (base / breakpoint) or a custom condition. The
+  // selector validates the active condition id against the registry and returns
+  // a stable string | null, so a stale id (condition removed) falls back to
+  // viewport editing without re-render churn.
+  const activeConditionId = useEditorStore((s) => {
+    const id = s.activeConditionId
+    if (id === null) return null
+    const cs = s.site?.conditions
+    return cs && cs.some((c) => c.id === id) ? id : null
+  })
   const updateClassStyles = useEditorStore((s) => s.updateClassStyles)
-  const setClassBreakpointStyles = useEditorStore((s) => s.setClassBreakpointStyles)
+  const setClassContextStyles = useEditorStore((s) => s.setClassContextStyles)
   const removeClassStyleProperty = useEditorStore((s) => s.removeClassStyleProperty)
   const setPreviewClassStyles = useEditorStore((s) => s.setPreviewClassStyles)
   const clearPreviewClassStyles = useEditorStore((s) => s.clearPreviewClassStyles)
-  const addConditionalLayer = useEditorStore((s) => s.addConditionalLayer)
-  const updateConditionalLayerStyles = useEditorStore((s) => s.updateConditionalLayerStyles)
-  const removeConditionalLayer = useEditorStore((s) => s.removeConditionalLayer)
 
-  // The active *condition* dimension (Base vs a specific conditional layer).
-  // Reset to Base when the selected class changes. Orthogonal to the active
-  // width-breakpoint (owned by the responsive toolbar) — a condition edits the
-  // layer's flat styles, ignoring the breakpoint axis for v1.
-  const [activeTarget, setActiveTarget] = useState<StyleTarget>({ kind: 'base' })
-  const layers = cls.conditionalLayers ?? EMPTY_LAYERS
-  // If the active layer was removed (or the class changed), fall back to Base.
-  const activeLayer =
-    activeTarget.kind === 'condition'
-      ? layers.find((l) => l.id === activeTarget.layerId) ?? null
-      : null
-  const onCondition = activeTarget.kind === 'condition' && activeLayer !== null
+  const onCondition = activeConditionId !== null
 
   const activeTab = getActiveStyleTab(activeBreakpointId)
 
-  const storedStyles: Record<string, unknown> = onCondition
-    ? (activeLayer!.styles as Record<string, unknown>)
+  // The active context key: a condition id, a breakpoint id, or none (base).
+  const activeContextId = onCondition
+    ? activeConditionId
     : activeTab !== 'base'
-      ? (cls.breakpointStyles[activeTab] ?? {})
-      : cls.styles
-  const currentStyles: Record<string, unknown> = onCondition
+      ? activeTab
+      : null
+
+  const storedStyles: Record<string, unknown> = activeContextId
+    ? (cls.contextStyles[activeContextId] ?? {})
+    : cls.styles
+  const currentStyles: Record<string, unknown> = activeContextId
     ? { ...cls.styles, ...storedStyles }
-    : activeTab !== 'base'
-      ? { ...cls.styles, ...storedStyles }
-      : cls.styles
+    : cls.styles
 
   const visibleStyleSections = getVisibleStyleSections(styleQuery)
 
   const handleChange = (key: keyof CSSPropertyBag, value: string | number | undefined) => {
     const patch = { [key]: value ?? null } as Partial<CSSPropertyBag>
-    if (onCondition) {
-      updateConditionalLayerStyles(classId, (activeTarget as { layerId: string }).layerId, patch)
-    } else if (activeTab !== 'base') {
-      setClassBreakpointStyles(classId, activeTab, patch)
+    if (activeContextId) {
+      setClassContextStyles(classId, activeContextId, patch)
     } else {
       updateClassStyles(classId, patch)
     }
@@ -119,27 +112,17 @@ export function ClassComposer({
    * base styles AND every breakpoint override in a single history entry.
    */
   const handleClearProperty = (key: keyof CSSPropertyBag) => {
-    if (onCondition) {
-      // On a condition tab, "clear" removes the prop from that layer only.
-      updateConditionalLayerStyles(classId, (activeTarget as { layerId: string }).layerId, {
+    if (onCondition && activeConditionId) {
+      // On a custom-condition tab, "clear" removes the prop from that
+      // condition's override bag only. On a width-breakpoint tab it clears the
+      // property everywhere (base + every context) so the inherited base value
+      // can't bleed through and leave the switcher segment stuck pressed.
+      setClassContextStyles(classId, activeConditionId, {
         [key]: undefined,
       } as Partial<CSSPropertyBag>)
       return
     }
     removeClassStyleProperty(classId, key)
-  }
-
-  // ── Condition tab handlers ───────────────────────────────────────────────
-  const handleAddCondition = (condition: StyleCondition) => {
-    const layerId = addConditionalLayer(classId, condition)
-    if (layerId) setActiveTarget({ kind: 'condition', layerId })
-  }
-
-  const handleRemoveCondition = (layerId: string) => {
-    removeConditionalLayer(classId, layerId)
-    setActiveTarget((cur) =>
-      cur.kind === 'condition' && cur.layerId === layerId ? { kind: 'base' } : cur,
-    )
   }
 
   // Preview a transient style patch on the canvas while a property
@@ -162,27 +145,20 @@ export function ClassComposer({
     clearPreviewClassStyles(classId)
   }
 
+  // Re-key the section controls on the active editing context (base /
+  // breakpoint / condition) so they remount and re-read the right stored bag
+  // when the toolbar context switcher changes the target.
+  const sectionKey = activeContextId ?? 'base'
+
   return (
     <div className={styles.styleSections}>
-      {/* Condition tabs — Base + custom @media / @container / @supports layers.
-          Hidden while a style search is active (search targets the property
-          sections, not the condition dimension). */}
-      {!styleQuery.trim() && (
-        <ConditionTabs
-          layers={layers}
-          active={activeTarget}
-          onSelect={setActiveTarget}
-          onAdd={handleAddCondition}
-          onRemove={handleRemoveCondition}
-        />
-      )}
       {visibleStyleSections.map((section) => (
         <div key={section.id} data-style-section={section.id}>
           <ClassStyleSection
             section={section}
             currentStyles={currentStyles}
             storedStyles={storedStyles}
-            activeTab={activeTab}
+            activeTab={sectionKey}
             onChange={handleChange}
             onRemove={handleRemoveProperty}
             onClearProperty={handleClearProperty}
@@ -198,7 +174,7 @@ export function ClassComposer({
       {!styleQuery.trim() && (
         <div data-style-section="custom">
           <CustomPropertiesSection
-            key={activeTab}
+            key={sectionKey}
             storedStyles={storedStyles}
             onChange={handleChange}
             onRemove={handleRemoveProperty}
@@ -241,6 +217,13 @@ function ClassStyleSection({
 }: ClassStyleSectionProps) {
   const setCount = section.properties.filter((prop) => hasStyleValue(storedStyles[prop])).length
 
+  // Per-property adapter over the patch-shaped section preview channel, used
+  // by the generic ClassPropertyRow rows (each owns a single property).
+  const previewProperty = (
+    property: keyof CSSPropertyBag,
+    value: string | number | undefined,
+  ) => onPreview({ [property]: value ?? null } as Partial<CSSPropertyBag>)
+
   return (
     <Section
       title={section.title}
@@ -277,6 +260,8 @@ function ClassStyleSection({
             onChange={onChange}
             onRemove={onRemove}
             onClearProperty={onClearProperty}
+            onPreview={onPreview}
+            onClearPreview={onClearPreview}
           />
         ) : section.id === POSITION_SECTION_ID ? (
           // Position uses a task-shaped editor: a segmented Position
@@ -291,6 +276,8 @@ function ClassStyleSection({
             onChange={onChange}
             onRemove={onRemove}
             onClearProperty={onClearProperty}
+            onPreview={onPreview}
+            onClearPreview={onClearPreview}
           />
         ) : section.id === BORDER_SECTION_ID ? (
           // Border uses a visual per-side editor (width / style / colour per
@@ -305,6 +292,8 @@ function ClassStyleSection({
               currentStyles={currentStyles}
               onChange={onChange}
               onClearProperty={onClearProperty}
+              onPreview={onPreview}
+              onClearPreview={onClearPreview}
             />
             <AdvancedRows
               activeTab={activeTab}
@@ -313,6 +302,8 @@ function ClassStyleSection({
               currentStyles={currentStyles}
               onChange={onChange}
               onRemove={onRemove}
+              onPreview={previewProperty}
+              onClearPreview={onClearPreview}
             />
           </>
         ) : (
@@ -334,6 +325,8 @@ function ClassStyleSection({
                 isSet={isSet}
                 onChange={onChange}
                 onRemove={onRemove}
+                onPreview={previewProperty}
+                onClearPreview={onClearPreview}
               />
             )
           })
@@ -369,6 +362,9 @@ interface AdvancedRowsProps {
   currentStyles: Record<string, unknown>
   onChange: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
   onRemove: (property: keyof CSSPropertyBag) => void
+  /** Per-property hover-preview adapter (see ClassStyleSection.previewProperty). */
+  onPreview?: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
+  onClearPreview?: () => void
 }
 
 /**
@@ -384,6 +380,8 @@ function AdvancedRows({
   currentStyles,
   onChange,
   onRemove,
+  onPreview,
+  onClearPreview,
 }: AdvancedRowsProps) {
   // Open by default when any advanced prop already carries a value, so an
   // imported class that set `border: 1px solid red` as a shorthand is visible.
@@ -409,6 +407,8 @@ function AdvancedRows({
               isSet={isSet}
               onChange={onChange}
               onRemove={onRemove}
+              onPreview={onPreview}
+              onClearPreview={onClearPreview}
             />
           )
         })}

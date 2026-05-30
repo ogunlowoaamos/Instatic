@@ -80,6 +80,13 @@ interface LayoutSectionProps {
    * segment would stay pressed.
    */
   onClearProperty: (property: keyof CSSPropertyBag) => void
+  /**
+   * Patch-shaped hover-preview channel (see ClassComposer.handlePreview).
+   * Forwarded to the display dropdown, the gap token input, and the generic
+   * fallback rows so hovering a suggestion previews on the canvas.
+   */
+  onPreview?: (patch: Partial<CSSPropertyBag>) => void
+  onClearPreview?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -138,12 +145,21 @@ export function LayoutSection({
   onChange,
   onRemove,
   onClearProperty,
+  onPreview,
+  onClearPreview,
 }: LayoutSectionProps) {
   const display = readString(currentStyles, 'display')
   const flexDirection = readString(currentStyles, 'flexDirection') ?? 'row'
   const flexWrap = readString(currentStyles, 'flexWrap')
   const alignItems = readString(currentStyles, 'alignItems')
   const justifyContent = readString(currentStyles, 'justifyContent')
+
+  // Per-property adapter over the patch-shaped preview channel, for the
+  // single-property controls in this section (gap input + fallback rows).
+  const previewProperty = onPreview
+    ? (property: keyof CSSPropertyBag, value: string | number | undefined) =>
+        onPreview({ [property]: value ?? null } as Partial<CSSPropertyBag>)
+    : undefined
 
   return (
     <div className={styles.layoutSection}>
@@ -155,6 +171,8 @@ export function LayoutSection({
         allOptions={DISPLAY_OPTIONS}
         onChange={(v) => onChange('display', v)}
         onClear={() => onClearProperty('display')}
+        onPreview={onPreview ? (v) => onPreview({ display: v } as Partial<CSSPropertyBag>) : undefined}
+        onClearPreview={onClearPreview}
       />
 
       {/* Flex-only fields, revealed when display === 'flex' */}
@@ -194,6 +212,8 @@ export function LayoutSection({
             value={readString(currentStyles, 'gap')}
             isSet={hasStyleValue(storedStyles.gap)}
             onChange={(v) => onChange('gap', v)}
+            onPreview={onPreview ? (v) => onPreview({ gap: v ?? null } as Partial<CSSPropertyBag>) : undefined}
+            onClearPreview={onClearPreview}
           />
         </div>
       )}
@@ -237,6 +257,8 @@ export function LayoutSection({
             value={readString(currentStyles, 'gap')}
             isSet={hasStyleValue(storedStyles.gap)}
             onChange={(v) => onChange('gap', v)}
+            onPreview={onPreview ? (v) => onPreview({ gap: v ?? null } as Partial<CSSPropertyBag>) : undefined}
+            onClearPreview={onClearPreview}
           />
         </div>
       )}
@@ -273,6 +295,8 @@ export function LayoutSection({
             isSet={isSet}
             onChange={onChange}
             onRemove={onRemove}
+            onPreview={previewProperty}
+            onClearPreview={onClearPreview}
           />
         )
       })}
@@ -462,6 +486,9 @@ interface GapInputProps {
   value: string | undefined
   isSet: boolean
   onChange: (value: string | undefined) => void
+  /** Hover / as-you-type preview of the resolved gap value (token-aware). */
+  onPreview?: (value: string | undefined) => void
+  onClearPreview?: () => void
 }
 
 /**
@@ -470,7 +497,7 @@ interface GapInputProps {
  * so users get framework spacing variable autocomplete as they type — same
  * vocabulary as the SpacingBoxControl side inputs.
  */
-function GapInput({ value, isSet, onChange }: GapInputProps) {
+function GapInput({ value, isSet, onChange, onPreview, onClearPreview }: GapInputProps) {
   const tokens = useSpacingTokens()
   return (
     <LabeledControl label="Gap" isSet={isSet}>
@@ -480,6 +507,8 @@ function GapInput({ value, isSet, onChange }: GapInputProps) {
         placeholder="0px"
         tokens={tokens}
         onCommit={onChange}
+        onPreview={onPreview}
+        onClearPreview={onClearPreview}
       />
     </LabeledControl>
   )

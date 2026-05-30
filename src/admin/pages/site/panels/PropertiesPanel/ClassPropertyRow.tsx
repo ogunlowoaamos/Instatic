@@ -47,6 +47,16 @@ interface ClassPropertyRowProps {
   isSet?: boolean
   onChange: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
   onRemove: (property: keyof CSSPropertyBag) => void
+  /**
+   * Optional hover-preview hooks. When provided, the row forwards them to
+   * whichever control supports a suggestion dropdown (token autocomplete,
+   * colour-token menu, enum select) so hovering a suggestion transiently
+   * applies it to the canvas. `onClearPreview` fires on leave / close.
+   * Gating against the `hoverPreview` preference happens inside the leaf
+   * controls, so the row can pass these through unconditionally.
+   */
+  onPreview?: (property: keyof CSSPropertyBag, value: string | number | undefined) => void
+  onClearPreview?: () => void
 }
 
 export function ClassPropertyRow({
@@ -56,6 +66,8 @@ export function ClassPropertyRow({
   isSet = true,
   onChange,
   onRemove,
+  onPreview,
+  onClearPreview,
 }: ClassPropertyRowProps) {
   const type = getCSSPropertyControlType(property)
   const tokenSource = getCSSPropertyTokenSource(property)
@@ -102,6 +114,34 @@ export function ClassPropertyRow({
     onChange(property, resolved)
   }
 
+  // Preview counterparts — same value coercion as the commit handlers, but
+  // routed to `onPreview` so the value lands on the canvas transiently
+  // (no history entry). No-op when the parent didn't wire a preview channel.
+  const handleControlPreview = (_key: string, val: unknown) => {
+    if (!onPreview) return
+    const nextValue = String(val ?? '')
+    if (NUMBER_TYPED_PROPS.has(property)) {
+      const parsed = Number(nextValue)
+      onPreview(property, Number.isFinite(parsed) && nextValue.trim() !== '' ? parsed : undefined)
+      return
+    }
+    onPreview(property, nextValue)
+  }
+
+  const handleTokenPreview = (resolved: string | undefined) => {
+    if (!onPreview) return
+    if (NUMBER_TYPED_PROPS.has(property)) {
+      if (resolved == null || resolved === '') {
+        onPreview(property, undefined)
+        return
+      }
+      const parsed = Number(resolved)
+      onPreview(property, Number.isFinite(parsed) ? parsed : resolved)
+      return
+    }
+    onPreview(property, resolved)
+  }
+
   // ── Dispatch to the correct control ─────────────────────────────────────
   // Each control renders with its own .controlWrapper so the row is
   // visually identical to a module property row (PP-18). When the property
@@ -118,6 +158,8 @@ export function ClassPropertyRow({
           placeholder={placeholderText}
           tokens={tokens}
           onCommit={handleTokenCommit}
+          onPreview={onPreview ? handleTokenPreview : undefined}
+          onClearPreview={onClearPreview}
         />
       </ControlRow>
     )
@@ -146,6 +188,8 @@ export function ClassPropertyRow({
           placeholder={placeholderText}
           onChange={handleControlChange}
           label={label}
+          onPreview={onPreview ? (v) => handleControlPreview(String(property), v) : undefined}
+          onClearPreview={onClearPreview}
         />
       )
       break
@@ -163,6 +207,8 @@ export function ClassPropertyRow({
             { label: '—', value: '' },
             ...opts.map((o) => ({ label: o, value: o })),
           ]}
+          onPreview={onPreview ? (v) => handleControlPreview(String(property), v) : undefined}
+          onClearPreview={onClearPreview}
         />
       )
       break

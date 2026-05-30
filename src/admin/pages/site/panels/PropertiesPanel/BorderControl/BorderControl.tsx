@@ -30,12 +30,13 @@
  * no effect).
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CSSPropertyBag } from '@core/page-tree'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
 import { ColorControl } from '@site/property-controls/ColorControl'
+import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { LinkIcon } from 'pixel-art-icons/icons/link'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { cn } from '@ui/cn'
@@ -73,6 +74,14 @@ interface BorderControlProps {
    * clear semantics.
    */
   onClearProperty: (property: keyof CSSPropertyBag) => void
+  /**
+   * Patch-shaped hover-preview channel (see ClassComposer.handlePreview).
+   * Forwarded to the border-style select and border-colour field so hovering
+   * a suggestion previews on the canvas; honours the current link state so a
+   * linked border previews all four sides at once.
+   */
+  onPreview?: (patch: Partial<CSSPropertyBag>) => void
+  onClearPreview?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +129,17 @@ export function BorderControl({
   currentStyles,
   onChange,
   onClearProperty,
+  onPreview,
+  onClearPreview,
 }: BorderControlProps) {
+  // Hover previews are gated by the shared "Preview suggestions on hover"
+  // preference. The border-colour field self-gates (ColorControl reads the
+  // pref); the raw style <Select> below is gated here.
+  const hoverPreviewEnabled = useEditorPreference('hoverPreview')
+
+  useEffect(() => {
+    if (!hoverPreviewEnabled) onClearPreview?.()
+  }, [hoverPreviewEnabled, onClearPreview])
   // ── Border (per-side) state ──────────────────────────────────────────────
   const widthState = readSideField(storedStyles, 'Width')
   const styleState = readSideField(storedStyles, 'Style')
@@ -146,6 +165,21 @@ export function BorderControl({
     const sides: Side[] = borderLinked ? [...SIDES] : [editSide]
     for (const s of sides) onChange(borderKey(s, field), value)
   }
+
+  // Transient preview counterpart to writeSide — builds a patch across the
+  // same set of sides (all four when linked) and routes it through the
+  // hover-preview channel without committing. Gated by the preference.
+  const previewSide =
+    hoverPreviewEnabled && onPreview
+      ? (field: BorderField, value: string | number | undefined) => {
+          const sides: Side[] = borderLinked ? [...SIDES] : [editSide]
+          const patch: Partial<CSSPropertyBag> = {}
+          for (const s of sides) {
+            ;(patch as Record<string, unknown>)[borderKey(s, field)] = value ?? null
+          }
+          onPreview(patch)
+        }
+      : undefined
 
   const clearBorder = () => {
     for (const side of SIDES) {
@@ -249,6 +283,8 @@ export function BorderControl({
                   { label: '—', value: '' },
                   ...styleOptions.map((o) => ({ label: o, value: o })),
                 ]}
+                onOptionPreview={previewSide ? (v) => previewSide('Style', v || undefined) : undefined}
+                onOptionPreviewClear={previewSide ? onClearPreview : undefined}
               />
             </FieldRow>
 
@@ -258,6 +294,8 @@ export function BorderControl({
                 value={colorValue}
                 label="Color"
                 onChange={(_key, v) => writeSide('Color', v || undefined)}
+                onPreview={onPreview ? (v) => previewSide?.('Color', v || undefined) : undefined}
+                onClearPreview={onClearPreview}
               />
             </div>
           </div>
