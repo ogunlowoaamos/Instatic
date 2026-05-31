@@ -62,6 +62,8 @@ export interface AssetPlanResult {
   normalizedPagePlans: PagePlan[]
   /** Flat list of all style rules (from all CSS files) with url() values normalised. */
   normalizedStyleRules: NewStyleRule[]
+  /** Index-aligned with `normalizedStyleRules`: the source stylesheet path each rule came from. */
+  styleRuleSources: string[]
   /**
    * Custom font families resolved from `@font-face` blocks. Each file's `src`
    * is a FileMap key (rewritten to a media URL later by `applyAssetRewrites`).
@@ -123,9 +125,11 @@ export function buildAssetPlan(
 
   // --- Normalise CSS rules ---
   const normalizedStyleRules: NewStyleRule[] = []
+  const styleRuleSources: string[] = []
   for (const { cssPath, rules, assetRefs } of cssFileResults) {
     const normalized = normalizeRules(rules, assetRefs, cssPath, fileMap, assetMap)
     normalizedStyleRules.push(...normalized)
+    for (let i = 0; i < normalized.length; i++) styleRuleSources.push(cssPath)
   }
 
   // --- Resolve @font-face blocks into custom font families ---
@@ -148,7 +152,7 @@ export function buildAssetPlan(
 
   const assets = Array.from(assetMap.values())
 
-  return { normalizedPagePlans, normalizedStyleRules, fonts, assets, warnings }
+  return { normalizedPagePlans, normalizedStyleRules, styleRuleSources, fonts, assets, warnings }
 }
 
 // ---------------------------------------------------------------------------

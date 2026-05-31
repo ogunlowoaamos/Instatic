@@ -140,6 +140,7 @@ describe('applyConflictResolutions', () => {
     return {
       pages,
       styleRules,
+      styleRuleSources: styleRules.map(() => 'styles.css'),
       assets: [],
       conflicts: { pages: [], rules: [] },
       warnings: [],

@@ -178,7 +178,7 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
 
   // 5. Build asset plan — normalises URLs in node props and CSS values,
   //    resolves @font-face blocks into custom fonts, collects assets to upload
-  const { normalizedPagePlans, normalizedStyleRules, fonts, assets, warnings: assetWarnings } =
+  const { normalizedPagePlans, normalizedStyleRules, styleRuleSources, fonts, assets, warnings: assetWarnings } =
     buildAssetPlan(scoped.pagePlans, scoped.cssFileResults, fileMap)
   warnings.push(...assetWarnings)
 
@@ -188,6 +188,7 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
   return {
     pages: normalizedPagePlans,
     styleRules: normalizedStyleRules,
+    styleRuleSources,
     fonts,
     conditions: [...conditionsById.values()],
     assets,

@@ -60,6 +60,8 @@ export interface ImportSelection {
   pagesIncluded: Set<string>       // by source path
   styleRulesIncluded: Set<number>  // by index in plan.styleRules
   assetsIncluded: Set<string>      // by sourcePath
+  fontsIncluded: Set<string>       // by font family
+  scriptsIncluded: Set<string>     // by script path
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +73,8 @@ function makeDefaultSelection(plan: ImportPlan): ImportSelection {
     pagesIncluded: new Set(plan.pages.map((p) => p.source)),
     styleRulesIncluded: new Set(plan.styleRules.map((_, i) => i)),
     assetsIncluded: new Set(plan.assets.map((a) => a.sourcePath)),
+    fontsIncluded: new Set(plan.fonts.map((f) => f.family)),
+    scriptsIncluded: new Set(plan.scripts.map((s) => s.path)),
   }
 }
 
@@ -102,7 +106,11 @@ function filterPlanBySelection(plan: ImportPlan, selection: ImportSelection): Im
     ...plan,
     pages: plan.pages.filter((p) => selection.pagesIncluded.has(p.source)),
     styleRules: plan.styleRules.filter((_, i) => selection.styleRulesIncluded.has(i)),
+    // Keep styleRuleSources index-aligned with the filtered styleRules.
+    styleRuleSources: plan.styleRuleSources.filter((_, i) => selection.styleRulesIncluded.has(i)),
     assets: plan.assets.filter((a) => selection.assetsIncluded.has(a.sourcePath)),
+    fonts: plan.fonts.filter((f) => selection.fontsIncluded.has(f.family)),
+    scripts: plan.scripts.filter((s) => selection.scriptsIncluded.has(s.path)),
   }
 }
 
@@ -184,6 +192,29 @@ export function SiteImportModal() {
       console.error('[SiteImportModal] ingest failed:', err)
       setErrorMsg(describeIngestError(err))
       setBusy(false)
+    }
+  }
+
+  // Merge additional dropped/picked files into the existing FileMap and rebuild
+  // the plan. The Review step accepts more files at any time (drag-over overlay
+  // + "Add more files" button), so the import isn't one-shot.
+  async function handleAddFiles(files: File[]) {
+    if (!fileMap) {
+      await handleFilesReady(files)
+      return
+    }
+    setBusy(true)
+    try {
+      const added = await ingestInput(files)
+      const merged: FileMap = {
+        ...fileMap,
+        files: { ...fileMap.files, ...added.files },
+      }
+      finalizePlan(merged)
+    } catch (err) {
+      console.error('[SiteImportModal] add files failed:', err)
+      setBusy(false)
+      pushToast({ kind: 'error', title: 'Could not add files', body: describeIngestError(err) })
     }
   }
 
@@ -330,21 +361,24 @@ export function SiteImportModal() {
     if (step === 'drop') return null
 
     if (step === 'analyze') {
-      const selCount = selection
-        ? selection.pagesIncluded.size + selection.styleRulesIncluded.size + selection.assetsIncluded.size
-        : 0
+      const pageCount = selection ? selection.pagesIncluded.size : 0
+      const ruleCount = selection ? selection.styleRulesIncluded.size : 0
+      const mediaCount = selection ? selection.assetsIncluded.size : 0
       return (
         <>
+          <span className={styles.footNote}>
+            {pageCount} {pageCount === 1 ? 'page' : 'pages'} · {ruleCount} rules · {mediaCount} media selected
+          </span>
           <Button variant="secondary" type="button" onClick={handleClose}>
             Cancel
           </Button>
           <Button
             variant="primary"
             type="button"
-            disabled={selCount === 0}
+            disabled={pageCount === 0}
             onClick={handleAnalyzeNext}
           >
-            Next →
+            Continue →
           </Button>
         </>
       )
@@ -394,9 +428,10 @@ export function SiteImportModal() {
       onClose={handleClose}
       title={titleByStep[step]}
       eyebrow="Page builder"
-      size="xl"
+      size={step === 'analyze' ? '2xl' : 'xl'}
       tone="neutral"
       footer={renderFooter() ?? undefined}
+      bodyClassName={step === 'analyze' ? styles.analyzeBody : undefined}
       closeOnEscape={runProgress.phase !== 'applying'}
       closeOnBackdrop={runProgress.phase !== 'applying'}
     >
@@ -413,10 +448,12 @@ export function SiteImportModal() {
         {step === 'analyze' && plan && fileMap && selection && (
           <AnalyzeStep
             plan={plan}
-            fileMap={fileMap}
+            siteName={useEditorStore.getState().site?.name ?? 'this site'}
             selection={selection}
             pageSlugOverrides={pageSlugOverrides}
+            busy={busy}
             onSelectionChange={setSelection}
+            onAddFiles={(files) => { void handleAddFiles(files) }}
             onSlugOverride={(source, slug) => {
               setPageSlugOverrides((prev) => {
                 const next = new Map(prev)

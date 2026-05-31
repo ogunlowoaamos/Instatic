@@ -169,6 +169,19 @@ const ALLOWLIST = new Set([
   // grid-cell day buttons (bespoke positioned hit area, custom selected
   // state). These are the only bare <button>s in the file.
   'admin/pages/site/panels/PropertiesPanel/BorderControl/BorderControl.tsx',
+
+  // ── §8.12 Super Import "Review" category navigator ──────────────────────
+  // AnalyzeStep is the Review step's category navigator (Direction B). Its
+  // bare <button>s are all custom structured layouts Button's inline-flex
+  // size tokens cannot represent:
+  // • nav items — full-width 4-cell rows (tint dot + label + count + green
+  //   include-state dot), the §8.7 full-width-row pattern;
+  // • the "Add more files" affordance — a dashed 2-column drop target (30px
+  //   icon tile + stacked title/sub), a bespoke drag/drop surface;
+  // • the per-stylesheet disclosure chevron — the §8.2 caret pattern;
+  // • the "All" / "None" bulk text links — 11.5px inline text actions, not
+  //   the token-driven Button sizes.
+  'admin/modals/SiteImport/steps/AnalyzeStep.tsx',
 ])
 
 // ---------------------------------------------------------------------------

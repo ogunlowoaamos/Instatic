@@ -337,6 +337,14 @@ export interface ImportPlan {
   pages: PagePlan[]
   styleRules: NewStyleRule[]
   /**
+   * Index-aligned with `styleRules`: the FileMap key of the source stylesheet
+   * each rule was parsed from (a real `.css` path, or a synthetic
+   * `<htmlPath>::inline` key for an inline `<style>` block). Import-time
+   * metadata only — used by the wizard to group rules by source stylesheet.
+   * NOT persisted onto the committed `StyleRule`.
+   */
+  styleRuleSources: string[]
+  /**
    * Custom font families synthesized from imported `@font-face` blocks. Each
    * file's `src` is a FileMap key here; `applyAssetRewrites` rewrites it to the
    * uploaded media URL, then `commitImportPlan` assembles a `FontEntry`.

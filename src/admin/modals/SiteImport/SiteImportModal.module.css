@@ -4,5 +4,19 @@
   padding: 0;
 }
 
-/* The dialog's built-in body padding applies; for DropStep / RunStep / DoneStep
-   we want some breathing room but the AnalyzeStep fills edge-to-edge. */
+/* For the Review (analyze) step the navigator fills the modal edge-to-edge and
+   manages its own internal scrolling, so the dialog's body padding + scroll are
+   removed. DropStep / RunStep / DoneStep keep the dialog's default body. */
+.analyzeBody {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Left-floated summary note in the analyze footer (pushes the buttons right). */
+.footNote {
+  margin-right: auto;
+  align-self: center;
+  font-size: 11.5px;
+  color: var(--editor-text-muted);
+  font-variant-numeric: tabular-nums;
+}
