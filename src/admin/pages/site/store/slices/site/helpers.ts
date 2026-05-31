@@ -18,15 +18,22 @@ import type {
   PageNode,
   StyleRule,
   SiteDocument,
+  FrameworkColorToken,
 } from '@core/page-tree'
+import type { SiteRuntimeConfig } from '@core/site-runtime'
 import { addPage, createNode } from '@core/page-tree'
 import { syncSlotInstances, applySlotSyncResult } from '@core/visualComponents/slotSync'
 import type { Draft } from 'immer'
 import type { ImportFragment } from '@core/htmlImport'
-import type { NewStyleRule, ImportFontFamily } from '@core/siteImport'
+import type { NewStyleRule, ImportFontFamily, ImportColorToken, ImportScript } from '@core/siteImport'
 import type { FontEntry, FontFile } from '@core/fonts/schemas'
+import type { SiteFile } from '@core/files/schemas'
+import { isSafePath, normalizePath } from '@core/files/pathValidation'
+import { normalizeFrameworkColorSlug } from '@core/framework/colors'
+import { DEFAULT_SCRIPT_RUNTIME_CONFIG } from '@core/site-runtime'
 import type { EditorStore } from '@site/store/types'
 import { MAX_HISTORY } from './defaults'
+import { reconcileFrameworkClasses } from './framework/reconcile'
 import { indexStyleRulesByName, linkImportedClassNames } from './importLinking'
 import type { SiteMutationResult, SiteSliceHelpers, SiteSliceImmerRecipe, SuperImportHelpers } from './types'
 
@@ -424,6 +431,21 @@ export function buildSiteHelpers(
           if (committed.length > 0) didMutate = true
           return committed
         },
+
+        addColorTokens(colors): { slug: string; value: string }[] {
+          const committed = addImportedColorTokens(site, colors)
+          if (committed.length > 0) {
+            reconcileFrameworkClasses(site)
+            didMutate = true
+          }
+          return committed
+        },
+
+        addScripts(scripts): { id: string; path: string }[] {
+          const committed = addImportedScripts(site, state.siteRuntime, scripts)
+          if (committed.length > 0) didMutate = true
+          return committed
+        },
       }
 
       const result = fn(site as SiteDocument, helpers)
@@ -501,4 +523,126 @@ function addImportedFonts(
   }
 
   return committed
+}
+
+/**
+ * Merge imported colour tokens into `site.settings.framework.colors` as PLAIN
+ * BASE tokens — each emits only `--<slug>` (no shades/tints/transparent variants
+ * and no `bg-/text-/border-` utility classes), so the palette is a faithful 1:1
+ * of the source `:root` and every imported `var(--<slug>)` keeps resolving.
+ *
+ * A slug already present in the framework (case/format-normalised) is skipped:
+ * the existing token wins, mirroring the class-conflict "first wins" rule.
+ *
+ * @returns The committed `{ slug, value }` for each newly-added token.
+ */
+function addImportedColorTokens(
+  site: Draft<SiteDocument>,
+  colors: ImportColorToken[],
+): { slug: string; value: string }[] {
+  if (colors.length === 0) return []
+
+  // Ensure the framework colours container exists (enabling the framework).
+  site.settings.framework ??= { colors: { tokens: [] } }
+  site.settings.framework.colors ??= { tokens: [] }
+  const tokens = site.settings.framework.colors.tokens
+
+  const existingSlugs = new Set(tokens.map((t) => normalizeFrameworkColorSlug(t.slug)))
+  let maxOrder = tokens.reduce((m, t) => Math.max(m, t.order ?? 0), -1)
+  const committed: { slug: string; value: string }[] = []
+
+  for (const { slug: rawSlug, value } of colors) {
+    const slug = normalizeFrameworkColorSlug(rawSlug)
+    if (existingSlugs.has(slug)) continue
+    existingSlugs.add(slug)
+    const now = Date.now()
+    const token: FrameworkColorToken = {
+      id: nanoid(),
+      category: '',
+      slug,
+      lightValue: value,
+      darkValue: '',
+      darkModeEnabled: false,
+      generateUtilities: { text: false, background: false, border: false, fill: false },
+      generateTransparent: false,
+      generateShades: { enabled: false, count: 0 },
+      generateTints: { enabled: false, count: 0 },
+      order: (maxOrder += 1),
+      createdAt: now,
+      updatedAt: now,
+    }
+    tokens.push(token)
+    committed.push({ slug, value })
+  }
+
+  return committed
+}
+
+/**
+ * Add imported JS files as `SiteFile`s (`type: 'script'`) plus an all-pages
+ * `site.runtime.scripts` entry each, so they run on every published page. The
+ * runtime entry is mirrored onto the live `siteRuntime` draft (the canvas reads
+ * that copy) exactly as `filesSlice.deleteFile` mirrors its delete.
+ *
+ * Paths are normalised + made unique within `site.files`; an unsafe source path
+ * falls back to a sanitised name under `src/scripts/`.
+ *
+ * @returns The committed `{ id, path }` for each added script.
+ */
+function addImportedScripts(
+  site: Draft<SiteDocument>,
+  siteRuntime: Draft<SiteRuntimeConfig> | undefined,
+  scripts: ImportScript[],
+): { id: string; path: string }[] {
+  if (scripts.length === 0) return []
+
+  site.runtime ??= { dependencyLock: { version: 1, packages: {}, updatedAt: 0 }, scripts: {}, styles: {} }
+  site.runtime.scripts ??= {}
+
+  const usedPaths = new Set(site.files.map((f) => f.path))
+  const committed: { id: string; path: string }[] = []
+
+  for (const script of scripts) {
+    const path = uniqueFilePath(safeScriptPath(script.path), usedPaths)
+    usedPaths.add(path)
+
+    const id = nanoid()
+    const now = Date.now()
+    const file: SiteFile = {
+      id,
+      path,
+      type: 'script',
+      content: script.content,
+      createdAt: now,
+      updatedAt: now,
+    }
+    site.files.push(file)
+
+    const config = { ...DEFAULT_SCRIPT_RUNTIME_CONFIG }
+    site.runtime.scripts[id] = config
+    if (siteRuntime?.scripts) siteRuntime.scripts[id] = { ...config }
+
+    committed.push({ id, path })
+  }
+
+  return committed
+}
+
+/** Normalise a source path into a safe SiteFile path, falling back to src/scripts/. */
+function safeScriptPath(rawPath: string): string {
+  const normalized = normalizePath(rawPath)
+  if (isSafePath(normalized)) return normalized
+  const base = (rawPath.split('/').pop() ?? 'script.js').replace(/[^a-zA-Z0-9._-]+/g, '-')
+  return `src/scripts/${base || 'script.js'}`
+}
+
+/** Append `-2`, `-3`, … before the extension until the path is unused. */
+function uniqueFilePath(path: string, used: Set<string>): string {
+  if (!used.has(path)) return path
+  const dot = path.lastIndexOf('.')
+  const stem = dot > path.lastIndexOf('/') ? path.slice(0, dot) : path
+  const ext = dot > path.lastIndexOf('/') ? path.slice(dot) : ''
+  let n = 2
+  while (used.has(`${stem}-${n}${ext}`)) n += 1
+  return `${stem}-${n}${ext}`
 }

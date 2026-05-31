@@ -24,7 +24,8 @@ import type {
   PagePlan,
   NewStyleRule,
 } from './types'
-import type { SiteDocument } from '@core/page-tree'
+import type { SiteDocument, PageNode } from '@core/page-tree'
+import type { ImportFragment } from '@core/htmlImport'
 
 // ---------------------------------------------------------------------------
 // Detection
@@ -206,13 +207,38 @@ export function applyConflictResolutions(
   const pageRes = new Map(pageResolutions.map((r) => [r.source, r.defaultResolution]))
   const ruleRes = new Map(ruleResolutions.map((r) => [r.desiredName, r.defaultResolution]))
 
-  // Apply page resolutions
+  // Build the `originalName → resolvedName` rename map. Only auto-rename
+  // resolutions move a class to a new name; `skip` keeps the original name
+  // (the node intentionally binds to the pre-existing same-named rule).
+  const classRenames = new Map<string, string>()
+  for (const r of ruleResolutions) {
+    const res = r.defaultResolution
+    if (res.action === 'auto-rename' && res.resolvedName && res.resolvedName !== r.desiredName) {
+      classRenames.set(r.desiredName, res.resolvedName)
+    }
+  }
+
+  // Apply page resolutions. Imported fragment nodes still carry class *names*
+  // in `classIds` (walkAndMap copies `el.classList` verbatim; names become
+  // registry ids only at commit). When a rule was auto-renamed we MUST rewrite
+  // those names too, otherwise the node keeps referencing the original name and
+  // silently binds to a different same-named rule at commit — stranding the
+  // imported rule's styles in the renamed-but-unreferenced class.
   const pages: PagePlan[] = plan.pages.map((page) => {
+    const remappedFragment = classRenames.size > 0
+      ? remapFragmentClassNames(page.nodeFragment, classRenames)
+      : page.nodeFragment
+
     const res = pageRes.get(page.source)
-    if (!res) return page
-    if (res.action === 'skip') return page // skip is handled at commit time
+    if (!res || res.action === 'skip') {
+      // No slug change (or skip handled at commit time), but the fragment may
+      // still need its class names remapped.
+      return remappedFragment === page.nodeFragment
+        ? page
+        : { ...page, nodeFragment: remappedFragment }
+    }
     const resolvedSlug = res.resolvedSlug ?? page.slug
-    return { ...page, slug: resolvedSlug }
+    return { ...page, slug: resolvedSlug, nodeFragment: remappedFragment }
   })
 
   // Apply rule name resolutions
@@ -231,4 +257,27 @@ export function applyConflictResolutions(
   })
 
   return { ...plan, pages, styleRules }
+}
+
+/**
+ * Rewrite every node's `classIds` (class *names* at the plan stage) through a
+ * `originalName → resolvedName` rename map, returning a new fragment. Names not
+ * in the map pass through unchanged. Nodes without `classIds` are untouched.
+ */
+function remapFragmentClassNames(
+  fragment: ImportFragment,
+  renames: Map<string, string>,
+): ImportFragment {
+  const nodes: Record<string, PageNode> = {}
+  for (const [id, node] of Object.entries(fragment.nodes)) {
+    if (!node.classIds?.length) {
+      nodes[id] = node
+      continue
+    }
+    nodes[id] = {
+      ...node,
+      classIds: node.classIds.map((name) => renames.get(name) ?? name),
+    }
+  }
+  return { nodes, rootIds: fragment.rootIds }
 }

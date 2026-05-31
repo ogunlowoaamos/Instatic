@@ -89,10 +89,13 @@ function makeMinimalPlan(overrides: Partial<ImportPlan> = {}): ImportPlan {
   return {
     pages: overrides.pages ?? [],
     styleRules: overrides.styleRules ?? [],
+    fonts: overrides.fonts ?? [],
+    conditions: overrides.conditions ?? [],
     assets: overrides.assets ?? [],
+    colors: overrides.colors ?? [],
+    scripts: overrides.scripts ?? [],
     conflicts: overrides.conflicts ?? { pages: [], rules: [] },
     warnings: overrides.warnings ?? [],
-    droppedJs: overrides.droppedJs ?? [],
     droppedAtRules: overrides.droppedAtRules ?? [],
     unusedCss: overrides.unusedCss ?? [],
   }
@@ -102,7 +105,10 @@ function makeMinimalResult(overrides: Partial<ImportResult> = {}): ImportResult 
   return {
     pages: overrides.pages ?? [],
     styleRules: overrides.styleRules ?? [],
+    fonts: overrides.fonts ?? [],
     assets: overrides.assets ?? [],
+    colors: overrides.colors ?? [],
+    scripts: overrides.scripts ?? [],
     conflicts: overrides.conflicts ?? { pages: [], rules: [] },
     warnings: overrides.warnings ?? [],
   }
@@ -497,7 +503,7 @@ describe('DoneStep — summary counts', () => {
         { id: 'p2', title: 'About', slug: 'about', source: 'about.html' },
       ],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('2')).toBeDefined()
     expect(screen.getByText(/pages imported/)).toBeDefined()
   })
@@ -510,7 +516,7 @@ describe('DoneStep — summary counts', () => {
         { id: 'r3', selector: 'h1', kind: 'ambient' },
       ],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('3')).toBeDefined()
     expect(screen.getByText(/style rules? imported/)).toBeDefined()
   })
@@ -521,7 +527,7 @@ describe('DoneStep — summary counts', () => {
         { sourcePath: 'images/hero.png', mediaUrl: '/uploads/hero.png' },
       ],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('1')).toBeDefined()
     expect(screen.getByText(/assets? uploaded/)).toBeDefined()
   })
@@ -530,13 +536,13 @@ describe('DoneStep — summary counts', () => {
     const result = makeMinimalResult({
       pages: [{ id: 'p1', title: 'Home', slug: 'index', source: 'index.html' }],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('View first imported page')).toBeDefined()
   })
 
   it('hides "View first imported page" when no pages', () => {
     const result = makeMinimalResult()
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.queryByText('View first imported page')).toBeNull()
   })
 
@@ -544,13 +550,13 @@ describe('DoneStep — summary counts', () => {
     const result = makeMinimalResult({
       styleRules: [{ id: 'r1', selector: '.hero', kind: 'class' }],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('Open Selectors panel')).toBeDefined()
   })
 
   it('hides "Open Selectors panel" when no style rules', () => {
     const result = makeMinimalResult()
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.queryByText('Open Selectors panel')).toBeNull()
   })
 
@@ -560,7 +566,7 @@ describe('DoneStep — summary counts', () => {
         { kind: 'dropped-at-rule', message: 'Dropped @keyframes slideIn' },
       ],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     expect(screen.getByText('Dropped @keyframes slideIn')).toBeDefined()
   })
 
@@ -568,7 +574,7 @@ describe('DoneStep — summary counts', () => {
     const result = makeMinimalResult({
       pages: [{ id: 'p1', title: 'Home', slug: 'index', source: 'index.html' }],
     })
-    render(<DoneStep result={result} droppedJs={0} droppedAtRules={0} onClose={() => {}} />)
+    render(<DoneStep result={result} droppedAtRules={0} onClose={() => {}} />)
     // DoneStep renders <p><strong>1</strong> page imported</p> — text is split
     // across child elements, so use textContent on the paragraph to match.
     const paras = Array.from(document.querySelectorAll('p'))
@@ -937,7 +943,7 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
       makeStyleRule({ name: `rule-${i}`, selector: `.rule-${i}`, order: i }),
     ),
     assets: [assetEntry],
-    droppedJs: ['scripts/app.js'],
+    scripts: [{ path: 'scripts/app.js', content: '' }],
   })
 
   const syntheticFileMap: FileMap = {
@@ -1053,7 +1059,7 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
         // Exactly one uploadable asset — the PNG logo.
         { sourcePath: 'assets/logo.png', mimeType: 'image/png', bytes: new Uint8Array([0x89, 0x50]) },
       ],
-      droppedJs: ['scripts/app.js'],
+      scripts: [{ path: 'scripts/app.js', content: '' }],
     })
 
     const uploadedPaths: string[] = []
@@ -1068,6 +1074,10 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
           addStyleRule: (_rule) => 'rule-id',
           overwritePage: () => {},
           overwriteStyleRule: () => {},
+          addConditions: () => {},
+          addFonts: () => [],
+          addColorTokens: () => [],
+          addScripts: () => [],
         })
       },
     }

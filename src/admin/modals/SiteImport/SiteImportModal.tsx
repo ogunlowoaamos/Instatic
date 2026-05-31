@@ -459,7 +459,6 @@ export function SiteImportModal() {
         {step === 'done' && result && plan && (
           <DoneStep
             result={result}
-            droppedJs={plan.droppedJs.length}
             droppedAtRules={plan.droppedAtRules.length}
             onClose={handleClose}
           />

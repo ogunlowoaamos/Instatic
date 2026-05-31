@@ -17,12 +17,11 @@ import styles from './DoneStep.module.css'
 
 interface DoneStepProps {
   result: ImportResult
-  droppedJs: number
   droppedAtRules: number
   onClose: () => void
 }
 
-export function DoneStep({ result, droppedJs, droppedAtRules, onClose }: DoneStepProps) {
+export function DoneStep({ result, droppedAtRules, onClose }: DoneStepProps) {
   function handleViewFirstPage() {
     const firstPage = result.pages[0]
     if (!firstPage) return
@@ -58,9 +57,21 @@ export function DoneStep({ result, droppedJs, droppedAtRules, onClose }: DoneSte
               {result.fonts.length === 1 ? 'font' : 'fonts'} imported
             </p>
           )}
-          {(droppedJs > 0 || droppedAtRules > 0) && (
+          {result.colors.length > 0 && (
+            <p className={styles.countLine}>
+              <strong>{result.colors.length}</strong>{' '}
+              {result.colors.length === 1 ? 'color' : 'colors'} added
+            </p>
+          )}
+          {result.scripts.length > 0 && (
+            <p className={styles.countLine}>
+              <strong>{result.scripts.length}</strong>{' '}
+              {result.scripts.length === 1 ? 'script' : 'scripts'} imported
+            </p>
+          )}
+          {droppedAtRules > 0 && (
             <p className={styles.droppedLine}>
-              Dropped: {droppedJs > 0 ? `${droppedJs} scripts` : ''}{droppedJs > 0 && droppedAtRules > 0 ? ', ' : ''}{droppedAtRules > 0 ? `${droppedAtRules} @-rules` : ''}
+              Dropped: {droppedAtRules} @-rules
             </p>
           )}
         </div>

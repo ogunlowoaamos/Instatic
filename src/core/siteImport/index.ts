@@ -36,6 +36,10 @@ export type { CssFileResult, AssetPlanResult } from './assetPlan'
 
 export { applyAssetRewrites } from './applyAssetRewrites'
 
+// ── Phase 2 — colour-token extraction ─────────────────────────────────────────
+
+export { extractRootColorTokens, isCssColorValue } from './colorTokens'
+
 // ── Phase 2 — conflict detection + resolution ─────────────────────────────────
 
 export { detectConflicts, applyConflictResolutions } from './conflicts'
@@ -73,6 +77,9 @@ export type {
   ParsedFontFace,
   ImportFontFile,
   ImportFontFamily,
+  // colour tokens + scripts
+  ImportColorToken,
+  ImportScript,
 } from './types'
 
 // ── Error classes (callers need instanceof checks) ────────────────────────────

@@ -15,7 +15,7 @@
  * @see src/admin/...   — Phase 3 adapter implementation (TBD)
  */
 
-import type { NewStyleRule, ImportFontFamily } from './types'
+import type { NewStyleRule, ImportFontFamily, ImportColorToken, ImportScript } from './types'
 import type { ConditionDef } from '@core/page-tree'
 import type { ImportFragment } from '@core/htmlImport'
 
@@ -126,4 +126,24 @@ export interface SiteImportTransaction {
    *          import summary.
    */
   addFonts(fonts: ImportFontFamily[]): { id: string; family: string }[]
+
+  /**
+   * Add colour tokens (extracted from root-scope `--*` colour custom properties)
+   * to the CMS colours system (`site.settings.framework.colors`). Each becomes a
+   * plain base token that re-emits `--<slug>`, so imported `var(--<slug>)`
+   * references keep resolving. A slug already present in the framework is
+   * skipped (the existing token wins).
+   *
+   * @returns The committed `{ slug, value }` for each newly-added token.
+   */
+  addColorTokens(colors: ImportColorToken[]): { slug: string; value: string }[]
+
+  /**
+   * Add imported JavaScript files as site scripts: one `SiteFile`
+   * (`type: 'script'`) per file plus an all-pages `site.runtime.scripts` entry
+   * so each runs on every published page.
+   *
+   * @returns The committed `{ id, path }` for each added script.
+   */
+  addScripts(scripts: ImportScript[]): { id: string; path: string }[]
 }

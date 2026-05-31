@@ -140,6 +140,17 @@
   opacity: 0.45;
 }
 
+/* ── Colour swatch (Colors preview) ────────────────────────────── */
+
+.colorSwatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: var(--editor-radius-sm);
+  border: 1px solid var(--editor-border);
+  background: var(--swatch);
+}
+
 /* ── Asset rows ────────────────────────────────────────────────── */
 
 .assetRow {

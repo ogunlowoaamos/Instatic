@@ -23,8 +23,11 @@ The pre-requisite is a one-time extension of the styling model: today's **classe
 
 ## Non-goals
 
-- **JavaScript execution.** v1 drops all `.js` files with a clear summary line. (User-confirmed.) A future plan covers the safe scripts story.
-- **Pixel-perfect fidelity for un-modeled CSS.** `@keyframes`, `@font-face`, `@supports`, `@container`, custom properties at non-:root scope, CSS layers, modern container queries — surfaced as warnings in v1, addressed incrementally.
+- **Pixel-perfect fidelity for un-modeled CSS.** `@keyframes`, `@supports`, `@container`, custom properties at non-:root scope, CSS layers, modern container queries — surfaced as warnings, addressed incrementally.
+
+> **Implemented since the original plan:**
+> - **JavaScript files are imported** (no longer dropped). Each `.js` file in the bundle becomes a `SiteFile` (`type: 'script'`) plus an all-pages `site.runtime.scripts` entry, so it runs on every published page (`placement: body-end`, `timing: dom-ready`). `ImportPlan.scripts` carries them; the wizard previews them under a **Scripts** section.
+> - **Root colour custom properties become colour tokens.** Colour-valued `--*` declarations on `:root` / `html` / `body` are pulled into the CMS colours system (`site.settings.framework.colors`) as plain base tokens (just `--<slug>`; no shades/tints/utility classes) and removed from the originating rule so `--<slug>` isn't double-emitted. `ImportPlan.colors` carries them; the wizard previews them under a **Colors** section. Non-colour custom properties (`--font-sans`, `--radius`) stay on the `:root` rule.
 - **Round-trip export.** This plan only covers import. Export already exists for the CMS's native bundle format (`cmsTransfer.ts`); a "matching" static export is a separate workstream.
 - **Backward compatibility for the existing CSSClass shape.** Pre-release per `CLAUDE.md`; we rename in place.
 
@@ -33,7 +36,7 @@ The pre-requisite is a one-time extension of the styling model: today's **classe
 | # | Decision | Source |
 |---|---|---|
 | 1 | **Selectors system as Phase 0.** Generalize `CSSClass` into `StyleRule` with a `selector` expression and a `kind` (`'class'` or `'ambient'`). | User instruction, this round |
-| 2 | **JS files — skip with warning.** Surface `(N script files were not imported)` in the wizard summary. | User instruction |
+| 2 | ~~**JS files — skip with warning.**~~ **Superseded:** JS files are now imported as all-pages site scripts (`ImportPlan.scripts` → `tx.addScripts`). | User instruction (later extended) |
 | 3 | **Conflict policy — Auto-rename + per-item override.** Defaults: incoming `about` → `about-2`, incoming `hero` → `hero-2`. Wizard step lets the user flip any to skip / overwrite / custom-rename. | User instruction |
 
 ## Phasing overview

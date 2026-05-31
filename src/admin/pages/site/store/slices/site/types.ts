@@ -30,7 +30,7 @@ import type {
   ConditionDef,
 } from '@core/page-tree'
 import type { ImportFragment } from '@core/htmlImport'
-import type { NewStyleRule, ImportFontFamily } from '@core/siteImport'
+import type { NewStyleRule, ImportFontFamily, ImportColorToken, ImportScript } from '@core/siteImport'
 import type { FrameworkChangeImpact } from '@core/framework/changeImpact'
 import type { EditorStore } from '@site/store/types'
 
@@ -86,6 +86,21 @@ export interface SuperImportHelpers {
    * @returns The committed `{ id, family }` for each added font.
    */
   addFonts(fonts: ImportFontFamily[]): { id: string; family: string }[]
+
+  /**
+   * Add colour tokens to the framework colours system as plain base tokens
+   * (just `--<slug>`; no shades/tints/transparent or utility classes). A slug
+   * already present is skipped. Reconciles framework classes afterwards.
+   * @returns The committed `{ slug, value }` for each newly-added token.
+   */
+  addColorTokens(colors: ImportColorToken[]): { slug: string; value: string }[]
+
+  /**
+   * Add imported JS files as `SiteFile`s (`type: 'script'`) plus an all-pages
+   * `site.runtime.scripts` entry each, so they run on every published page.
+   * @returns The committed `{ id, path }` for each added script.
+   */
+  addScripts(scripts: ImportScript[]): { id: string; path: string }[]
 }
 
 // ---------------------------------------------------------------------------

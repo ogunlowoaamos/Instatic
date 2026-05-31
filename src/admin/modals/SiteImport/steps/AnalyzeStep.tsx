@@ -9,6 +9,7 @@
  * The user can toggle individual pages/rules/assets in or out of the import
  * and edit page slugs before the plan is committed.
  */
+import type { CSSProperties } from 'react'
 import { Switch } from '@ui/components/Switch'
 import { Input } from '@ui/components/Input'
 import {
@@ -82,7 +83,7 @@ export function AnalyzeStep({
   const pageCount = plan.pages.filter((p) => selection.pagesIncluded.has(p.source)).length
   const ruleCount = plan.styleRules.filter((_, i) => selection.styleRulesIncluded.has(i)).length
   const assetCount = plan.assets.filter((a) => selection.assetsIncluded.has(a.sourcePath)).length
-  const droppedCount = plan.droppedJs.length + plan.droppedAtRules.length + plan.unusedCss.length
+  const droppedCount = plan.droppedAtRules.length + plan.unusedCss.length
 
   return (
     <div className={styles.layout}>
@@ -204,6 +205,45 @@ export function AnalyzeStep({
           </section>
         )}
 
+        {/* Colors — root-scope colour custom properties become palette tokens */}
+        {plan.colors.length > 0 && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeading}>
+              Colors ({plan.colors.length})
+            </h3>
+            <ul className={styles.list}>
+              {plan.colors.map((color) => (
+                <li key={color.slug} className={styles.ruleRow}>
+                  <span
+                    className={styles.colorSwatch}
+                    style={{ '--swatch': color.value } as CSSProperties}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.ruleName}>--{color.slug}</span>
+                  <TreeMeta>{color.value}</TreeMeta>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Scripts — bundled JS imported as all-pages site scripts */}
+        {plan.scripts.length > 0 && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeading}>
+              Scripts ({plan.scripts.length})
+            </h3>
+            <ul className={styles.list}>
+              {plan.scripts.map((script) => (
+                <li key={script.path} className={styles.ruleRow}>
+                  <span className={styles.ruleName}>{script.path.split('/').pop()}</span>
+                  <TreeMeta>all pages</TreeMeta>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* Media */}
         {plan.assets.length > 0 && (
           <section className={styles.section}>
@@ -243,12 +283,6 @@ export function AnalyzeStep({
               Skipped ({droppedCount})
             </h3>
             <ul className={styles.list}>
-              {plan.droppedJs.map((path) => (
-                <li key={path} className={styles.skippedRow}>
-                  <span className={styles.skippedPath}>{path}</span>
-                  <TreeMeta>script — dropped</TreeMeta>
-                </li>
-              ))}
               {plan.unusedCss.map((path) => (
                 <li key={path} className={styles.skippedRow}>
                   <span className={styles.skippedPath}>{path}</span>

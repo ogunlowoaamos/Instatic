@@ -24,6 +24,7 @@
 
 import type { SiteDocument, ConditionDef } from '@core/page-tree'
 import { cssToStyleRules } from './cssToStyleRules'
+import { extractRootColorTokens } from './colorTokens'
 import { classifyFiles } from './classifyFiles'
 import { makeHtmlPagePlan } from './htmlPagePlan'
 import { buildAssetPlan, type CssFileResult } from './assetPlan'
@@ -34,6 +35,8 @@ import type {
   ImportPlan,
   ImportResult,
   ImportWarning,
+  ImportColorToken,
+  ImportScript,
   PageConflict,
   RuleConflict,
 } from './types'
@@ -61,15 +64,15 @@ export interface BuildImportPlanInput {
 export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPlanInput): ImportPlan {
   const mediaTolerance = options?.mediaTolerance ?? 10
   const warnings: ImportWarning[] = []
-  const droppedJs: string[] = []
   const droppedAtRules: string[] = []
 
   // 1. Classify every file
   const classified = classifyFiles(fileMap)
 
-  // 2. Record dropped JS files
+  // 2. Import every JS file as an all-pages site script (decoded UTF-8 source).
+  const scripts: ImportScript[] = []
   for (const f of classified) {
-    if (f.role === 'js') droppedJs.push(f.path)
+    if (f.role === 'js') scripts.push({ path: f.path, content: decodeUtf8(f.bytes) })
   }
 
   // 3. Process each HTML file into a raw PagePlan
@@ -95,6 +98,8 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
   const cssFileResults: CssFileResult[] = []
   // Reusable conditions discovered across all CSS files, deduped by id.
   const conditionsById = new Map<string, ConditionDef>()
+  // Colour tokens pulled from root-scope rules, deduped by slug (first wins).
+  const colorsBySlug = new Map<string, ImportColorToken>()
 
   for (const f of classified) {
     if (f.role !== 'css') continue
@@ -117,7 +122,15 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
       if (w.kind === 'dropped-at-rule' && w.source) droppedAtRules.push(w.source)
     }
 
-    cssFileResults.push({ cssPath: f.path, rules, assetRefs, fontFaces })
+    // Pull colour-valued root custom properties out of the rules so they become
+    // framework colour tokens instead of a leftover `:root` rule (which would
+    // double-emit each `--<slug>` alongside the framework's own output).
+    const { rules: rulesAfterColors, colorTokens } = extractRootColorTokens(rules)
+    for (const token of colorTokens) {
+      if (!colorsBySlug.has(token.slug)) colorsBySlug.set(token.slug, token)
+    }
+
+    cssFileResults.push({ cssPath: f.path, rules: rulesAfterColors, assetRefs, fontFaces })
   }
 
   // 5. Build asset plan — normalises URLs in node props and CSS values,
@@ -135,9 +148,10 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
     fonts,
     conditions: [...conditionsById.values()],
     assets,
+    colors: [...colorsBySlug.values()],
+    scripts,
     conflicts,
     warnings,
-    droppedJs,
     droppedAtRules,
     unusedCss,
   }
@@ -215,6 +229,8 @@ export async function commitImportPlan(
   const resultPages: ImportResult['pages'] = []
   const resultRules: ImportResult['styleRules'] = []
   const resultFonts: ImportResult['fonts'] = []
+  const resultColors: ImportResult['colors'] = []
+  const resultScripts: ImportResult['scripts'] = []
 
   // Build conflict resolution lookup maps (source → resolution)
   const pageConflictsBySource = new Map<string, PageConflict>(
@@ -228,6 +244,17 @@ export async function commitImportPlan(
     // Merge reusable conditions first so rule contextStyles keys resolve.
     if ((rewrittenPlan.conditions ?? []).length > 0) {
       tx.addConditions(rewrittenPlan.conditions)
+    }
+
+    // Colour tokens: register before style rules so any framework `--<slug>`
+    // they emit is available to everything that follows.
+    if ((rewrittenPlan.colors ?? []).length > 0) {
+      resultColors.push(...tx.addColorTokens(rewrittenPlan.colors))
+    }
+
+    // Site scripts: commit imported JS as all-pages scripts.
+    if ((rewrittenPlan.scripts ?? []).length > 0) {
+      resultScripts.push(...tx.addScripts(rewrittenPlan.scripts))
     }
 
     // Custom fonts: only commit files whose src actually became a media URL
@@ -306,6 +333,8 @@ export async function commitImportPlan(
     styleRules: resultRules,
     fonts: resultFonts,
     assets: resultAssets,
+    colors: resultColors,
+    scripts: resultScripts,
     conflicts: plan.conflicts,
     // Carry forward the plan-level warnings (CSS parser / asset planner /
     // missing stylesheet …) AND surface any per-asset upload failures from

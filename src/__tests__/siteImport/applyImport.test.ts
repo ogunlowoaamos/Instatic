@@ -80,6 +80,17 @@ function makeMockAdapter(opts?: {
           ops.push({ type: 'addFonts', args: { fonts }, id: '' })
           return fonts.map((f) => ({ id: nextId(), family: f.family }))
         },
+        addConditions(conditions) {
+          ops.push({ type: 'addConditions', args: { conditions }, id: '' })
+        },
+        addColorTokens(colors) {
+          ops.push({ type: 'addColorTokens', args: { colors }, id: '' })
+          return colors.map((c) => ({ slug: c.slug, value: c.value }))
+        },
+        addScripts(scripts) {
+          ops.push({ type: 'addScripts', args: { scripts }, id: '' })
+          return scripts.map((s) => ({ id: nextId(), path: s.path }))
+        },
       }
       recipe(tx)
     },
@@ -131,8 +142,8 @@ describe('buildImportPlan — structure', () => {
     }
   })
 
-  it('records dropped JS files', () => {
-    expect(plan.droppedJs).toContain('scripts/app.js')
+  it('imports JS files as site scripts', () => {
+    expect(plan.scripts.map((s) => s.path)).toContain('scripts/app.js')
   })
 
   it('has empty conflicts on a fresh site', () => {

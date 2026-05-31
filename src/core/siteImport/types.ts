@@ -185,6 +185,31 @@ export interface ImportFontFamily {
   files: ImportFontFile[]
 }
 
+/**
+ * A colour-valued custom property pulled from a root-scope rule (`:root`,
+ * `html`, `body`). Committed into the CMS colours system
+ * (`site.settings.framework.colors`) as a plain base token that re-emits
+ * `--<slug>`. See `colorTokens.ts`.
+ */
+export interface ImportColorToken {
+  /** CSS-variable name without the leading `--` (e.g. `bg`). */
+  slug: string
+  /** The authored colour value, verbatim and trimmed (e.g. `#0a0a0a`). */
+  value: string
+}
+
+/**
+ * A JavaScript file from the import bundle. Committed as a `SiteFile`
+ * (`type: 'script'`) plus an all-pages `site.runtime.scripts` entry so it runs
+ * on every published page. `content` is the decoded UTF-8 source.
+ */
+export interface ImportScript {
+  /** FileMap path of the source file (e.g. `scripts/app.js`). */
+  path: string
+  /** Decoded UTF-8 JavaScript source. */
+  content: string
+}
+
 // ---------------------------------------------------------------------------
 // Phase 2 — Site-import pipeline types
 // ---------------------------------------------------------------------------
@@ -318,10 +343,18 @@ export interface ImportPlan {
   conditions: ConditionDef[]
   /** Assets to upload, with their raw bytes. */
   assets: { sourcePath: string; mimeType: string; bytes: Uint8Array }[]
+  /**
+   * Colour-valued custom properties pulled from root-scope rules, ready to
+   * commit into the CMS colours system. Deduped by slug across all CSS files.
+   */
+  colors: ImportColorToken[]
+  /**
+   * JavaScript files from the bundle, committed as all-pages site scripts.
+   * Replaces the old `droppedJs` — JS is now imported, not dropped.
+   */
+  scripts: ImportScript[]
   conflicts: { pages: PageConflict[]; rules: RuleConflict[] }
   warnings: ImportWarning[]
-  /** FileMap paths of dropped JS files. */
-  droppedJs: string[]
   /**
    * Source text snippets of @-rules that could not be modelled
    * (from `dropped-at-rule` warnings in the CSS parser).
@@ -343,6 +376,10 @@ export interface ImportResult {
   /** Custom fonts imported from `@font-face` blocks. */
   fonts: { id: string; family: string }[]
   assets: { sourcePath: string; mediaUrl: string }[]
+  /** Colour tokens committed into the framework colours system. */
+  colors: { slug: string; value: string }[]
+  /** Site scripts committed from imported JS files. */
+  scripts: { id: string; path: string }[]
   /** Resolved conflicts (mirrors ImportPlan.conflicts with final actions). */
   conflicts: ImportPlan['conflicts']
   warnings: ImportWarning[]

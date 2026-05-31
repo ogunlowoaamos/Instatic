@@ -143,7 +143,8 @@ describe('applyConflictResolutions', () => {
       assets: [],
       conflicts: { pages: [], rules: [] },
       warnings: [],
-      droppedJs: [],
+      colors: [],
+      scripts: [],
       droppedAtRules: [],
       unusedCss: [],
     }
@@ -188,6 +189,94 @@ describe('applyConflictResolutions', () => {
     const result = applyConflictResolutions(plan, [], [res])
     expect(result.styleRules[0].name).toBe('existing-class-2')
     expect(result.styleRules[0].selector).toBe('.existing-class-2')
+  })
+
+  it('auto-rename rule: remaps node classIds that referenced the renamed class', () => {
+    // A page fragment whose node carries the class NAME `btn` (walkAndMap copies
+    // el.classList verbatim; names become ids only at commit). The imported `.btn`
+    // rule conflicts with a pre-existing `.btn` and is auto-renamed to `.btn-2`.
+    // Regression: the node's classIds must follow the rename — otherwise it binds
+    // to the pre-existing same-named rule at commit and the imported styles strand
+    // in an orphaned `.btn-2`.
+    const page: PagePlan = {
+      source: 'index.html',
+      title: 'Index',
+      slug: 'index',
+      linkedCssPaths: [],
+      nodeFragment: {
+        rootIds: ['btn-node'],
+        nodes: {
+          'btn-node': {
+            id: 'btn-node',
+            moduleId: 'base.button',
+            props: { label: 'Go' },
+            breakpointOverrides: {},
+            children: [],
+            classIds: ['btn'],
+          },
+          // A sibling node that does NOT reference btn — must be untouched.
+          'other-node': {
+            id: 'other-node',
+            moduleId: 'base.text',
+            props: { text: 'hi', tag: 'p' },
+            breakpointOverrides: {},
+            children: [],
+            classIds: ['intro'],
+          },
+        },
+      },
+    }
+    const rule = makeClassRule('btn')
+    const plan = makePlan([page], [rule])
+    const res: RuleConflict = {
+      source: '',
+      desiredName: 'btn',
+      existingRuleId: 'preexisting-btn',
+      defaultResolution: { action: 'auto-rename', resolvedName: 'btn-2' },
+    }
+    const result = applyConflictResolutions(plan, [], [res])
+
+    // The rule is renamed…
+    expect(result.styleRules[0].name).toBe('btn-2')
+    expect(result.styleRules[0].selector).toBe('.btn-2')
+    // …and the node that referenced it follows the rename.
+    expect(result.pages[0].nodeFragment.nodes['btn-node'].classIds).toEqual(['btn-2'])
+    // Unrelated class names are left alone.
+    expect(result.pages[0].nodeFragment.nodes['other-node'].classIds).toEqual(['intro'])
+  })
+
+  it('skip rule: node classIds keep the original name (binds to pre-existing rule)', () => {
+    const page: PagePlan = {
+      source: 'index.html',
+      title: 'Index',
+      slug: 'index',
+      linkedCssPaths: [],
+      nodeFragment: {
+        rootIds: ['btn-node'],
+        nodes: {
+          'btn-node': {
+            id: 'btn-node',
+            moduleId: 'base.button',
+            props: { label: 'Go' },
+            breakpointOverrides: {},
+            children: [],
+            classIds: ['btn'],
+          },
+        },
+      },
+    }
+    const rule = makeClassRule('btn')
+    const plan = makePlan([page], [rule])
+    const res: RuleConflict = {
+      source: '',
+      desiredName: 'btn',
+      existingRuleId: 'preexisting-btn',
+      defaultResolution: { action: 'skip' },
+    }
+    const result = applyConflictResolutions(plan, [], [res])
+    // Skip intentionally keeps the original name so the node binds to the
+    // pre-existing same-named rule at commit.
+    expect(result.pages[0].nodeFragment.nodes['btn-node'].classIds).toEqual(['btn'])
   })
 
   it('ambient rules are unaffected by rule resolutions', () => {
