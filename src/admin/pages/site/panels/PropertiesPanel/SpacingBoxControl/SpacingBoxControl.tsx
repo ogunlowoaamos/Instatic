@@ -42,6 +42,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -49,6 +50,7 @@ import { createPortal } from 'react-dom'
 import type { CSSPropertyBag } from '@core/page-tree'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
+import { Tooltip } from '@ui/components/Tooltip'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
 import { LinkIcon } from 'pixel-art-icons/icons/link'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
@@ -462,6 +464,17 @@ function SideInput({
 
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // The side input is a fixed 38px transparent field, so long values
+  // (e.g. a full `clamp(...)` expression) get visually truncated. Track
+  // whether the rendered text overflows so we can surface the full value
+  // in a hover tooltip — but only while the field isn't being edited.
+  const [isOverflowing, setIsOverflowing] = useState(false)
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    setIsOverflowing(el.scrollWidth > el.clientWidth + 1)
+  }, [draft])
+
   // Sync external value → draft when not actively editing. React 19 idiom:
   // adjust state during render by tracking the previous external value.
   const [lastExternalDisplay, setLastExternalDisplay] = useState(display)
@@ -529,8 +542,10 @@ function SideInput({
   // Hide the dropdown when the user is typing a direct CSS value
   // (numbers, units, "auto", calc(...), etc.) — non-token typing should
   // commit on Enter/Tab/Blur without the menu intercepting outside-clicks.
+  // Also hide it when there are no spacing tokens at all — otherwise the
+  // menu renders as an empty floating box with nothing to pick.
   const isDirectValue = looksLikeDirectValue(draft)
-  const showMenu = isEditing && !isDirectValue
+  const showMenu = isEditing && !isDirectValue && tokens.length > 0
 
   // Split tokens into "Suggested" (matching the typed query) and "All" (the
   // remaining tokens) so users always see the full scale even when they
@@ -552,41 +567,47 @@ function SideInput({
       data-state={isSet ? 'set' : 'unset'}
       onClick={() => inputRef.current?.focus()}
     >
-      <Input
-        ref={inputRef}
-        type="text"
-        fieldSize="xs"
-        value={draft}
-        placeholder={placeholderDisplay}
-        spellCheck={false}
-        autoComplete="off"
-        aria-label={`${box} ${side}`}
-        className={styles.sideInput}
-        onFocus={() => {
-          setIsEditing(true)
-          onFocus()
-        }}
-        onChange={(e) => {
-          const next = e.target.value
-          setDraft(next)
-          previewDraft(next)
-        }}
-        onBlur={(e) => commit(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            ;(e.target as HTMLInputElement).blur()
-          } else if (e.key === 'Escape') {
-            e.preventDefault()
-            setDraft(display)
-            setIsEditing(false)
-            ;(e.target as HTMLInputElement).blur()
-          } else if (e.key === 'Tab') {
-            // Allow default tab behaviour but commit the current value.
-            commit((e.target as HTMLInputElement).value)
-          }
-        }}
-      />
+      <Tooltip
+        content={draft}
+        side="top"
+        disabled={!isOverflowing || isEditing || !draft}
+      >
+        <Input
+          ref={inputRef}
+          type="text"
+          fieldSize="xs"
+          value={draft}
+          placeholder={placeholderDisplay}
+          spellCheck={false}
+          autoComplete="off"
+          aria-label={`${box} ${side}`}
+          className={styles.sideInput}
+          onFocus={() => {
+            setIsEditing(true)
+            onFocus()
+          }}
+          onChange={(e) => {
+            const next = e.target.value
+            setDraft(next)
+            previewDraft(next)
+          }}
+          onBlur={(e) => commit(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.target as HTMLInputElement).blur()
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              setDraft(display)
+              setIsEditing(false)
+              ;(e.target as HTMLInputElement).blur()
+            } else if (e.key === 'Tab') {
+              // Allow default tab behaviour but commit the current value.
+              commit((e.target as HTMLInputElement).value)
+            }
+          }}
+        />
+      </Tooltip>
 
       {showMenu &&
         createPortal(
