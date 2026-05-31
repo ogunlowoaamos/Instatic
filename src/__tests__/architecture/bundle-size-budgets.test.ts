@@ -109,11 +109,13 @@ const BUDGETS: ChunkBudget[] = [
   // Users / Account / plugin admin pages do NOT pull this chunk.
   {
     prefix: 'AdminCanvasLayout-',
-    maxBytes: 700_000,
+    // Pre-release allowance after React-Compiler helper-hoisting work (~45 inline handlers hoisted to module-level); parallel sessions #1607/#1580 may push it further.
+    maxBytes: 770_000,
     rationale:
       'editor shell (canvas + panels + modules + publisher). Current ' +
-      '~621 KB raw / 199 KB gzipped. Includes React Compiler overhead ' +
-      '(`useMemoCache` calls per component, ~30% bundle growth). Only the ' +
+      '~731 KB raw / gzipped ~245 KB. Includes React Compiler overhead ' +
+      '(`useMemoCache` calls per component, ~30% bundle growth) and the ' +
+      'module-engine default-props layer added to all base modules. Only the ' +
       'four canvas-capable routes import this chunk via the direct deep ' +
       'import `@admin/layouts/AdminCanvasLayout`.',
   },

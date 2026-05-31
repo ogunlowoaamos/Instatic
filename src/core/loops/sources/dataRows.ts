@@ -72,43 +72,42 @@ const ALLOWED_ORDER_BY: ReadonlySet<OrderColumn> = new Set([
 // Media path resolution
 //
 // Featured media lives inside cells_json, not as a SQL column. We extract
-// the media id from each row's cells in TypeScript and then batch-resolve
-// all unique ids with a single IN-query. This keeps the primary query
-// dialect-naive while still resolving paths efficiently.
+// the media id from each row's cells in TypeScript, deduplicate the set, and
+// resolve all unique ids with a SINGLE batched IN-query. One round trip
+// regardless of how many rows the page slice returned.
 // ---------------------------------------------------------------------------
 
-async function resolveFeaturedMediaPaths(
+/**
+ * Resolve a set of media asset ids to their public_path values in one query.
+ * Uses db.unsafe with dialect-appropriate positional placeholders so the
+ * same code works on both Postgres ($1, $2, …) and SQLite (?, ?, …).
+ * Ids absent from the database are absent from the returned map.
+ */
+export async function resolveMediaIdsToPaths(
   db: LoopSourceDb,
-  rows: PublishedDataRowSqlRow[],
+  ids: Iterable<string>,
 ): Promise<Map<string, string>> {
-  const mediaIds = new Set<string>()
+  const idList = [...new Set(ids)]
+  const pathMap = new Map<string, string>()
+  if (idList.length === 0) return pathMap
+  const placeholders = idList.map((_, i) =>
+    db.dialect === 'postgres' ? `$${i + 1}` : '?'
+  ).join(', ')
+  const { rows } = await db.unsafe<MediaAssetRow>(
+    `select id, public_path from media_assets where id in (${placeholders})`,
+    idList,
+  )
+  for (const row of rows) pathMap.set(row.id, row.public_path)
+  return pathMap
+}
+
+function extractFeaturedMediaIds(rows: Array<{ cells_json: Record<string, unknown> }>): string[] {
+  const ids: string[] = []
   for (const row of rows) {
     const id = readFeaturedMediaCell(row.cells_json as DataRowCells)
-    if (id) mediaIds.add(id)
+    if (id) ids.push(id)
   }
-  if (mediaIds.size === 0) return new Map()
-
-  // Build a VALUES list for the IN clause without string-interpolating
-  // column names — satisfies db-postgres-isms.test.ts.
-  const idList = [...mediaIds]
-  const pathMap = new Map<string, string>()
-
-  // Each id is a separate parameter to stay within tagged-template safety.
-  // For up to a few dozen items this is fine; future optimisation can use a
-  // temporary table or JSON unnest for very large result sets.
-  for (const mediaId of idList) {
-    const { rows: assetRows } = await db<MediaAssetRow>`
-      select id, public_path
-      from media_assets
-      where id = ${mediaId}
-      limit 1
-    `
-    if (assetRows[0]) {
-      pathMap.set(assetRows[0].id, assetRows[0].public_path)
-    }
-  }
-
-  return pathMap
+  return ids
 }
 
 // ---------------------------------------------------------------------------
@@ -531,28 +530,6 @@ interface DataKindRowSqlRow {
   updated_at: Date | string
 }
 
-async function resolveFeaturedMediaPathsForDataKind(
-  db: LoopSourceDb,
-  rows: DataKindRowSqlRow[],
-): Promise<Map<string, string>> {
-  const mediaIds = new Set<string>()
-  for (const row of rows) {
-    const id = readFeaturedMediaCell(row.cells_json as DataRowCells)
-    if (id) mediaIds.add(id)
-  }
-  if (mediaIds.size === 0) return new Map()
-  const pathMap = new Map<string, string>()
-  for (const mediaId of mediaIds) {
-    const { rows: assetRows } = await db<MediaAssetRow>`
-      select id, public_path
-      from media_assets
-      where id = ${mediaId}
-      limit 1
-    `
-    if (assetRows[0]) pathMap.set(assetRows[0].id, assetRows[0].public_path)
-  }
-  return pathMap
-}
 
 function dataKindRowToLoopItem(
   row: DataKindRowSqlRow,
@@ -831,7 +808,7 @@ export async function fetchPublishedDataRowItems(
     const sqlRows = await fetchDataKindPage(
       db, opts.tableId, orderBy, direction, opts.limit, opts.offset,
     )
-    const mediaPathMap = await resolveFeaturedMediaPathsForDataKind(db, sqlRows)
+    const mediaPathMap = await resolveMediaIdsToPaths(db, extractFeaturedMediaIds(sqlRows))
     return {
       items: sqlRows.map((row) => dataKindRowToLoopItem(row, mediaPathMap)),
       totalItems,
@@ -851,7 +828,7 @@ export async function fetchPublishedDataRowItems(
   if (totalItems === 0) return { items: [], totalItems: 0 }
 
   const sqlRows = await fetchPage(db, opts.tableId, orderBy, direction, opts.limit, opts.offset)
-  const mediaPathMap = await resolveFeaturedMediaPaths(db, sqlRows)
+  const mediaPathMap = await resolveMediaIdsToPaths(db, extractFeaturedMediaIds(sqlRows))
 
   return {
     items: sqlRows.map((row) => rowToLoopItem(row, mediaPathMap)),

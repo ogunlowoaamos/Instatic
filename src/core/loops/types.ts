@@ -74,19 +74,32 @@ export type LoopItem = Static<typeof LoopItemSchema>
 // ---------------------------------------------------------------------------
 
 /**
- * Minimal tagged-template SQL surface used by source fetch implementations.
+ * Tagged-template SQL surface used by source fetch implementations.
  *
- * The full server-side `DbClient` (with `.transaction()`, `.unsafe()`, etc.)
- * lives in `server/db/client.ts`. Loop sources only need the
- * tagged-template callable form, so we narrow to this shape to keep the
- * core/loops module free of server-only imports. The publisher passes
- * the real `DbClient` at runtime; this type is structurally compatible.
+ * Mirrors the essential subset of the server-side `DbClient` (kept in
+ * `server/db/client.ts`) so `src/core/loops/` stays free of server-only
+ * imports. The publisher passes the real `DbClient` at runtime; it is
+ * structurally compatible with this interface.
+ *
+ * `unsafe` + `dialect` are included so sources can build dialect-aware
+ * dynamic SQL (e.g. batched IN-lists) without reaching into the server
+ * module tree.
  */
 export interface LoopSourceDb {
   <Row = Record<string, unknown>>(
     strings: TemplateStringsArray,
     ...values: unknown[]
   ): Promise<{ rows: Row[]; rowCount: number }>
+  /**
+   * Execute a raw SQL string with positional parameters.
+   * Use `dialect` to emit the correct placeholder style:
+   *   postgres → $1, $2, …   sqlite → ?, ?, …
+   */
+  unsafe<Row = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<{ rows: Row[]; rowCount: number }>
+  readonly dialect: 'postgres' | 'sqlite'
 }
 
 /**

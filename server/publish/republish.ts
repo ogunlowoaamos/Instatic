@@ -96,13 +96,13 @@ export async function republishAllPages(db: DbClient): Promise<number> {
       and deleted_at is null
     order by created_at asc
   `
+  const results = await Promise.allSettled(rows.map(row => republishSinglePage(db, row.id)))
   let count = 0
-  for (const row of rows) {
-    try {
-      await republishSinglePage(db, row.id)
+  for (const [i, result] of results.entries()) {
+    if (result.status === 'fulfilled') {
       count++
-    } catch (err) {
-      console.error(`[publish:republish] republishSinglePage("${row.id}") threw:`, err)
+    } else {
+      console.error(`[publish:republish] republishSinglePage("${rows[i].id}") threw:`, result.reason)
     }
   }
   return count

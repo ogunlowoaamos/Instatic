@@ -152,6 +152,8 @@ function mapRow(row: PrefetchedAssetRow): MediaAsset {
  * Fetch every media asset referenced by image / media props in the page
  * tree. Returns an empty map for pages that reference no local uploads
  * (purely external URLs, or no media modules at all).
+ *
+ * One batched IN-query covers all paths regardless of page size.
  */
 export async function prefetchMediaAssets(
   page: Page,
@@ -162,21 +164,23 @@ export async function prefetchMediaAssets(
   const paths = collectMediaPaths(page, registry)
   if (paths.size === 0) return map
 
-  // One fetch per path. Cross-dialect bulk-IN binding via the tagged-template
-  // API isn't ergonomic (SQLite has no native array bind, PG uses `= any()`),
-  // and the per-page count is usually < 20 so the round trips are cheap.
-  // If it becomes a bottleneck on big pages we'll batch with a dialect-aware
-  // helper — same pattern as `loadFolderIdsForAssets`.
-  for (const path of paths) {
-    const { rows } = await db<PrefetchedAssetRow>`
-      select id, filename, mime_type, size_bytes, public_path, uploaded_by_user_id, created_at,
-             alt_text, caption, title, tags_json, width, height, duration_ms,
-             dominant_color, deleted_at, replaced_at,
-             blur_hash, variants_json, poster_path
-      from media_assets
-      where public_path = ${path} and deleted_at is null
-    `
-    if (rows[0]) map.set(path, mapRow(rows[0]))
+  const pathsToFetch = [...paths].filter(p => !map.has(p))
+  const placeholders = pathsToFetch.map((_, i) =>
+    db.dialect === 'postgres' ? `$${i + 1}` : '?'
+  ).join(', ')
+  const { rows } = await db.unsafe<PrefetchedAssetRow>(
+    `select id, filename, mime_type, size_bytes, public_path, uploaded_by_user_id, created_at,
+            alt_text, caption, title, tags_json, width, height, duration_ms,
+            dominant_color, deleted_at, replaced_at,
+            blur_hash, variants_json, poster_path
+     from media_assets
+     where public_path in (${placeholders}) and deleted_at is null`,
+    pathsToFetch,
+  )
+  const byPath = new Map(rows.map(r => [r.public_path, r]))
+  for (const path of pathsToFetch) {
+    const row = byPath.get(path)
+    if (row) map.set(path, mapRow(row))
   }
   // Apply the `media.url.transform` filter chain to every asset's URLs
   // (publicPath + variants[*].path). The map KEY stays the page tree's
