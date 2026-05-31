@@ -42,6 +42,23 @@ const PHASE_COPY: Record<PreAuthPhase, PhaseCopy> = {
 
 const MIN_PASSWORD_LENGTH = 12
 
+async function runAuthAction(
+  action: () => Promise<void>,
+  fallbackMessage: string,
+  setSubmitting: (v: boolean) => void,
+  setError: (v: string | null) => void,
+): Promise<void> {
+  setSubmitting(true)
+  setError(null)
+  try {
+    await action()
+  } catch (err) {
+    setError(err instanceof Error ? err.message : fallbackMessage)
+  } finally {
+    setSubmitting(false)
+  }
+}
+
 export function AdminPreAuthForm({
   phase,
   publicSite,
@@ -61,34 +78,22 @@ export function AdminPreAuthForm({
   const passwordId = useId()
   const mfaCodeId = useId()
 
-  async function runSubmit(action: () => Promise<void>, fallbackMessage: string): Promise<void> {
-    setSubmitting(true)
-    setError(null)
-    try {
-      await action()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : fallbackMessage)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   async function handleSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
       return
     }
-    await runSubmit(async () => {
+    await runAuthAction(async () => {
       await setupCms({ siteName, email, password })
       await loginCms({ email, password })
       onAuthenticated(await getCurrentCmsUser())
-    }, 'Setup failed')
+    }, 'Setup failed', setSubmitting, setError)
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await runSubmit(async () => {
+    await runAuthAction(async () => {
       const result = await loginCms({ email, password })
       if (result.mfaRequired) {
         setPassword('')
@@ -97,17 +102,17 @@ export function AdminPreAuthForm({
         return
       }
       onAuthenticated(await getCurrentCmsUser())
-    }, 'Login failed')
+    }, 'Login failed', setSubmitting, setError)
   }
 
   async function handleMfaVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await runSubmit(async () => {
+    await runAuthAction(async () => {
       await verifyCmsMfa({ code: mfaCode })
       const user = await getCurrentCmsUser()
       setMfaCode('')
       onAuthenticated(user)
-    }, 'MFA verification failed')
+    }, 'MFA verification failed', setSubmitting, setError)
   }
 
   const copy = PHASE_COPY[phase]

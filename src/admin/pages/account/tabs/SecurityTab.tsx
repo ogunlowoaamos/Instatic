@@ -78,6 +78,164 @@ function SecurityCard({
   )
 }
 
+function isStepUpCancelled(err: unknown): boolean {
+  return err instanceof Error && err.message === StepUpCancelledMessage
+}
+
+async function renderQrCode(
+  setup: TotpSetup,
+  isCancelled: () => boolean,
+  setTotpQrCode: (v: TotpQrCode | null) => void,
+  setTotpQrError: (v: TotpQrError | null) => void,
+): Promise<void> {
+  try {
+    const { toString } = await import('qrcode')
+    const svg = await toString(setup.otpauthUrl, {
+      type: 'svg',
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      width: 224,
+      color: {
+        dark: '#000000ff',
+        light: '#ffffffff',
+      },
+    })
+    if (!isCancelled()) {
+      setTotpQrCode({
+        otpauthUrl: setup.otpauthUrl,
+        dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+      })
+    }
+  } catch (err) {
+    console.error('[account-security] QR code generation failed:', err)
+    if (!isCancelled()) {
+      setTotpQrError({
+        otpauthUrl: setup.otpauthUrl,
+        message: 'Could not render the QR code. Use the setup key instead.',
+      })
+    }
+  }
+}
+
+async function submitPasswordHelper(
+  newPassword: string,
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  onResetDialog: () => void,
+  setBusy: (v: string | null) => void,
+  setPasswordError: (v: string | null) => void,
+  setStatus: (v: string | null) => void,
+): Promise<void> {
+  try {
+    const updated = await runStepUp(() => changeCurrentUserPassword({ newPassword }))
+    setSessionUser(updated)
+    onResetDialog()
+    setStatus('Password updated. Other devices were signed out.')
+  } catch (err) {
+    if (!isStepUpCancelled(err)) {
+      setPasswordError(err instanceof Error ? err.message : 'Could not update password.')
+    }
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function startMfaHelper(
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setBusy: (v: string | null) => void,
+  setError: (v: string | null) => void,
+  setTotpQrCode: (v: TotpQrCode | null) => void,
+  setTotpQrError: (v: TotpQrError | null) => void,
+  setSecretCopied: (v: boolean) => void,
+  setTotpSetup: (v: TotpSetup | null) => void,
+  setTotpCode: (v: string) => void,
+): Promise<void> {
+  try {
+    const setup = await runStepUp(() => startCurrentUserTotpSetup())
+    setTotpQrCode(null)
+    setTotpQrError(null)
+    setSecretCopied(false)
+    setTotpSetup(setup)
+    setTotpCode('')
+  } catch (err) {
+    if (!isStepUpCancelled(err)) {
+      setError(err instanceof Error ? err.message : 'Could not start MFA setup.')
+    }
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function enableMfaHelper(
+  secret: string,
+  code: string,
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  onResetDialog: () => void,
+  setBusy: (v: string | null) => void,
+  setMfaError: (v: string | null) => void,
+  setRecoveryCodes: (v: string[]) => void,
+  setStatus: (v: string | null) => void,
+): Promise<void> {
+  try {
+    const result = await runStepUp(() => enableCurrentUserTotp({ secret, code }))
+    setSessionUser(result.user)
+    onResetDialog()
+    setRecoveryCodes(result.recoveryCodes)
+    setStatus('Two-factor authentication enabled.')
+  } catch (err) {
+    if (!isStepUpCancelled(err)) {
+      setMfaError(err instanceof Error ? err.message : 'Could not enable MFA.')
+    }
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function disableMfaHelper(
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  setBusy: (v: string | null) => void,
+  setError: (v: string | null) => void,
+  setRecoveryCodes: (v: string[]) => void,
+  setStatus: (v: string | null) => void,
+): Promise<void> {
+  try {
+    const updated = await runStepUp(() => disableCurrentUserTotp())
+    setSessionUser(updated)
+    setRecoveryCodes([])
+    setStatus('Two-factor authentication disabled.')
+  } catch (err) {
+    if (!isStepUpCancelled(err)) {
+      setError(err instanceof Error ? err.message : 'Could not disable MFA.')
+    }
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function regenerateRecoveryCodesHelper(
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  setBusy: (v: string | null) => void,
+  setError: (v: string | null) => void,
+  setRecoveryCodes: (v: string[]) => void,
+  setStatus: (v: string | null) => void,
+): Promise<void> {
+  try {
+    const result = await runStepUp(() => regenerateCurrentUserRecoveryCodes())
+    setSessionUser(result.user)
+    setRecoveryCodes(result.recoveryCodes)
+    setStatus('Recovery codes regenerated.')
+  } catch (err) {
+    if (!isStepUpCancelled(err)) {
+      setError(err instanceof Error ? err.message : 'Could not regenerate recovery codes.')
+    }
+  } finally {
+    setBusy(null)
+  }
+}
+
 export function SecurityTab({ user }: SecurityTabProps) {
   const { runStepUp } = useStepUp()
   const setSessionUser = useAdminSessionSetter()
@@ -123,37 +281,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
     const setup = totpSetup
     let cancelled = false
 
-    async function renderQrCode(): Promise<void> {
-      try {
-        const { toString } = await import('qrcode')
-        const svg = await toString(setup.otpauthUrl, {
-          type: 'svg',
-          margin: 2,
-          errorCorrectionLevel: 'M',
-          width: 224,
-          color: {
-            dark: '#000000ff',
-            light: '#ffffffff',
-          },
-        })
-        if (!cancelled) {
-          setTotpQrCode({
-            otpauthUrl: setup.otpauthUrl,
-            dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-          })
-        }
-      } catch (err) {
-        console.error('[account-security] QR code generation failed:', err)
-        if (!cancelled) {
-          setTotpQrError({
-            otpauthUrl: setup.otpauthUrl,
-            message: 'Could not render the QR code. Use the setup key instead.',
-          })
-        }
-      }
-    }
-
-    void renderQrCode()
+    void renderQrCode(setup, () => cancelled, setTotpQrCode, setTotpQrError)
     return () => { cancelled = true }
   }, [totpSetup])
 
@@ -171,10 +299,6 @@ export function SecurityTab({ user }: SecurityTabProps) {
     setTotpQrCode(null)
     setTotpQrError(null)
     setSecretCopied(false)
-  }
-
-  function stepUpCancelled(err: unknown): boolean {
-    return err instanceof Error && err.message === StepUpCancelledMessage
   }
 
   async function handleCopySecret(): Promise<void> {
@@ -209,18 +333,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
       return
     }
     setBusy('password')
-    try {
-      const updated = await runStepUp(() => changeCurrentUserPassword({ newPassword }))
-      setSessionUser(updated)
-      resetPasswordDialog()
-      setStatus('Password updated. Other devices were signed out.')
-    } catch (err) {
-      if (!stepUpCancelled(err)) {
-        setPasswordError(err instanceof Error ? err.message : 'Could not update password.')
-      }
-    } finally {
-      setBusy(null)
-    }
+    await submitPasswordHelper(newPassword, runStepUp, setSessionUser, resetPasswordDialog, setBusy, setPasswordError, setStatus)
   }
 
   async function handleStartMfa(): Promise<void> {
@@ -229,20 +342,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
     setError(null)
     setMfaError(null)
     setStatus(null)
-    try {
-      const setup = await runStepUp(() => startCurrentUserTotpSetup())
-      setTotpQrCode(null)
-      setTotpQrError(null)
-      setSecretCopied(false)
-      setTotpSetup(setup)
-      setTotpCode('')
-    } catch (err) {
-      if (!stepUpCancelled(err)) {
-        setError(err instanceof Error ? err.message : 'Could not start MFA setup.')
-      }
-    } finally {
-      setBusy(null)
-    }
+    await startMfaHelper(runStepUp, setBusy, setError, setTotpQrCode, setTotpQrError, setSecretCopied, setTotpSetup, setTotpCode)
   }
 
   async function handleEnableMfa(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -252,21 +352,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
     setMfaError(null)
     setError(null)
     setStatus(null)
-    try {
-      const result = await runStepUp(() =>
-        enableCurrentUserTotp({ secret: totpSetup.secret, code: totpCode }),
-      )
-      setSessionUser(result.user)
-      resetTotpDialog()
-      setRecoveryCodes(result.recoveryCodes)
-      setStatus('Two-factor authentication enabled.')
-    } catch (err) {
-      if (!stepUpCancelled(err)) {
-        setMfaError(err instanceof Error ? err.message : 'Could not enable MFA.')
-      }
-    } finally {
-      setBusy(null)
-    }
+    await enableMfaHelper(totpSetup.secret, totpCode, runStepUp, setSessionUser, resetTotpDialog, setBusy, setMfaError, setRecoveryCodes, setStatus)
   }
 
   async function handleDisableMfa(): Promise<void> {
@@ -274,18 +360,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
     setBusy('mfa-disable')
     setError(null)
     setStatus(null)
-    try {
-      const updated = await runStepUp(() => disableCurrentUserTotp())
-      setSessionUser(updated)
-      setRecoveryCodes([])
-      setStatus('Two-factor authentication disabled.')
-    } catch (err) {
-      if (!stepUpCancelled(err)) {
-        setError(err instanceof Error ? err.message : 'Could not disable MFA.')
-      }
-    } finally {
-      setBusy(null)
-    }
+    await disableMfaHelper(runStepUp, setSessionUser, setBusy, setError, setRecoveryCodes, setStatus)
   }
 
   async function handleRegenerateRecoveryCodes(): Promise<void> {
@@ -293,18 +368,7 @@ export function SecurityTab({ user }: SecurityTabProps) {
     setBusy('recovery')
     setError(null)
     setStatus(null)
-    try {
-      const result = await runStepUp(() => regenerateCurrentUserRecoveryCodes())
-      setSessionUser(result.user)
-      setRecoveryCodes(result.recoveryCodes)
-      setStatus('Recovery codes regenerated.')
-    } catch (err) {
-      if (!stepUpCancelled(err)) {
-        setError(err instanceof Error ? err.message : 'Could not regenerate recovery codes.')
-      }
-    } finally {
-      setBusy(null)
-    }
+    await regenerateRecoveryCodesHelper(runStepUp, setSessionUser, setBusy, setError, setRecoveryCodes, setStatus)
   }
 
   return (

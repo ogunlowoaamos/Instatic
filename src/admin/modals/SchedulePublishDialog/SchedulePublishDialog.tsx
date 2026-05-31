@@ -40,6 +40,56 @@ export interface SchedulePublishDialogProps {
   onScheduled: () => void
 }
 
+// ---------------------------------------------------------------------------
+// Module-level helpers (extracted so the React Compiler can compile the
+// component body — try/finally inside an async function prevents compilation).
+// ---------------------------------------------------------------------------
+
+async function schedulePublish(
+  rowId: string,
+  next: Date,
+  setBusy: (v: boolean) => void,
+  setError: (msg: string | null) => void,
+  onScheduled: () => void,
+  onClose: () => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    await scheduleCmsDataRowPublish(rowId, next.toISOString())
+    onScheduled()
+    onClose()
+  } catch (err) {
+    console.error('[schedule-dialog] Schedule failed:', err)
+    const message = err instanceof Error ? err.message : 'Failed to schedule publish'
+    setError(message)
+  } finally {
+    setBusy(false)
+  }
+}
+
+async function cancelSchedule(
+  rowId: string,
+  setBusy: (v: boolean) => void,
+  setError: (msg: string | null) => void,
+  onScheduled: () => void,
+  onClose: () => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    await cancelCmsDataRowSchedule(rowId)
+    onScheduled()
+    onClose()
+  } catch (err) {
+    console.error('[schedule-dialog] Cancel schedule failed:', err)
+    const message = err instanceof Error ? err.message : 'Failed to cancel schedule'
+    setError(message)
+  } finally {
+    setBusy(false)
+  }
+}
+
 export function SchedulePublishDialog({
   open,
   onClose,
@@ -60,35 +110,11 @@ export function SchedulePublishDialog({
       setError('Scheduled time must be in the future.')
       return
     }
-    setBusy(true)
-    setError(null)
-    try {
-      await scheduleCmsDataRowPublish(rowId, next.toISOString())
-      onScheduled()
-      onClose()
-    } catch (err) {
-      console.error('[schedule-dialog] Schedule failed:', err)
-      const message = err instanceof Error ? err.message : 'Failed to schedule publish'
-      setError(message)
-    } finally {
-      setBusy(false)
-    }
+    await schedulePublish(rowId, next, setBusy, setError, onScheduled, onClose)
   }
 
   async function handleCancelSchedule() {
-    setBusy(true)
-    setError(null)
-    try {
-      await cancelCmsDataRowSchedule(rowId)
-      onScheduled()
-      onClose()
-    } catch (err) {
-      console.error('[schedule-dialog] Cancel schedule failed:', err)
-      const message = err instanceof Error ? err.message : 'Failed to cancel schedule'
-      setError(message)
-    } finally {
-      setBusy(false)
-    }
+    await cancelSchedule(rowId, setBusy, setError, onScheduled, onClose)
   }
 
   return (

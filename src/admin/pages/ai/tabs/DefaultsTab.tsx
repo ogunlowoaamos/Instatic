@@ -32,6 +32,32 @@ const SCOPE_DESCRIPTIONS: Record<ToolScope, string> = {
   plugin: 'Used by api.ai.* calls from plugin code (Phase 5).',
 }
 
+async function saveScope(
+  scope: ToolScope,
+  credentialId: string,
+  modelId: string,
+  refresh: () => void,
+  setSavingScope: (value: ToolScope | null) => void,
+  setStatusByScope: (updater: (prev: Record<string, string>) => Record<string, string>) => void,
+): Promise<void> {
+  setSavingScope(scope)
+  setStatusByScope((prev) => ({ ...prev, [scope]: '' }))
+  try {
+    await setDefault(scope, { credentialId, modelId })
+    setStatusByScope((prev) => ({ ...prev, [scope]: 'Saved.' }))
+    refresh()
+  } catch (err) {
+    const message = err instanceof ApiError
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : 'Failed to save.'
+    setStatusByScope((prev) => ({ ...prev, [scope]: message }))
+  } finally {
+    setSavingScope(null)
+  }
+}
+
 export function DefaultsTab() {
   const { data, loading, error, refresh } = useAsyncResource(
     () => Promise.all([listCredentials(), listDefaults()]).then(([creds, defs]) => ({ creds, defs })),
@@ -90,24 +116,7 @@ export function DefaultsTab() {
               current={defaults[scope]}
               busy={savingScope === scope}
               status={statusByScope[scope]}
-              onSave={async (credentialId, modelId) => {
-                setSavingScope(scope)
-                setStatusByScope((prev) => ({ ...prev, [scope]: '' }))
-                try {
-                  await setDefault(scope, { credentialId, modelId })
-                  setStatusByScope((prev) => ({ ...prev, [scope]: 'Saved.' }))
-                  refresh()
-                } catch (err) {
-                  const message = err instanceof ApiError
-                    ? err.message
-                    : err instanceof Error
-                      ? err.message
-                      : 'Failed to save.'
-                  setStatusByScope((prev) => ({ ...prev, [scope]: message }))
-                } finally {
-                  setSavingScope(null)
-                }
-              }}
+              onSave={(credentialId, modelId) => saveScope(scope, credentialId, modelId, refresh, setSavingScope, setStatusByScope)}
             />
           ))}
         </div>

@@ -28,6 +28,32 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
+// ---------------------------------------------------------------------------
+// Module-level helper (extracted so the React Compiler can compile the
+// component body — try/finally inside an async function prevents compilation).
+// ---------------------------------------------------------------------------
+
+async function confirmReplace(
+  picked: File,
+  onReplace: (file: File) => Promise<unknown>,
+  setPicked: (file: File | null) => void,
+  onClose: () => void,
+  setError: (msg: string | null) => void,
+  setBusy: (v: boolean) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    await onReplace(picked)
+    setPicked(null)
+    onClose()
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Replace failed')
+  } finally {
+    setBusy(false)
+  }
+}
+
 export function ReplaceFileDialog({ asset, open, onClose, onReplace }: ReplaceFileDialogProps) {
   const [picked, setPicked] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -42,17 +68,7 @@ export function ReplaceFileDialog({ asset, open, onClose, onReplace }: ReplaceFi
 
   async function handleConfirm() {
     if (!picked) return
-    setBusy(true)
-    setError(null)
-    try {
-      await onReplace(picked)
-      setPicked(null)
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Replace failed')
-    } finally {
-      setBusy(false)
-    }
+    await confirmReplace(picked, onReplace, setPicked, onClose, setError, setBusy)
   }
 
   function handleClose() {

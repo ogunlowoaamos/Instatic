@@ -98,6 +98,30 @@ const CATEGORY_FILTERS: { value: string; label: string }[] = [
   { value: 'Monospace', label: 'Mono' },
 ]
 
+async function runGoogleFontInstall(
+  selected: GoogleFontFamilyDto,
+  pickedVariants: string[],
+  pickedSubsets: string[],
+  setInstalling: (v: boolean) => void,
+  setInstallError: (v: string | null) => void,
+  onInstalled: (entry: FontEntry) => void,
+): Promise<void> {
+  setInstalling(true)
+  setInstallError(null)
+  try {
+    const entry = await installCmsGoogleFont({
+      family: selected.family,
+      variants: pickedVariants,
+      subsets: pickedSubsets,
+    })
+    onInstalled(entry)
+  } catch (err) {
+    setInstallError(err instanceof Error ? err.message : 'Font install failed')
+  } finally {
+    setInstalling(false)
+  }
+}
+
 export function AddGoogleFontDialog({
   installedFamilies,
   editEntry,
@@ -268,20 +292,7 @@ export function AddGoogleFontDialog({
   async function handleInstall() {
     if (!selected || installing) return
     if (pickedVariants.length === 0 || pickedSubsets.length === 0) return
-    setInstalling(true)
-    setInstallError(null)
-    try {
-      const entry = await installCmsGoogleFont({
-        family: selected.family,
-        variants: pickedVariants,
-        subsets: pickedSubsets,
-      })
-      onInstalled(entry)
-    } catch (err) {
-      setInstallError(err instanceof Error ? err.message : 'Font install failed')
-    } finally {
-      setInstalling(false)
-    }
+    await runGoogleFontInstall(selected, pickedVariants, pickedSubsets, setInstalling, setInstallError, onInstalled)
   }
 
   return (

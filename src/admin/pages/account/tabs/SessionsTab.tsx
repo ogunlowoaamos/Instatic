@@ -59,6 +59,49 @@ function formatLastSeen(value: string): string {
   return formatDateTime(value)
 }
 
+async function revokeSessionHelper(
+  session: CmsSession,
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setBusy: (v: string | null) => void,
+  setActionError: (v: string | null) => void,
+  setStatus: (v: string | null) => void,
+  refresh: () => void,
+): Promise<void> {
+  try {
+    await runStepUp(() => revokeCmsSession(session.id))
+    setStatus(`Signed out ${session.deviceLabel || 'device'}.`)
+    refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setActionError(err instanceof Error ? err.message : 'Could not sign out device')
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function revokeAllOthersHelper(
+  runStepUp: <T>(fn: () => Promise<T>) => Promise<T>,
+  setBusy: (v: string | null) => void,
+  setActionError: (v: string | null) => void,
+  setStatus: (v: string | null) => void,
+  refresh: () => void,
+): Promise<void> {
+  try {
+    const revokedCount = await runStepUp(() => logoutAllOtherCmsSessions())
+    setStatus(
+      revokedCount === 0
+        ? 'No other devices were signed in.'
+        : `Signed out ${revokedCount} other ${revokedCount === 1 ? 'device' : 'devices'}.`,
+    )
+    refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setActionError(err instanceof Error ? err.message : 'Could not sign out other devices')
+  } finally {
+    setBusy(null)
+  }
+}
+
 export function SessionsTab() {
   const { runStepUp } = useStepUp()
   const {
@@ -80,18 +123,8 @@ export function SessionsTab() {
     setBusy(session.id)
     setActionError(null)
     setStatus(null)
-    try {
-      await runStepUp(() => revokeCmsSession(session.id))
-      setStatus(`Signed out ${session.deviceLabel || 'device'}.`)
-      refresh()
-    } catch (err) {
-      // The user cancelled the step-up dialog — silent dismiss, not a
-      // failure we want to scream about.
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setActionError(err instanceof Error ? err.message : 'Could not sign out device')
-    } finally {
-      setBusy(null)
-    }
+    // The user cancelling the step-up dialog is a silent dismiss — handled inside the helper.
+    await revokeSessionHelper(session, runStepUp, setBusy, setActionError, setStatus, refresh)
   }
 
   async function handleRevokeAllOthers(): Promise<void> {
@@ -99,20 +132,7 @@ export function SessionsTab() {
     setBusy('all')
     setActionError(null)
     setStatus(null)
-    try {
-      const revokedCount = await runStepUp(() => logoutAllOtherCmsSessions())
-      setStatus(
-        revokedCount === 0
-          ? 'No other devices were signed in.'
-          : `Signed out ${revokedCount} other ${revokedCount === 1 ? 'device' : 'devices'}.`,
-      )
-      refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setActionError(err instanceof Error ? err.message : 'Could not sign out other devices')
-    } finally {
-      setBusy(null)
-    }
+    await revokeAllOthersHelper(runStepUp, setBusy, setActionError, setStatus, refresh)
   }
 
   const otherCount = sessions.filter((s) => !s.isCurrent).length

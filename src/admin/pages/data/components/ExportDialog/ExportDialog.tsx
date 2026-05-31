@@ -76,6 +76,59 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level helper (extracted so the React Compiler can compile the
+// component body — try/finally inside an async function prevents compilation).
+// ---------------------------------------------------------------------------
+
+async function runExport(
+  effectiveTableIds: Set<string>,
+  scope: 'all' | 'selected',
+  selectedRowIds: string[],
+  includeMedia: boolean,
+  siteShell: boolean,
+  setExporting: (v: boolean) => void,
+  setError: (msg: string | null) => void,
+  onClose: () => void,
+): Promise<void> {
+  setExporting(true)
+  setError(null)
+
+  const filename = makeTimestampedFilename()
+
+  try {
+    const blob = await exportSiteBundle({
+      tables: Array.from(effectiveTableIds),
+      rowIds: scope === 'selected' ? selectedRowIds : undefined,
+      includeMedia,
+      includeSite: siteShell,
+    })
+
+    triggerDownload(blob, filename)
+
+    pushToast({
+      kind: 'success',
+      title: 'Export complete',
+      body: filename,
+      location: 'data-workspace',
+    })
+
+    onClose()
+  } catch (err) {
+    console.error('[ExportDialog] Export failed:', err)
+    const msg = err instanceof Error ? err.message : 'Unknown export error'
+    setError(msg)
+    pushToast({
+      kind: 'error',
+      title: 'Export failed',
+      body: msg,
+      location: 'data-workspace',
+    })
+  } finally {
+    setExporting(false)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -171,43 +224,7 @@ export function ExportDialog({
 
   async function handleDownload() {
     if (!canExport || exporting) return
-
-    setExporting(true)
-    setError(null)
-
-    const filename = makeTimestampedFilename()
-
-    try {
-      const blob = await exportSiteBundle({
-        tables: Array.from(effectiveTableIds),
-        rowIds: scope === 'selected' ? selectedRowIds : undefined,
-        includeMedia,
-        includeSite: siteShell,
-      })
-
-      triggerDownload(blob, filename)
-
-      pushToast({
-        kind: 'success',
-        title: 'Export complete',
-        body: filename,
-        location: 'data-workspace',
-      })
-
-      onClose()
-    } catch (err) {
-      console.error('[ExportDialog] Export failed:', err)
-      const msg = err instanceof Error ? err.message : 'Unknown export error'
-      setError(msg)
-      pushToast({
-        kind: 'error',
-        title: 'Export failed',
-        body: msg,
-        location: 'data-workspace',
-      })
-    } finally {
-      setExporting(false)
-    }
+    await runExport(effectiveTableIds, scope, selectedRowIds, includeMedia, siteShell, setExporting, setError, onClose)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

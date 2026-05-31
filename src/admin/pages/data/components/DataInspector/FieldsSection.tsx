@@ -40,6 +40,43 @@ import { isPostTypeBuiltInFieldId } from '@core/data/fields'
 import styles from './DataInspector.module.css'
 
 // ---------------------------------------------------------------------------
+// Module-level helper — extracted so the React Compiler can auto-memoize the
+// FieldsSection component body (try/catch in async causes compiler bailout
+// when nested inside a component function).
+// ---------------------------------------------------------------------------
+
+async function saveFieldEdit(
+  editingFieldId: string,
+  editState: FieldEditState,
+  table: DataTable,
+  onUpdateTable: (input: UpdateDataTableInput) => Promise<DataTable>,
+  setEditSaving: (v: boolean) => void,
+  setEditError: (v: string | null) => void,
+  setEditingFieldId: (v: string | null) => void,
+  setEditState: (v: FieldEditState | null) => void,
+): Promise<void> {
+  const field = table.fields.find((f) => f.id === editingFieldId)
+  if (!field) return
+
+  const locked = isLabelLocked(field, table)
+  const updated = applyEditState(field, editState, locked)
+  const updatedFields = table.fields.map((f) => (f.id === editingFieldId ? updated : f))
+
+  setEditSaving(true)
+  setEditError(null)
+  try {
+    await onUpdateTable({ fields: updatedFields })
+    setEditingFieldId(null)
+    setEditState(null)
+  } catch (err) {
+    console.error('[FieldsSection] Save failed:', err)
+    setEditError(err instanceof Error ? err.message : 'Could not save field')
+  } finally {
+    setEditSaving(false)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -752,25 +789,16 @@ export function FieldsSection({
 
   async function saveEdit() {
     if (!editingFieldId || !editState) return
-    const field = table.fields.find((f) => f.id === editingFieldId)
-    if (!field) return
-
-    const locked = isLabelLocked(field, table)
-    const updated = applyEditState(field, editState, locked)
-    const updatedFields = table.fields.map((f) => (f.id === editingFieldId ? updated : f))
-
-    setEditSaving(true)
-    setEditError(null)
-    try {
-      await onUpdateTable({ fields: updatedFields })
-      setEditingFieldId(null)
-      setEditState(null)
-    } catch (err) {
-      console.error('[FieldsSection] Save failed:', err)
-      setEditError(err instanceof Error ? err.message : 'Could not save field')
-    } finally {
-      setEditSaving(false)
-    }
+    await saveFieldEdit(
+      editingFieldId,
+      editState,
+      table,
+      onUpdateTable,
+      setEditSaving,
+      setEditError,
+      setEditingFieldId,
+      setEditState,
+    )
   }
 
   // ── Delete ──

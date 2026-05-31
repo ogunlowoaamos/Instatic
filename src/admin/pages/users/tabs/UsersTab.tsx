@@ -57,6 +57,99 @@ const STATUS_OPTIONS = [
   { value: 'suspended', label: 'Suspended', textValue: 'Suspended' },
 ] as const
 
+async function saveUser(
+  dialogMode: UserDialogMode,
+  editingUserId: string | null,
+  userForm: UserFormState,
+  runStepUp: <T>(action: () => Promise<T>) => Promise<T>,
+  setUsers: (updater: (current: CmsCurrentUser[]) => CmsCurrentUser[]) => void,
+  closeDialog: () => void,
+  refresh: () => void,
+  setBusy: (busy: boolean) => void,
+  setError: (error: string | null) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    if (dialogMode === 'reset') {
+      if (!editingUserId) throw new Error('No user selected')
+      await runStepUp(() => updateCmsUser(editingUserId, { password: userForm.password }))
+    } else if (dialogMode === 'edit') {
+      if (!editingUserId) throw new Error('No user selected')
+      const user = await runStepUp(() => updateCmsUser(editingUserId, {
+        email: userForm.email,
+        displayName: userForm.displayName,
+        roleId: userForm.roleId,
+        status: userForm.status,
+        ...(userForm.password ? { password: userForm.password } : {}),
+      }))
+      setUsers((current) => current.map((candidate) => candidate.id === user.id ? user : candidate))
+    } else {
+      const user = await runStepUp(() => createCmsUser({
+        email: userForm.email,
+        displayName: userForm.displayName,
+        password: userForm.password,
+        roleId: userForm.roleId,
+      }))
+      setUsers((current) => [...current, user])
+    }
+    closeDialog()
+    void refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setError(err instanceof Error ? err.message : 'Could not save user')
+  } finally {
+    setBusy(false)
+  }
+}
+
+async function toggleUserStatus(
+  userId: string,
+  currentStatus: string,
+  runStepUp: <T>(action: () => Promise<T>) => Promise<T>,
+  setUsers: (updater: (current: CmsCurrentUser[]) => CmsCurrentUser[]) => void,
+  refresh: () => void,
+  setBusy: (busy: boolean) => void,
+  setError: (error: string | null) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    const updated = await runStepUp(() => updateCmsUser(userId, {
+      status: currentStatus === 'active' ? 'suspended' : 'active',
+    }))
+    setUsers((current) => current.map((candidate) => candidate.id === updated.id ? updated : candidate))
+    void refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setError(err instanceof Error ? err.message : 'Could not update user')
+  } finally {
+    setBusy(false)
+  }
+}
+
+async function deleteUser(
+  userId: string,
+  runStepUp: <T>(action: () => Promise<T>) => Promise<T>,
+  setUsers: (updater: (current: CmsCurrentUser[]) => CmsCurrentUser[]) => void,
+  refresh: () => void,
+  setBusy: (busy: boolean) => void,
+  setError: (error: string | null) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    await runStepUp(() => deleteCmsUser(userId))
+    setUsers((current) => current.filter((candidate) => candidate.id !== userId))
+    void refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setError(err instanceof Error ? err.message : 'Could not delete user')
+  } finally {
+    setBusy(false)
+  }
+}
+
 export function UsersTab({ data, canManageUsers }: UsersTabProps) {
   const { users, roles, defaultAssignableRoleId, setUsers, setError, refresh, error } = data
   const { runStepUp } = useStepUp()
@@ -143,76 +236,20 @@ export function UsersTab({ data, canManageUsers }: UsersTabProps) {
       setError('Password must be at least 12 characters')
       return
     }
-    setBusy(true)
-    setError(null)
-    try {
-      if (dialogMode === 'reset') {
-        if (!editingUserId) throw new Error('No user selected')
-        await runStepUp(() => updateCmsUser(editingUserId, { password: userForm.password }))
-      } else if (dialogMode === 'edit') {
-        if (!editingUserId) throw new Error('No user selected')
-        const user = await runStepUp(() => updateCmsUser(editingUserId, {
-          email: userForm.email,
-          displayName: userForm.displayName,
-          roleId: userForm.roleId,
-          status: userForm.status,
-          ...(userForm.password ? { password: userForm.password } : {}),
-        }))
-        setUsers((current) => current.map((candidate) => candidate.id === user.id ? user : candidate))
-      } else {
-        const user = await runStepUp(() => createCmsUser({
-          email: userForm.email,
-          displayName: userForm.displayName,
-          password: userForm.password,
-          roleId: userForm.roleId,
-        }))
-        setUsers((current) => [...current, user])
-      }
-      closeDialog()
-      void refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setError(err instanceof Error ? err.message : 'Could not save user')
-    } finally {
-      setBusy(false)
-    }
+    await saveUser(dialogMode, editingUserId, userForm, runStepUp, setUsers, closeDialog, refresh, setBusy, setError)
   }
 
   async function toggleStatus(user: CmsCurrentUser) {
     if (!canManageUsers || isOwnerUser(user)) return
-    setBusy(true)
-    setError(null)
-    try {
-      const updated = await runStepUp(() => updateCmsUser(user.id, {
-        status: user.status === 'active' ? 'suspended' : 'active',
-      }))
-      setUsers((current) => current.map((candidate) => candidate.id === updated.id ? updated : candidate))
-      void refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setError(err instanceof Error ? err.message : 'Could not update user')
-    } finally {
-      setBusy(false)
-    }
+    await toggleUserStatus(user.id, user.status, runStepUp, setUsers, refresh, setBusy, setError)
   }
 
   async function remove(user: CmsCurrentUser) {
     if (!canManageUsers || isOwnerUser(user)) return
-    setBusy(true)
-    setError(null)
-    try {
-      // Step-up gated server-side; the runner re-prompts for password
-      // when the session has no fresh window. Cancelling the dialog
-      // resolves silently without surfacing an error.
-      await runStepUp(() => deleteCmsUser(user.id))
-      setUsers((current) => current.filter((candidate) => candidate.id !== user.id))
-      void refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setError(err instanceof Error ? err.message : 'Could not delete user')
-    } finally {
-      setBusy(false)
-    }
+    // Step-up gated server-side; the runner re-prompts for password
+    // when the session has no fresh window. Cancelling the dialog
+    // resolves silently without surfacing an error.
+    await deleteUser(user.id, runStepUp, setUsers, refresh, setBusy, setError)
   }
 
   return (

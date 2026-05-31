@@ -51,6 +51,43 @@ const STRATEGY_LABELS: Record<ImportStrategy, string> = {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level helper (extracted so the React Compiler can compile the
+// component body — try/finally inside an async function prevents compilation).
+// ---------------------------------------------------------------------------
+
+async function runImport(
+  bundle: SiteBundle,
+  strategy: ImportStrategy,
+  setImporting: (v: boolean) => void,
+  onImportComplete: () => void,
+  onClose: () => void,
+): Promise<void> {
+  setImporting(true)
+  try {
+    const result = await importSiteBundle(bundle, strategy)
+    pushToast({
+      kind: 'success',
+      title: 'Import complete',
+      body: buildToastBody(result),
+      location: 'data-workspace',
+    })
+    onImportComplete()
+    onClose()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown import error'
+    console.error('[ImportDialog] Import failed:', err)
+    pushToast({
+      kind: 'error',
+      title: 'Import failed',
+      body: msg,
+      location: 'data-workspace',
+    })
+  } finally {
+    setImporting(false)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Toast body builder
 // ---------------------------------------------------------------------------
 
@@ -137,29 +174,7 @@ export function ImportDialog({ open, onClose, onImportComplete }: ImportDialogPr
 
   async function handleImport() {
     if (!bundleState || !canImport) return
-    setImporting(true)
-    try {
-      const result = await importSiteBundle(bundleState.bundle, strategy)
-      pushToast({
-        kind: 'success',
-        title: 'Import complete',
-        body: buildToastBody(result),
-        location: 'data-workspace',
-      })
-      onImportComplete()
-      onClose()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown import error'
-      console.error('[ImportDialog] Import failed:', err)
-      pushToast({
-        kind: 'error',
-        title: 'Import failed',
-        body: msg,
-        location: 'data-workspace',
-      })
-    } finally {
-      setImporting(false)
-    }
+    await runImport(bundleState.bundle, strategy, setImporting, onImportComplete, onClose)
   }
 
   // ---------------------------------------------------------------------------

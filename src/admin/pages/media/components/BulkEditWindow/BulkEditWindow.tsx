@@ -55,6 +55,92 @@ function planHasChanges(plan: BatchPlan): boolean {
   )
 }
 
+// Module-level helpers — extracted so the React Compiler can compile the
+// component body (it bails on try/finally inside component/hook bodies).
+
+async function runApplyPlan(
+  plan: BatchPlan,
+  assets: UseMediaWorkspaceResult['selectedAssets'],
+  workspace: UseMediaWorkspaceResult,
+  setBusy: (v: boolean) => void,
+  setProgress: (v: { done: number; total: number } | null) => void,
+  resetPlan: () => void,
+): Promise<void> {
+  const count = assets.length
+  try {
+    let done = 0
+    for (const asset of assets) {
+      const patch: Parameters<typeof workspace.updateAsset>[1] = {}
+      if (plan.altText !== null && asset.mimeType.startsWith('image/')) {
+        patch.altText = plan.altText
+      }
+      if (plan.addTags.length > 0 || plan.removeTags.length > 0) {
+        const nextTags = Array.from(new Set([
+          ...asset.tags.filter((tag) => !plan.removeTags.includes(tag)),
+          ...plan.addTags,
+        ])).sort()
+        patch.tags = nextTags
+      }
+      if (Object.keys(patch).length > 0) {
+        await workspace.updateAsset(asset.id, patch)
+      }
+      if (plan.addFolders.length > 0 || plan.removeFolders.length > 0) {
+        await workspace.setAssetFolders(asset.id, {
+          add: plan.addFolders.length > 0 ? plan.addFolders : undefined,
+          remove: plan.removeFolders.length > 0 ? plan.removeFolders : undefined,
+        })
+      }
+      done += 1
+      setProgress({ done, total: count })
+    }
+    resetPlan()
+  } finally {
+    setBusy(false)
+    // Hold the progress badge for a beat so the user sees the completion.
+    setTimeout(() => setProgress(null), 800)
+  }
+}
+
+async function runTrashAll(
+  assets: UseMediaWorkspaceResult['selectedAssets'],
+  workspace: UseMediaWorkspaceResult,
+  setBusy: (v: boolean) => void,
+  setProgress: (v: { done: number; total: number } | null) => void,
+): Promise<void> {
+  const count = assets.length
+  try {
+    let done = 0
+    for (const asset of assets) {
+      await workspace.trashAsset(asset.id)
+      done += 1
+      setProgress({ done, total: count })
+    }
+  } finally {
+    setBusy(false)
+    setTimeout(() => setProgress(null), 800)
+  }
+}
+
+async function runRestoreAll(
+  assets: UseMediaWorkspaceResult['selectedAssets'],
+  workspace: UseMediaWorkspaceResult,
+  setBusy: (v: boolean) => void,
+  setProgress: (v: { done: number; total: number } | null) => void,
+): Promise<void> {
+  const count = assets.length
+  try {
+    let done = 0
+    for (const asset of assets) {
+      await workspace.restoreAsset(asset.id)
+      done += 1
+      setProgress({ done, total: count })
+    }
+  } finally {
+    setBusy(false)
+    setTimeout(() => setProgress(null), 800)
+  }
+}
+
 export function BulkEditWindow({ workspace, open, onClose }: BulkEditWindowProps) {
   const [plan, setPlan] = useState<BatchPlan>(EMPTY_PLAN)
   const [busy, setBusy] = useState(false)
@@ -72,72 +158,21 @@ export function BulkEditWindow({ workspace, open, onClose }: BulkEditWindowProps
     if (!planHasChanges(plan) || busy) return
     setBusy(true)
     setProgress({ done: 0, total: count })
-    try {
-      let done = 0
-      for (const asset of assets) {
-        const patch: Parameters<typeof workspace.updateAsset>[1] = {}
-        if (plan.altText !== null && asset.mimeType.startsWith('image/')) {
-          patch.altText = plan.altText
-        }
-        if (plan.addTags.length > 0 || plan.removeTags.length > 0) {
-          const nextTags = Array.from(new Set([
-            ...asset.tags.filter((tag) => !plan.removeTags.includes(tag)),
-            ...plan.addTags,
-          ])).sort()
-          patch.tags = nextTags
-        }
-        if (Object.keys(patch).length > 0) {
-          await workspace.updateAsset(asset.id, patch)
-        }
-        if (plan.addFolders.length > 0 || plan.removeFolders.length > 0) {
-          await workspace.setAssetFolders(asset.id, {
-            add: plan.addFolders.length > 0 ? plan.addFolders : undefined,
-            remove: plan.removeFolders.length > 0 ? plan.removeFolders : undefined,
-          })
-        }
-        done += 1
-        setProgress({ done, total: count })
-      }
-      resetPlan()
-    } finally {
-      setBusy(false)
-      // Hold the progress badge for a beat so the user sees the completion.
-      setTimeout(() => setProgress(null), 800)
-    }
+    await runApplyPlan(plan, assets, workspace, setBusy, setProgress, resetPlan)
   }
 
   async function trashAll() {
     if (busy) return
     setBusy(true)
     setProgress({ done: 0, total: count })
-    try {
-      let done = 0
-      for (const asset of assets) {
-        await workspace.trashAsset(asset.id)
-        done += 1
-        setProgress({ done, total: count })
-      }
-    } finally {
-      setBusy(false)
-      setTimeout(() => setProgress(null), 800)
-    }
+    await runTrashAll(assets, workspace, setBusy, setProgress)
   }
 
   async function restoreAll() {
     if (busy) return
     setBusy(true)
     setProgress({ done: 0, total: count })
-    try {
-      let done = 0
-      for (const asset of assets) {
-        await workspace.restoreAsset(asset.id)
-        done += 1
-        setProgress({ done, total: count })
-      }
-    } finally {
-      setBusy(false)
-      setTimeout(() => setProgress(null), 800)
-    }
+    await runRestoreAll(assets, workspace, setBusy, setProgress)
   }
 
   const anyTrashed = assets.some((a) => a.deletedAt !== null)

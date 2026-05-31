@@ -15,6 +15,20 @@ import { PublishActionGroup, type PublishActionMenuItem } from './PublishActionG
 
 type PublishState = 'idle' | 'publishing' | 'published' | 'error'
 
+async function triggerManualSave(
+  onSave: () => void | Promise<void>,
+  setIsSaving: (v: boolean) => void,
+): Promise<void> {
+  setIsSaving(true)
+  try {
+    await onSave()
+  } catch (err) {
+    console.error('[toolbar] Manual save failed:', err)
+  } finally {
+    setIsSaving(false)
+  }
+}
+
 interface PublishButtonProps {
   enabled?: boolean
   onSave?: () => void | Promise<void>
@@ -135,14 +149,7 @@ export function PublishButton({ enabled = true, onSave, saveStatus }: PublishBut
 
   const handleManualSave = async () => {
     if (!onSave || isSaving || isStatusSaving) return
-    setIsSaving(true)
-    try {
-      await onSave()
-    } catch (err) {
-      console.error('[toolbar] Manual save failed:', err)
-    } finally {
-      setIsSaving(false)
-    }
+    await triggerManualSave(onSave, setIsSaving)
   }
 
   const isPublishing = state === 'publishing'

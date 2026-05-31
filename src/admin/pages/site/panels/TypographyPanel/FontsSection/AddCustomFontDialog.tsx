@@ -110,6 +110,82 @@ function pickedFromEntry(entry: FontEntry | undefined): Record<string, PickedVar
   return init
 }
 
+/**
+ * Remove or add `asset` from the picked-variant map. Extracted to module level
+ * so the React Compiler doesn't attempt to compile the computed property key
+ * destructuring `{ [asset.id]: _removed, ...rest }` inside the callback
+ * (BuildHIR currently bails on UpdateExpressions captured within lambdas).
+ */
+function toggleFontAsset(
+  asset: CmsMediaAsset,
+  setPicked: (updater: (prev: Record<string, PickedVariant>) => Record<string, PickedVariant>) => void,
+): void {
+  setPicked((prev) => {
+    if (prev[asset.id]) {
+      const { [asset.id]: _removed, ...rest } = prev
+      return rest
+    }
+    return { ...prev, [asset.id]: guessVariantFromName(asset.filename) }
+  })
+}
+
+/**
+ * Upload one or more font files, auto-select them in the picker, and clear the
+ * uploading flag when done. Extracted to module level so the React Compiler
+ * doesn't encounter the .finally() promise chain inside a component body.
+ * Semantics are identical to the original .then/.catch/.finally chain.
+ */
+async function uploadPickedFontFiles(
+  files: File[],
+  setUploading: (v: boolean) => void,
+  setUploadError: (v: string | null) => void,
+  setAssets: (updater: (prev: CmsMediaAsset[] | null) => CmsMediaAsset[]) => void,
+  setPicked: (updater: (prev: Record<string, PickedVariant>) => Record<string, PickedVariant>) => void,
+): Promise<void> {
+  setUploading(true)
+  setUploadError(null)
+  try {
+    const uploaded = await Promise.all(files.map((file) => uploadCmsMediaAsset(file)))
+    // Prepend the new assets and auto-select them with a filename guess.
+    setAssets((prev) => [...uploaded, ...(prev ?? [])])
+    setPicked((prev) => {
+      const next = { ...prev }
+      for (const asset of uploaded) next[asset.id] = guessVariantFromName(asset.filename)
+      return next
+    })
+  } catch (err) {
+    setUploadError(err instanceof Error ? err.message : 'Font upload failed')
+  } finally {
+    setUploading(false)
+  }
+}
+
+async function installCustomFont(
+  trimmedFamily: string,
+  pickedIds: string[],
+  picked: Record<string, PickedVariant>,
+  setInstalling: (v: boolean) => void,
+  setInstallError: (v: string | null) => void,
+  onInstalled: (entry: FontEntry) => void,
+): Promise<void> {
+  setInstalling(true)
+  setInstallError(null)
+  try {
+    const entry = await registerCustomFont({
+      family: trimmedFamily,
+      files: pickedIds.map((id) => ({
+        mediaAssetId: id,
+        variant: formatVariant(picked[id]),
+      })),
+    })
+    onInstalled(entry)
+  } catch (err) {
+    setInstallError(err instanceof Error ? err.message : 'Custom font install failed')
+  } finally {
+    setInstalling(false)
+  }
+}
+
 export function AddCustomFontDialog({
   installedFamilies,
   editEntry,
@@ -178,16 +254,6 @@ export function AddCustomFontDialog({
     }
   }, [picked, assets, previewFamily])
 
-  function toggleAsset(asset: CmsMediaAsset) {
-    setPicked((prev) => {
-      if (prev[asset.id]) {
-        const { [asset.id]: _removed, ...rest } = prev
-        return rest
-      }
-      return { ...prev, [asset.id]: guessVariantFromName(asset.filename) }
-    })
-  }
-
   function updateVariant(id: string, patch: Partial<PickedVariant>) {
     setPicked((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], ...patch } } : prev))
   }
@@ -196,44 +262,13 @@ export function AddCustomFontDialog({
     if (!fileList || fileList.length === 0) return
     const files = Array.from(fileList)
     if (fileInputRef.current) fileInputRef.current.value = ''
-    setUploading(true)
-    setUploadError(null)
-
-    Promise.all(files.map((file) => uploadCmsMediaAsset(file)))
-      .then((uploaded) => {
-        // Prepend the new assets and auto-select them with a filename guess.
-        setAssets((prev) => [...uploaded, ...(prev ?? [])])
-        setPicked((prev) => {
-          const next = { ...prev }
-          for (const asset of uploaded) next[asset.id] = guessVariantFromName(asset.filename)
-          return next
-        })
-      })
-      .catch((err: unknown) => {
-        setUploadError(err instanceof Error ? err.message : 'Font upload failed')
-      })
-      .finally(() => setUploading(false))
+    void uploadPickedFontFiles(files, setUploading, setUploadError, setAssets, setPicked)
   }
 
   async function handleInstall() {
     if (installing) return
     if (!trimmedFamily || familyTaken || pickedIds.length === 0) return
-    setInstalling(true)
-    setInstallError(null)
-    try {
-      const entry = await registerCustomFont({
-        family: trimmedFamily,
-        files: pickedIds.map((id) => ({
-          mediaAssetId: id,
-          variant: formatVariant(picked[id]),
-        })),
-      })
-      onInstalled(entry)
-    } catch (err) {
-      setInstallError(err instanceof Error ? err.message : 'Custom font install failed')
-    } finally {
-      setInstalling(false)
-    }
+    await installCustomFont(trimmedFamily, pickedIds, picked, setInstalling, setInstallError, onInstalled)
   }
 
   const canInstall =
@@ -362,7 +397,7 @@ export function AddCustomFontDialog({
                   <label className={styles.customPickLabel}>
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={() => toggleAsset(asset)}
+                      onCheckedChange={() => toggleFontAsset(asset, setPicked)}
                       aria-label={`Select ${asset.filename}`}
                     />
                     <span className={styles.rowFamily}>{asset.filename}</span>

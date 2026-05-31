@@ -123,19 +123,26 @@ export function ToastProvider() {
   )
 }
 
+async function runToastAction(
+  action: NonNullable<Toast['action']>,
+  setActionPending: (v: boolean) => void,
+): Promise<void> {
+  setActionPending(true)
+  try {
+    await Promise.resolve(action.onSelect())
+  } catch (err) {
+    console.error(`[toast] action "${action.label}" failed:`, err)
+  } finally {
+    setActionPending(false)
+  }
+}
+
 function ToastItem({ toast }: { toast: Toast }) {
   const [actionPending, setActionPending] = useState(false)
 
   async function handleAction() {
     if (!toast.action) return
-    try {
-      setActionPending(true)
-      await Promise.resolve(toast.action.onSelect())
-    } catch (err) {
-      console.error(`[toast] action "${toast.action.label}" failed:`, err)
-    } finally {
-      setActionPending(false)
-    }
+    await runToastAction(toast.action, setActionPending)
   }
 
   return (

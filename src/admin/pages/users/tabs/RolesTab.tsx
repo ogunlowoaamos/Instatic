@@ -52,6 +52,61 @@ interface RolesTabProps {
   canManageRoles: boolean
 }
 
+async function saveRole(
+  dialogMode: RoleDialogMode,
+  editingRoleId: string | null,
+  roleForm: RoleFormState,
+  runStepUp: <T>(action: () => Promise<T>) => Promise<T>,
+  setRoles: (updater: (current: CmsRole[]) => CmsRole[]) => void,
+  closeDialog: () => void,
+  refresh: () => void,
+  setBusy: (busy: boolean) => void,
+  setError: (error: string | null) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    const role = dialogMode === 'edit' && editingRoleId
+      ? await runStepUp(() => updateCmsRole(editingRoleId, roleForm))
+      : await runStepUp(() => createCmsRole(roleForm))
+    setRoles((current) => {
+      const exists = current.some((candidate) => candidate.id === role.id)
+      return exists
+        ? current.map((candidate) => candidate.id === role.id ? role : candidate)
+        : [...current, role]
+    })
+    closeDialog()
+    void refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setError(err instanceof Error ? err.message : 'Could not save role')
+  } finally {
+    setBusy(false)
+  }
+}
+
+async function deleteRole(
+  roleId: string,
+  runStepUp: <T>(action: () => Promise<T>) => Promise<T>,
+  setRoles: (updater: (current: CmsRole[]) => CmsRole[]) => void,
+  refresh: () => void,
+  setBusy: (busy: boolean) => void,
+  setError: (error: string | null) => void,
+): Promise<void> {
+  setBusy(true)
+  setError(null)
+  try {
+    await runStepUp(() => deleteCmsRole(roleId))
+    setRoles((current) => current.filter((candidate) => candidate.id !== roleId))
+    void refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setError(err instanceof Error ? err.message : 'Could not delete role')
+  } finally {
+    setBusy(false)
+  }
+}
+
 export function RolesTab({ data, canManageRoles }: RolesTabProps) {
   const { roles, setRoles, setError, refresh, error } = data
   const { runStepUp } = useStepUp()
@@ -125,26 +180,7 @@ export function RolesTab({ data, canManageRoles }: RolesTabProps) {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canManageRoles || !dialogMode) return
-    setBusy(true)
-    setError(null)
-    try {
-      const role = dialogMode === 'edit' && editingRoleId
-        ? await runStepUp(() => updateCmsRole(editingRoleId, roleForm))
-        : await runStepUp(() => createCmsRole(roleForm))
-      setRoles((current) => {
-        const exists = current.some((candidate) => candidate.id === role.id)
-        return exists
-          ? current.map((candidate) => candidate.id === role.id ? role : candidate)
-          : [...current, role]
-      })
-      closeDialog()
-      void refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setError(err instanceof Error ? err.message : 'Could not save role')
-    } finally {
-      setBusy(false)
-    }
+    await saveRole(dialogMode, editingRoleId, roleForm, runStepUp, setRoles, closeDialog, refresh, setBusy, setError)
   }
 
   async function remove(role: CmsRole) {
@@ -152,18 +188,7 @@ export function RolesTab({ data, canManageRoles }: RolesTabProps) {
     // be edited. Custom roles can be deleted when no users reference them
     // (server-side enforced).
     if (!canManageRoles || role.isSystem) return
-    setBusy(true)
-    setError(null)
-    try {
-      await runStepUp(() => deleteCmsRole(role.id))
-      setRoles((current) => current.filter((candidate) => candidate.id !== role.id))
-      void refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setError(err instanceof Error ? err.message : 'Could not delete role')
-    } finally {
-      setBusy(false)
-    }
+    await deleteRole(role.id, runStepUp, setRoles, refresh, setBusy, setError)
   }
 
   function toggleCapability(capability: string, checked: boolean) {

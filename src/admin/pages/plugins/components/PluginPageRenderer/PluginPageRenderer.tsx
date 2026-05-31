@@ -34,6 +34,80 @@ import { ensurePluginRuntime } from '@admin/pluginRuntimeBootstrap'
 import { SkeletonBlock, SkeletonRows } from '@ui/components/Skeleton'
 import styles from '../../PluginsPage.module.css'
 
+// ---------------------------------------------------------------------------
+// Module-level helpers — extracted so the React Compiler can auto-memoize
+// PluginResourcePage (try/catch in async causes compiler bailout when nested
+// inside a component function).
+// ---------------------------------------------------------------------------
+
+/**
+ * Load a plugin resource and its records. Takes `isCancelled` as a getter
+ * (not a captured boolean) so reads always reflect the latest value after
+ * the async boundary, even if the effect cleanup ran first.
+ */
+async function loadPluginResource(
+  pluginId: string,
+  resourceId: string,
+  isCancelled: () => boolean,
+  setLoading: (v: boolean) => void,
+  setError: (v: string | null) => void,
+  setResource: (v: PluginResource | null) => void,
+  setRecords: (v: PluginRecord[]) => void,
+  setFormData: (v: Record<string, string | boolean>) => void,
+): Promise<void> {
+  setLoading(true)
+  setError(null)
+  try {
+    const payload = await getCmsPluginResource(pluginId, resourceId)
+    if (isCancelled()) return
+    setResource(payload.resource)
+    setRecords(payload.records)
+    setFormData(emptyForm(payload.resource))
+  } catch (err) {
+    if (!isCancelled()) setError(err instanceof Error ? err.message : 'Could not load plugin records')
+  } finally {
+    if (!isCancelled()) setLoading(false)
+  }
+}
+
+async function createPluginRecord(
+  pluginId: string,
+  resource: PluginResource,
+  data: Record<string, unknown>,
+  setSaving: (v: boolean) => void,
+  setError: (v: string | null) => void,
+  setRecords: (updater: (current: PluginRecord[]) => PluginRecord[]) => void,
+  setFormData: (v: Record<string, string | boolean>) => void,
+): Promise<void> {
+  setSaving(true)
+  setError(null)
+  try {
+    const record = await createCmsPluginResourceRecord(pluginId, resource.id, data)
+    setRecords((current) => [record, ...current])
+    setFormData(emptyForm(resource))
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Could not create record')
+  } finally {
+    setSaving(false)
+  }
+}
+
+async function deletePluginRecord(
+  pluginId: string,
+  resourceId: string,
+  recordId: string,
+  setError: (v: string | null) => void,
+  setRecords: (updater: (current: PluginRecord[]) => PluginRecord[]) => void,
+): Promise<void> {
+  setError(null)
+  try {
+    await deleteCmsPluginResourceRecord(pluginId, resourceId, recordId)
+    setRecords((current) => current.filter((candidate) => candidate.id !== recordId))
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Could not delete record')
+  }
+}
+
 interface PluginPageRendererProps {
   page: PluginAdminPageRoute
   importModule?: PluginAdminAppImport
@@ -230,24 +304,16 @@ function PluginResourcePage({ page }: { page: ResourcePluginPageRoute }) {
 
   useEffect(() => {
     let cancelled = false
-
-    async function loadResource() {
-      setLoading(true)
-      setError(null)
-      try {
-        const payload = await getCmsPluginResource(page.pluginId, page.content.resource)
-        if (cancelled) return
-        setResource(payload.resource)
-        setRecords(payload.records)
-        setFormData(emptyForm(payload.resource))
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load plugin records')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void loadResource()
+    void loadPluginResource(
+      page.pluginId,
+      page.content.resource,
+      () => cancelled,
+      setLoading,
+      setError,
+      setResource,
+      setRecords,
+      setFormData,
+    )
     return () => { cancelled = true }
   }, [page.content.resource, page.pluginId])
 
@@ -272,28 +338,20 @@ function PluginResourcePage({ page }: { page: ResourcePluginPageRoute }) {
 
   async function createRecord() {
     if (!resource) return
-    setSaving(true)
-    setError(null)
-    try {
-      const record = await createCmsPluginResourceRecord(page.pluginId, resource.id, readFormRecord())
-      setRecords((current) => [record, ...current])
-      setFormData(emptyForm(resource))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create record')
-    } finally {
-      setSaving(false)
-    }
+    await createPluginRecord(
+      page.pluginId,
+      resource,
+      readFormRecord(),
+      setSaving,
+      setError,
+      setRecords,
+      setFormData,
+    )
   }
 
   async function deleteRecord(record: PluginRecord) {
     if (!resource) return
-    setError(null)
-    try {
-      await deleteCmsPluginResourceRecord(page.pluginId, resource.id, record.id)
-      setRecords((current) => current.filter((candidate) => candidate.id !== record.id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete record')
-    }
+    await deletePluginRecord(page.pluginId, resource.id, record.id, setError, setRecords)
   }
 
   return (

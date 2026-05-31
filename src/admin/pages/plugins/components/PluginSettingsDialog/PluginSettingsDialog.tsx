@@ -29,6 +29,39 @@ import {
 import { StepUpCancelledMessage, useStepUp } from '@admin/shared/StepUp'
 import { pluginAdminUi } from '../PluginAdminUi'
 
+// ---------------------------------------------------------------------------
+// Module-level helper — extracted so the React Compiler can auto-memoize the
+// component body (try/catch in async causes compiler bailout when nested inside
+// a component function).
+// ---------------------------------------------------------------------------
+
+async function savePluginSettings(
+  pluginId: string,
+  values: PluginSettingsRecord,
+  runStepUp: (fn: () => Promise<PluginSettingsRecord>) => Promise<PluginSettingsRecord>,
+  onSaved: ((next: PluginSettingsRecord) => void) | undefined,
+  onClose: () => void,
+  setSaving: (v: boolean) => void,
+  setSaveError: (err: string | null) => void,
+): Promise<void> {
+  setSaving(true)
+  setSaveError(null)
+  try {
+    const next = await runStepUp(() => updateCmsPluginSettings(pluginId, values))
+    onSaved?.(next)
+    onClose()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) {
+      // User dismissed the password dialog — leave the form open with the
+      // pending edits intact so they can retry without retyping.
+      return
+    }
+    setSaveError(err instanceof Error ? err.message : 'Failed to save settings')
+  } finally {
+    setSaving(false)
+  }
+}
+
 type SettingDefinition = PluginSettingsSchema[number]
 
 interface PluginSettingsDialogProps {
@@ -76,25 +109,10 @@ export function PluginSettingsDialog({
   }
 
   async function save() {
-    setSaving(true)
-    setSaveError(null)
-    try {
-      // `updateCmsPluginSettings` rejects with `Error('step_up_required')`
-      // when the session has no fresh step-up window. `runStepUp` catches
-      // that rejection, prompts for the password, then retries the save.
-      const next = await runStepUp(() => updateCmsPluginSettings(pluginId, values))
-      onSaved?.(next)
-      onClose()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) {
-        // User dismissed the password dialog — leave the form open with the
-        // pending edits intact so they can retry without retyping.
-        return
-      }
-      setSaveError(err instanceof Error ? err.message : 'Failed to save settings')
-    } finally {
-      setSaving(false)
-    }
+    // `updateCmsPluginSettings` rejects with `Error('step_up_required')`
+    // when the session has no fresh step-up window. `runStepUp` catches
+    // that rejection, prompts for the password, then retries the save.
+    await savePluginSettings(pluginId, values, runStepUp, onSaved, onClose, setSaving, setSaveError)
   }
 
   return (

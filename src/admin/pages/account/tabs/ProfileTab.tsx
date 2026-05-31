@@ -30,6 +30,47 @@ interface ProfileTabProps {
 
 type AvatarStatus = { tone: 'info' | 'error'; message: string } | null
 
+async function uploadAvatarHelper(
+  file: File,
+  setBusy: (v: null | 'upload' | 'remove') => void,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  setStatus: (v: AvatarStatus) => void,
+): Promise<void> {
+  try {
+    const updated = await uploadCurrentUserAvatar(file)
+    setSessionUser(updated)
+    setStatus({ tone: 'info', message: 'Profile picture updated.' })
+  } catch (err) {
+    console.error('[profile-tab] avatar upload failed:', err)
+    setStatus({
+      tone: 'error',
+      message: err instanceof Error ? err.message : 'Could not upload avatar.',
+    })
+  } finally {
+    setBusy(null)
+  }
+}
+
+async function removeAvatarHelper(
+  setBusy: (v: null | 'upload' | 'remove') => void,
+  setSessionUser: (user: CmsCurrentUser) => void,
+  setStatus: (v: AvatarStatus) => void,
+): Promise<void> {
+  try {
+    const updated = await deleteCurrentUserAvatar()
+    setSessionUser(updated)
+    setStatus({ tone: 'info', message: 'Profile picture removed.' })
+  } catch (err) {
+    console.error('[profile-tab] avatar remove failed:', err)
+    setStatus({
+      tone: 'error',
+      message: err instanceof Error ? err.message : 'Could not remove avatar.',
+    })
+  } finally {
+    setBusy(null)
+  }
+}
+
 export function ProfileTab({ user }: ProfileTabProps) {
   const setSessionUser = useAdminSessionSetter()
   const [busy, setBusy] = useState<null | 'upload' | 'remove'>(null)
@@ -53,38 +94,14 @@ export function ProfileTab({ user }: ProfileTabProps) {
 
     setBusy('upload')
     setStatus(null)
-    try {
-      const updated = await uploadCurrentUserAvatar(file)
-      setSessionUser(updated)
-      setStatus({ tone: 'info', message: 'Profile picture updated.' })
-    } catch (err) {
-      console.error('[profile-tab] avatar upload failed:', err)
-      setStatus({
-        tone: 'error',
-        message: err instanceof Error ? err.message : 'Could not upload avatar.',
-      })
-    } finally {
-      setBusy(null)
-    }
+    await uploadAvatarHelper(file, setBusy, setSessionUser, setStatus)
   }
 
   async function handleRemove(): Promise<void> {
     if (busy) return
     setBusy('remove')
     setStatus(null)
-    try {
-      const updated = await deleteCurrentUserAvatar()
-      setSessionUser(updated)
-      setStatus({ tone: 'info', message: 'Profile picture removed.' })
-    } catch (err) {
-      console.error('[profile-tab] avatar remove failed:', err)
-      setStatus({
-        tone: 'error',
-        message: err instanceof Error ? err.message : 'Could not remove avatar.',
-      })
-    } finally {
-      setBusy(null)
-    }
+    await removeAvatarHelper(setBusy, setSessionUser, setStatus)
   }
 
   return (

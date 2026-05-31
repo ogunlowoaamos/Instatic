@@ -48,6 +48,49 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
   ollama: 'Ollama',
 }
 
+async function deleteCredentialAction(
+  id: string,
+  setBusyIds: (updater: (prev: Set<string>) => Set<string>) => void,
+  setActionError: (error: string | null) => void,
+  refresh: () => void,
+): Promise<void> {
+  setBusyIds((prev) => new Set(prev).add(id))
+  try {
+    await deleteCredential(id)
+    setActionError(null)
+    refresh()
+  } catch (err) {
+    setActionError(err instanceof Error ? err.message : 'Failed to delete credential.')
+  } finally {
+    setBusyIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+}
+
+async function testCredentialAction(
+  id: string,
+  setBusyIds: (updater: (prev: Set<string>) => Set<string>) => void,
+  setTestResults: (updater: (prev: Record<string, TestResult & { ts: number }>) => Record<string, TestResult & { ts: number }>) => void,
+): Promise<void> {
+  setBusyIds((prev) => new Set(prev).add(id))
+  try {
+    const result = await testCredential(id)
+    setTestResults((prev) => ({ ...prev, [id]: { ...result, ts: Date.now() } }))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Test failed.'
+    setTestResults((prev) => ({ ...prev, [id]: { ok: false, error: message, ts: Date.now() } }))
+  } finally {
+    setBusyIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+}
+
 export function ProvidersTab() {
   const {
     data: loadedCredentials,
@@ -67,37 +110,11 @@ export function ProvidersTab() {
   const error = loadError ?? actionError
 
   async function handleDelete(id: string) {
-    setBusyIds((prev) => new Set(prev).add(id))
-    try {
-      await deleteCredential(id)
-      setActionError(null)
-      refresh()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete credential.')
-    } finally {
-      setBusyIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
+    await deleteCredentialAction(id, setBusyIds, setActionError, refresh)
   }
 
   async function handleTest(id: string) {
-    setBusyIds((prev) => new Set(prev).add(id))
-    try {
-      const result = await testCredential(id)
-      setTestResults((prev) => ({ ...prev, [id]: { ...result, ts: Date.now() } }))
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Test failed.'
-      setTestResults((prev) => ({ ...prev, [id]: { ok: false, error: message, ts: Date.now() } }))
-    } finally {
-      setBusyIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
+    await testCredentialAction(id, setBusyIds, setTestResults)
   }
 
   return (
@@ -203,6 +220,39 @@ export function ProvidersTab() {
 // Add credential dialog
 // ---------------------------------------------------------------------------
 
+async function submitCredential(
+  effectiveAuthMode: AuthMode,
+  providerId: ProviderId,
+  displayLabel: string,
+  apiKey: string,
+  baseUrl: string,
+  onCreated: () => void,
+  setError: (error: string | null) => void,
+  setBusy: (busy: boolean) => void,
+): Promise<void> {
+  setError(null)
+  setBusy(true)
+  try {
+    const body: CreateCredentialBody =
+      effectiveAuthMode === 'apiKey' ? {
+        providerId, authMode: 'apiKey', displayLabel, apiKey,
+      } : {
+        providerId, authMode: 'baseUrl', displayLabel, baseUrl,
+        ...(apiKey ? { apiKey } : {}),
+      }
+    await createCredential(body)
+    onCreated()
+  } catch (err) {
+    if (err instanceof ApiError) {
+      setError(err.message)
+    } else {
+      setError(err instanceof Error ? err.message : 'Failed to create credential.')
+    }
+  } finally {
+    setBusy(false)
+  }
+}
+
 function AddCredentialDialog({
   onClose,
   onCreated,
@@ -233,27 +283,7 @@ function AddCredentialDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    setBusy(true)
-    try {
-      const body: CreateCredentialBody =
-        effectiveAuthMode === 'apiKey' ? {
-          providerId, authMode: 'apiKey', displayLabel, apiKey,
-        } : {
-          providerId, authMode: 'baseUrl', displayLabel, baseUrl,
-          ...(apiKey ? { apiKey } : {}),
-        }
-      await createCredential(body)
-      onCreated()
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to create credential.')
-      }
-    } finally {
-      setBusy(false)
-    }
+    await submitCredential(effectiveAuthMode, providerId, displayLabel, apiKey, baseUrl, onCreated, setError, setBusy)
   }
 
   return (

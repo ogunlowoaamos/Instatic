@@ -25,6 +25,20 @@ interface SaveIndicatorProps {
   saveStatus?: PersistenceSaveStatus
 }
 
+async function triggerManualSave(
+  onSave: () => void | Promise<void>,
+  setIsSaving: (v: boolean) => void,
+): Promise<void> {
+  setIsSaving(true)
+  try {
+    await onSave()
+  } catch (err) {
+    console.error('[toolbar] Manual save failed:', err)
+  } finally {
+    setIsSaving(false)
+  }
+}
+
 export function SaveIndicator({ onSave, saveStatus }: SaveIndicatorProps) {
   const hasUnsaved = useEditorStore((s) => s.hasUnsavedChanges)
   const autoSaveEnabled = useEditorPreference('autoSave')
@@ -34,14 +48,7 @@ export function SaveIndicator({ onSave, saveStatus }: SaveIndicatorProps) {
 
   async function handleManualSave() {
     if (!onSave || isSaving || isStatusSaving) return
-    setIsSaving(true)
-    try {
-      await onSave()
-    } catch (err) {
-      console.error('[toolbar] Manual save failed:', err)
-    } finally {
-      setIsSaving(false)
-    }
+    await triggerManualSave(onSave, setIsSaving)
   }
 
   if (saveError) {

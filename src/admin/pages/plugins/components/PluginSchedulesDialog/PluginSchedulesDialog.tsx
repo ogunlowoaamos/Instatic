@@ -31,6 +31,33 @@ import { StepUpCancelledMessage, useStepUp } from '@admin/shared/StepUp'
 import { pluginAdminUi } from '../PluginAdminUi'
 import styles from './PluginSchedulesDialog.module.css'
 
+// ---------------------------------------------------------------------------
+// Module-level helper — extracted so the React Compiler can auto-memoize the
+// component body (try/catch in async causes compiler bailout when nested inside
+// a component function).
+// ---------------------------------------------------------------------------
+
+async function runScheduleAction<T>(
+  scheduleId: string,
+  action: () => Promise<T>,
+  runStepUp: (action: () => Promise<T>) => Promise<T>,
+  setBusyScheduleId: (id: string | null) => void,
+  setActionError: (err: string | null) => void,
+  refresh: () => void,
+): Promise<void> {
+  setBusyScheduleId(scheduleId)
+  setActionError(null)
+  try {
+    await runStepUp(action)
+    refresh()
+  } catch (err) {
+    if (err instanceof Error && err.message === StepUpCancelledMessage) return
+    setActionError(err instanceof Error ? err.message : 'Action failed')
+  } finally {
+    setBusyScheduleId(null)
+  }
+}
+
 interface PluginSchedulesDialogProps {
   pluginId: string
   pluginName: string
@@ -54,17 +81,7 @@ export function PluginSchedulesDialog({ pluginId, pluginName, onClose }: PluginS
   const error = loadError ?? actionError
 
   async function withStepUp<T>(scheduleId: string, action: () => Promise<T>): Promise<void> {
-    setBusyScheduleId(scheduleId)
-    setActionError(null)
-    try {
-      await runStepUp(action)
-      refresh()
-    } catch (err) {
-      if (err instanceof Error && err.message === StepUpCancelledMessage) return
-      setActionError(err instanceof Error ? err.message : 'Action failed')
-    } finally {
-      setBusyScheduleId(null)
-    }
+    await runScheduleAction(scheduleId, action, runStepUp, setBusyScheduleId, setActionError, refresh)
   }
 
   return (

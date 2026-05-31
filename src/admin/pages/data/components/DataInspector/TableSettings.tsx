@@ -42,6 +42,59 @@ interface SettingsDraft {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level helpers — extracted so the React Compiler can auto-memoize the
+// TableSettings component body (try/catch in async causes compiler bailout
+// when nested inside a component function).
+// ---------------------------------------------------------------------------
+
+async function saveTableField(
+  key: keyof SettingsDraft,
+  value: string,
+  table: DataTable,
+  onUpdateTable: (input: UpdateDataTableInput) => Promise<DataTable>,
+  setSaving: (v: boolean) => void,
+  setSaveError: (v: string | null) => void,
+  setDraft: (updater: (prev: SettingsDraft) => SettingsDraft) => void,
+): Promise<void> {
+  setSaving(true)
+  setSaveError(null)
+  try {
+    await onUpdateTable({ [key]: value })
+  } catch (err) {
+    console.error('[TableSettings] Save failed:', err)
+    setSaveError(err instanceof Error ? err.message : 'Could not save')
+    // Revert the draft field to the last known-good value from the table.
+    setDraft((prev) => ({
+      ...prev,
+      [key]: table[key as keyof DataTable] as string,
+    }))
+  } finally {
+    setSaving(false)
+  }
+}
+
+async function savePrimaryField(
+  fieldId: string,
+  table: DataTable,
+  onUpdateTable: (input: UpdateDataTableInput) => Promise<DataTable>,
+  setSaving: (v: boolean) => void,
+  setSaveError: (v: string | null) => void,
+  setDraft: (updater: (prev: SettingsDraft) => SettingsDraft) => void,
+): Promise<void> {
+  setSaving(true)
+  setSaveError(null)
+  try {
+    await onUpdateTable({ primaryFieldId: fieldId })
+  } catch (err) {
+    console.error('[TableSettings] Primary field save failed:', err)
+    setSaveError(err instanceof Error ? err.message : 'Could not save')
+    setDraft((prev) => ({ ...prev, primaryFieldId: table.primaryFieldId }))
+  } finally {
+    setSaving(false)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -100,39 +153,14 @@ export function TableSettings({
     const value = draft[key]
     // The table prop reflects last-saved state — skip if unchanged.
     if (value === (table[key as keyof DataTable] as string)) return
-
-    setSaving(true)
-    setSaveError(null)
-    try {
-      await onUpdateTable({ [key]: value })
-    } catch (err) {
-      console.error('[TableSettings] Save failed:', err)
-      setSaveError(err instanceof Error ? err.message : 'Could not save')
-      // Revert the draft field to the last known-good value from the table.
-      setDraft((prev) => ({
-        ...prev,
-        [key]: table[key as keyof DataTable] as string,
-      }))
-    } finally {
-      setSaving(false)
-    }
+    await saveTableField(key, value, table, onUpdateTable, setSaving, setSaveError, setDraft)
   }
 
   async function handlePrimaryFieldChange(fieldId: string) {
     if (!canEdit) return
     if (fieldId === table.primaryFieldId) return
     patchDraft('primaryFieldId', fieldId)
-    setSaving(true)
-    setSaveError(null)
-    try {
-      await onUpdateTable({ primaryFieldId: fieldId })
-    } catch (err) {
-      console.error('[TableSettings] Primary field save failed:', err)
-      setSaveError(err instanceof Error ? err.message : 'Could not save')
-      setDraft((prev) => ({ ...prev, primaryFieldId: table.primaryFieldId }))
-    } finally {
-      setSaving(false)
-    }
+    await savePrimaryField(fieldId, table, onUpdateTable, setSaving, setSaveError, setDraft)
   }
 
   function requestDeleteTable() {

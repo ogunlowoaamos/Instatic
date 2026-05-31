@@ -94,6 +94,44 @@ type MigrationState =
   | { kind: 'done'; role: MigrationRole; migrated: number; failed: number; total: number }
   | { kind: 'failed'; role: MigrationRole; message: string }
 
+// Module-level helpers — extracted so the React Compiler can compile the
+// component body (it bails on try/catch/finally inside component/hook bodies).
+
+async function runElect(
+  role: MediaAssetRole,
+  adapterId: string,
+  electFn: typeof electCmsMediaAdapter,
+  reload: () => Promise<void>,
+  setError: (err: string | null) => void,
+  setPendingElection: (role: MediaAssetRole | null) => void,
+): Promise<void> {
+  try {
+    await electFn({ role, adapterId })
+    await reload()
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to elect adapter')
+  } finally {
+    setPendingElection(null)
+  }
+}
+
+async function runDelegate(
+  delegateId: string | null,
+  delegateFn: typeof electCmsMediaVariantDelegate,
+  reload: () => Promise<void>,
+  setError: (err: string | null) => void,
+  setPendingDelegate: (v: boolean) => void,
+): Promise<void> {
+  try {
+    await delegateFn({ delegateId })
+    await reload()
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to update variant delegate')
+  } finally {
+    setPendingDelegate(false)
+  }
+}
+
 export function MediaStoragePanel() {
   const [state, setState] = useState<CmsMediaStorageState | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -135,27 +173,13 @@ export function MediaStoragePanel() {
   const handleElect = async (role: MediaAssetRole, adapterId: string) => {
     setPendingElection(role)
     setError(null)
-    try {
-      await electCmsMediaAdapter({ role, adapterId })
-      await reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to elect adapter')
-    } finally {
-      setPendingElection(null)
-    }
+    await runElect(role, adapterId, electCmsMediaAdapter, reload, setError, setPendingElection)
   }
 
   const handleDelegate = async (delegateId: string | null) => {
     setPendingDelegate(true)
     setError(null)
-    try {
-      await electCmsMediaVariantDelegate({ delegateId })
-      await reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update variant delegate')
-    } finally {
-      setPendingDelegate(false)
-    }
+    await runDelegate(delegateId, electCmsMediaVariantDelegate, reload, setError, setPendingDelegate)
   }
 
   const handleVerify = async (adapterId: string) => {
