@@ -60,6 +60,7 @@
 import { use, useEffect, useEffectEvent, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useEditorStore } from '@site/store/store'
+import { styleRuleSelector } from '@core/page-tree/classNames'
 import { useEditorPermissions } from '@site/editorPermissionsContext'
 import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@ui/components/Button'
@@ -127,11 +128,28 @@ export function BreakpointSelectionOverlay({
   )
   const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
 
+  // Selector-affinity highlight: the CSS selector of the rule currently hovered
+  // in the Selectors panel, or null. Resolved to its selector string here so the
+  // RAF tick can `querySelectorAll` it inside the iframe and ring every match.
+  // Like the DOM-panel hover, this is a global highlight — every breakpoint
+  // frame mirrors it, so the user sees the affinity wherever they're looking.
+  const highlightedSelector = useEditorStore((s) => {
+    const classId = s.highlightedSelectorClassId
+    if (!classId) return null
+    const rule = s.site?.styleRules[classId]
+    return rule ? styleRuleSelector(rule) : null
+  })
+
   // One ref per selected node, keyed by id. Stable across renders while the
   // id stays in the selection — when an id is removed, its ring entry is
   // dropped from the map; when added, a fresh ref is allocated.
   const ringRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const hoverRef = useRef<HTMLDivElement>(null)
+  // Container whose children are the orange selector-affinity rings. Their
+  // count is driven by the live DOM (how many elements match the selector), so
+  // they're created/positioned imperatively in the RAF tick rather than mapped
+  // from React state — there's no node-id list to map over.
+  const selectorHighlightRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const viewportActions = use(CanvasViewportActionsContext)
 
@@ -155,6 +173,7 @@ export function BreakpointSelectionOverlay({
   const anyEditCap =
     permissions.canEditStructure || permissions.canEditContent || permissions.canEditStyle
   const showRings = anyEditCap
+  const showSelectorHighlight = showRings && Boolean(highlightedSelector)
   const showToolbar =
     permissions.canEditStructure &&
     selectedNodeIds.length > 0 &&
@@ -206,6 +225,12 @@ export function BreakpointSelectionOverlay({
       positionRing(ringRefs.current.get(id) ?? null, id, iframe, canvasRoot)
     }
     positionRing(hoverRef.current, showHover ? hoveredNodeId : null, iframe, canvasRoot)
+    syncSelectorHighlightRings(
+      selectorHighlightRef.current,
+      showSelectorHighlight ? highlightedSelector : null,
+      iframe,
+      canvasRoot,
+    )
     positionToolbar(
       toolbarRef.current,
       showToolbar ? selectedNodeIds : [],
@@ -294,12 +319,17 @@ export function BreakpointSelectionOverlay({
   // transform-scaled), so their 1px border stays exactly 1px at every zoom
   // level. Position alone tracks the selected/hovered element — same
   // pattern as the toolbar.
-  const rings = showRings && (selectedNodeIds.length > 0 || (showHover && hoveredNodeId)) ? (
+  const rings = showRings && (selectedNodeIds.length > 0 || (showHover && hoveredNodeId) || showSelectorHighlight) ? (
     <div
       className={styles.ringLayer}
       data-canvas-ring-layer-mode={toolbarMode}
       aria-hidden="true"
     >
+      {/* Orange affinity rings — populated imperatively by the RAF tick, one
+          per element matching the hovered selector. */}
+      {showSelectorHighlight && (
+        <div ref={selectorHighlightRef} data-canvas-selector-highlight-layer="true" />
+      )}
       {selectedNodeIds.map((id) => (
         <div
           key={id}
@@ -409,21 +439,52 @@ function positionRing(
     `[data-node-id="${escapeAttribute(nodeId)}"]`,
   )
 
-  // Use a duck-type check (`getBoundingClientRect` is callable) rather than
-  // `instanceof Element` — the iframe document has its OWN Element
-  // constructor, and `target instanceof Element` (where `Element` resolves
-  // to the parent window's class) returns false for any node inside the
-  // iframe. That false-negative is what was hiding every selection ring
-  // until this comment landed.
-  if (!target || typeof (target as { getBoundingClientRect?: unknown }).getBoundingClientRect !== 'function') {
+  const rect = measureCanvasElementRect(target, iframe, canvasRoot)
+  if (!rect) {
     ring.style.display = 'none'
     return
   }
 
+  // transform/width/height so the browser can promote the ring to its own
+  // compositing layer.
+  ring.style.display = ''
+  ring.style.transform = `translate(${rect.x}px, ${rect.y}px)`
+  ring.style.width = `${rect.width}px`
+  ring.style.height = `${rect.height}px`
+}
+
+/**
+ * Translate an element measured inside the breakpoint iframe into the ring
+ * layer's coordinate space (canvas-root-local screen-px when scoped, viewport
+ * screen-px in the fixed fallback). Returns null when the element isn't a
+ * measurable, laid-out element — the caller then hides its ring.
+ *
+ * Shared by the node-id selection/hover rings and the selector-affinity rings.
+ *
+ * `getBoundingClientRect()` inside the iframe returns un-transformed coords
+ * (the iframe document is its own viewport, never transformed). The iframe
+ * ELEMENT in the parent doc IS scaled by the canvas transform layer, so we
+ * recover the canvas zoom from the iframe (clientRect.width / offsetWidth),
+ * scale the inner rect by it, add the iframe's outer offset, then subtract the
+ * canvas-root origin.
+ */
+function measureCanvasElementRect(
+  target: HTMLElement | null,
+  iframe: HTMLIFrameElement,
+  canvasRoot: HTMLElement | null,
+): { x: number; y: number; width: number; height: number } | null {
+  // Use a duck-type check (`getBoundingClientRect` is callable) rather than
+  // `instanceof Element` — the iframe document has its OWN Element
+  // constructor, and `target instanceof Element` (where `Element` resolves
+  // to the parent window's class) returns false for any node inside the
+  // iframe. That false-negative is what was hiding every selection ring.
+  if (!target || typeof (target as { getBoundingClientRect?: unknown }).getBoundingClientRect !== 'function') {
+    return null
+  }
+
   const elementRectInIframe = target.getBoundingClientRect()
   if (elementRectInIframe.width === 0 && elementRectInIframe.height === 0) {
-    ring.style.display = 'none'
-    return
+    return null
   }
   const iframeRect = iframe.getBoundingClientRect()
   const iframeScale = iframe.offsetWidth > 0 ? iframeRect.width / iframe.offsetWidth : 1
@@ -445,17 +506,84 @@ function positionRing(
     originLeft = canvasRect.left
     originTop = canvasRect.top
   }
-  const x = editorDocRect.left - originLeft
-  const y = editorDocRect.top - originTop
-  const width = editorDocRect.width
-  const height = editorDocRect.height
+  return {
+    x: editorDocRect.left - originLeft,
+    y: editorDocRect.top - originTop,
+    width: editorDocRect.width,
+    height: editorDocRect.height,
+  }
+}
 
-  // transform/width/height so the browser can promote the ring to its own
-  // compositing layer.
-  ring.style.display = ''
-  ring.style.transform = `translate(${x}px, ${y}px)`
-  ring.style.width = `${width}px`
-  ring.style.height = `${height}px`
+/**
+ * Hard ceiling on how many affinity rings we draw for one selector. A utility
+ * class (e.g. `text-muted`) can match hundreds of elements; measuring every one
+ * via `getBoundingClientRect()` on each animation frame would jank the canvas.
+ * The match count is already surfaced as the selector's usage badge in the
+ * panel, so capping the *rings* (a transient hover affordance) is purely a
+ * perf guard, not silent data truncation.
+ */
+const SELECTOR_HIGHLIGHT_RING_CAP = 300
+
+/**
+ * Sync the orange affinity rings to the set of elements matching `selector`
+ * inside the breakpoint iframe. Reuses a pool of ring divs under `container`:
+ * grows it to match the live match count (capped), positions each over its
+ * element, and hides any surplus from a previous, larger match set.
+ *
+ * Passing `selector === null` (or an absent container/iframe) clears the pool.
+ */
+function syncSelectorHighlightRings(
+  container: HTMLDivElement | null,
+  selector: string | null,
+  iframe: HTMLIFrameElement | null,
+  canvasRoot: HTMLElement | null,
+): void {
+  if (!container) return
+
+  const iframeDoc = iframe?.contentDocument
+  if (!selector || !iframeDoc) {
+    hideSurplusRings(container, 0)
+    return
+  }
+
+  // Ambient selectors are arbitrary author/CSS-importer strings; a malformed
+  // one makes querySelectorAll throw. Treat that as "matches nothing" rather
+  // than letting it bubble out of the RAF loop.
+  let matches: NodeListOf<HTMLElement>
+  try {
+    matches = iframeDoc.querySelectorAll<HTMLElement>(selector)
+  } catch {
+    hideSurplusRings(container, 0)
+    return
+  }
+
+  const count = Math.min(matches.length, SELECTOR_HIGHLIGHT_RING_CAP)
+  for (let i = 0; i < count; i++) {
+    let ring = container.children[i] as HTMLDivElement | undefined
+    if (!ring) {
+      ring = container.ownerDocument.createElement('div')
+      ring.className = cn(styles.ring, styles.selectorHighlight)
+      ring.setAttribute('data-canvas-selector-highlight-ring', 'true')
+      container.appendChild(ring)
+    }
+    const rect = measureCanvasElementRect(matches[i], iframe!, canvasRoot)
+    if (!rect) {
+      ring.style.display = 'none'
+      continue
+    }
+    ring.style.display = ''
+    ring.style.transform = `translate(${rect.x}px, ${rect.y}px)`
+    ring.style.width = `${rect.width}px`
+    ring.style.height = `${rect.height}px`
+  }
+  hideSurplusRings(container, count)
+}
+
+/** Hide every pooled ring from index `keep` onward (they're reused, not removed). */
+function hideSurplusRings(container: HTMLDivElement, keep: number): void {
+  for (let i = keep; i < container.children.length; i++) {
+    ;(container.children[i] as HTMLElement).style.display = 'none'
+  }
 }
 
 function positionToolbar(

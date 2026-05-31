@@ -74,6 +74,15 @@
     box-shadow: var(--canvas-hover-ring);
 }
 
+/* Selector-affinity ring: every canvas element matching a selector hovered in
+   the Selectors panel. Neon orange — a third identity colour distinct from the
+   green selection ring and pink hover ring. Drawn imperatively (one per match)
+   into a container under .ringLayer, so it inherits the same scoped/fixed
+   positioning rules as .ring above. */
+.selectorHighlight {
+    box-shadow: var(--canvas-selector-ring);
+}
+
 .selectionToolbar {
     top: 0;
     left: 0;

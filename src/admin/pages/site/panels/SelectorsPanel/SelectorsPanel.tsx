@@ -104,6 +104,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   const selectedSelectorClassIds = useEditorStore(useShallow((s) => s.selectedSelectorClassIds))
   const setSelectorsPanelOpen = useEditorStore((s) => s.setSelectorsPanelOpen)
   const setSelectedSelectorClassId = useEditorStore((s) => s.setSelectedSelectorClassId)
+  const setHighlightedSelectorClassId = useEditorStore((s) => s.setHighlightedSelectorClassId)
   const toggleSelectorMultiSelect = useEditorStore((s) => s.toggleSelectorMultiSelect)
   const setSelectedSelectorClassIds = useEditorStore((s) => s.setSelectedSelectorClassIds)
   const clearSelectorMultiSelect = useEditorStore((s) => s.clearSelectorMultiSelect)
@@ -181,6 +182,12 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
       setSelectedSelectorClassId(null)
     }
   }, [selectedSelectorClassId, selectedClass, setSelectedSelectorClassId])
+
+  // Drop the canvas affinity rings whenever the panel closes — the per-row
+  // mouseleave never fires if the panel is dismissed while a row is hovered.
+  useEffect(() => {
+    if (!isOpen) setHighlightedSelectorClassId(null)
+  }, [isOpen, setHighlightedSelectorClassId])
 
   // Reveal the next batch when the tail sentinel scrolls into the panel body.
   useEffect(() => {
@@ -374,6 +381,8 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
                   onToggleSelect={() => handleToggleSelect(cls.id)}
                   onContextMenu={(event) => openContextMenu(cls.id, event)}
                   onKeyDown={(event) => openKeyboardContextMenu(cls.id, event)}
+                  onHighlight={() => setHighlightedSelectorClassId(cls.id)}
+                  onClearHighlight={() => setHighlightedSelectorClassId(null)}
                 />
               ))}
               {hasMore && <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />}
@@ -483,6 +492,10 @@ interface SelectorRowProps {
   onToggleSelect: () => void
   onContextMenu: (event: MouseEvent<HTMLButtonElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void
+  /** Light up the canvas affinity rings for this selector. */
+  onHighlight: () => void
+  /** Drop the canvas affinity rings. */
+  onClearHighlight: () => void
 }
 
 function SelectorRow({
@@ -496,6 +509,8 @@ function SelectorRow({
   onToggleSelect,
   onContextMenu,
   onKeyDown,
+  onHighlight,
+  onClearHighlight,
 }: SelectorRowProps) {
   // Display the rule's full selector. For class-kind rules this resolves to
   // `.<escaped-name>`; for ambient rules it is whatever selector the user or
@@ -513,6 +528,8 @@ function SelectorRow({
       className={styles.row}
       data-selecting={selecting || undefined}
       data-selected={selected || undefined}
+      onMouseEnter={onHighlight}
+      onMouseLeave={onClearHighlight}
     >
       <span className={styles.rowCheck}>
         <PaintBucketSolidIcon size={13} aria-hidden="true" className={styles.rowCheckIcon} />
@@ -532,6 +549,8 @@ function SelectorRow({
         aria-label={`Edit selector ${selectorLabel}`}
         onClick={onSelect}
         onContextMenu={onContextMenu}
+        onFocus={onHighlight}
+        onBlur={onClearHighlight}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()

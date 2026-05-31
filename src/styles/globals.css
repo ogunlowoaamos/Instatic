@@ -161,6 +161,14 @@
        there's no drift. */
     --canvas-selection-ring-color: #39ff14;
     --canvas-hover-ring-color: #ff2bd6;
+    /* Selector-affinity ring: drawn over every canvas element that matches a
+       selector hovered in the Selectors panel. A third identity colour (neon
+       orange) distinct from the green selection ring and pink hover ring, so a
+       "show me everything this selector touches" sweep reads as its own thing.
+       Two elements can match at once, so the ring is purely an affordance, not
+       a selection. */
+    --canvas-selector-ring: inset 0 0 0 1px #ff8800;
+    --canvas-selector-ring-color: #ff8800;
     /* Shared diagonal-stripe pattern used by every module's canvas empty
        state (image, video, content, loop, container, slot-outlet, VC ref
        placeholders). Strictly achromatic — colours derived from

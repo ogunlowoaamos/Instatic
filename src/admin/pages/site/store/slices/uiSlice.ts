@@ -152,6 +152,15 @@ export interface UiSlice {
   setSelectedSelectorClassId: (classId: string | null) => void
 
   /**
+   * Style rule whose selector is currently hovered in the Selectors panel.
+   * Drives the orange selector-affinity rings on the canvas — every element
+   * matching this rule's selector gets a ring, the panel-side analogue of the
+   * DOM tree's hover highlight. Null when nothing is hovered.
+   */
+  highlightedSelectorClassId: string | null
+  setHighlightedSelectorClassId: (classId: string | null) => void
+
+  /**
    * Multi-selection set built from the Selectors panel row checkboxes. When
    * non-empty the Properties panel shows the bulk MultiSelectorInspector
    * instead of a single selector / node inspector. Mutually exclusive with the
@@ -269,6 +278,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   activeEditorFileId: null,
   activeDocument: null,
   selectedSelectorClassId: null,
+  highlightedSelectorClassId: null,
   selectedSelectorClassIds: [],
   dataSidebarCollapsed: false,
   importHtmlModalOpen: false,
@@ -478,6 +488,11 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
     set(clearMulti
       ? { selectedSelectorClassId: classId, selectedSelectorClassIds: [] }
       : { selectedSelectorClassId: classId })
+  },
+
+  setHighlightedSelectorClassId: (classId) => {
+    if (Object.is(get().highlightedSelectorClassId, classId)) return
+    set({ highlightedSelectorClassId: classId })
   },
 
   toggleSelectorMultiSelect: (classId) =>
