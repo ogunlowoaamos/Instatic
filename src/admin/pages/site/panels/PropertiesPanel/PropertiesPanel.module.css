@@ -4,6 +4,11 @@
     position: absolute;
     --panel-x: calc(100% - 376px);
     --panel-y: 16px;
+    /* Background the inner fade gradients (ClassPicker fade, search-bar fade,
+       locked-preview teaser) blend into. Floating panel surface is --panel-bg;
+       the docked variant is transparent over the --editor-bg sidebar, so it
+       overrides this below. Descendants read it via var(--panel-fade-bg). */
+    --panel-fade-bg: var(--panel-bg);
     left: var(--panel-x);
     top: var(--panel-y);
     bottom: 12px;
@@ -26,6 +31,9 @@
 
 .panelDocked {
     position: relative;
+    /* Docked surface is transparent over the --editor-bg sidebar, so the inner
+       fades must blend into --editor-bg rather than the floating --panel-bg. */
+    --panel-fade-bg: var(--editor-bg);
     left: auto;
     top: auto;
     bottom: auto;
@@ -90,7 +98,7 @@
     top: 100%;
     height: 16px;
     pointer-events: none;
-    background: linear-gradient(180deg, var(--editor-bg) 0%, transparent);
+    background: linear-gradient(180deg, var(--panel-fade-bg, var(--editor-bg)) 0%, transparent);
 }
 
 .headerNodeTitle {
