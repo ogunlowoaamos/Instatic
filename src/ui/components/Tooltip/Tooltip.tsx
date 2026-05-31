@@ -112,8 +112,7 @@ function TooltipInner({
   // the safe pattern the react-hooks/refs rule requires.
   const bubbleRef = useRef<HTMLDivElement>(null)
 
-  // Exception #1: referenced in the dismiss useEffect dependency array below;
-  // exhaustive-deps can't see the compiler's memoization, so keep useCallback.
+  // useCallback kept: stable identity for the [hide] useEffect dep array (exhaustive-deps).
   const hide = useCallback(() => {
     setShown(false)
     setPosition(null)

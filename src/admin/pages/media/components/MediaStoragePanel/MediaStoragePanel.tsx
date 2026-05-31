@@ -108,7 +108,7 @@ export function MediaStoragePanel() {
   // the running loop.
   const migrationCancelRef = useRef<(() => void) | null>(null)
 
-  // Exception #1: referenced in the useEffect dependency array below.
+  // useCallback kept: stable identity for the [reload] useEffect dep array (exhaustive-deps).
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)

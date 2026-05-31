@@ -50,7 +50,7 @@ export function SidebarResizeHandle({
   const widthRef = useRef(clampSidebarWidth(width))
   const dragRef = useRef<ResizeDragState | null>(null)
 
-  // Exception #1: referenced in the useEffect dependency array below; exhaustive-deps needs a stable identity.
+  // useCallback kept: stable identity for the [applyLiveWidth] useEffect dep array (exhaustive-deps).
   const applyLiveWidth = useCallback((nextWidth: number) => {
     const clampedWidth = clampSidebarWidth(nextWidth)
     widthRef.current = clampedWidth

@@ -283,6 +283,7 @@ export default function CodeMirrorEditor({ file, updateFileContent }: CodeMirror
     updateFileContentRef.current = updateFileContent
   }, [updateFileContent])
 
+  // useCallback kept: stable identity for the [flush] useEffect dep array (exhaustive-deps).
   // Flush pending content to the store immediately (called on file switch).
   const flush = useCallback((fileId: string) => {
     if (timerRef.current) {

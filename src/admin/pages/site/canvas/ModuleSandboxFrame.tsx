@@ -251,7 +251,7 @@ function SandboxIframeBody({
     }),
   )
 
-  // Exception #1: transitive closure of scheduleUpdate, which feeds a useEffect dep array.
+  // useCallback kept: transitive dep of scheduleUpdate, which is in a useEffect dep array (exhaustive-deps).
   const flushUpdate = useCallback(() => {
     const payload = pendingUpdateRef.current
     if (!payload) return
@@ -265,7 +265,7 @@ function SandboxIframeBody({
     }, '*')
   }, [])
 
-  // Exception #1: referenced in the useEffect dep array below.
+  // useCallback kept: stable identity for the [scheduleUpdate] useEffect dep array (exhaustive-deps).
   const scheduleUpdate = useCallback(() => {
     pendingUpdateRef.current = { context: sandboxContext, classCSS }
     if (updateFrameRef.current !== null) return

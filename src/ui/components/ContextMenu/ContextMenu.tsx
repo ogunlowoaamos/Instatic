@@ -411,12 +411,10 @@ function useEvent<TArgs extends unknown[], TReturn>(
   useLayoutEffect(() => {
     ref.current = fn
   })
-  // Memoization exception #1 (effect dep array): the wrappers this returns
-  // (recomputeAutoPosition / recomputePointPosition) are consumed by
-  // useLayoutEffect/useEffect dep arrays, so they need the stable identity
-  // exhaustive-deps demands — which the compiler's runtime memoization can't
-  // satisfy for that static lint. The wrapper reads the latest function off
-  // the ref at call time, not during render.
+  // useCallback kept: stable identity for effect dep arrays — the callers
+  // (recomputeAutoPosition / recomputePointPosition) live in useLayoutEffect/useEffect
+  // dep arrays; without a stable reference, those effects loop every render.
+  // (exhaustive-deps can't detect this because the dep IS listed, not missing.)
   return useCallback((...args: TArgs) => ref.current(...args), [])
 }
 
@@ -541,10 +539,9 @@ export function ContextMenuSubmenu({
   // Mirrors the ContextMenu (anchored mode) and Tooltip auto-flip strategy
   // — `computeFloatingPosition` tries `right` first, then `left`, and
   // clamps to the viewport so the panel never overflows the screen edge.
-  // Memoization exception #1 (effect dep array): recomputePosition is listed
-  // in the useLayoutEffect/useEffect dep arrays below, so exhaustive-deps
-  // requires a stable identity that the compiler's runtime memoization can't
-  // provide for that static lint.
+  // useCallback kept: stable identity for the useLayoutEffect/useEffect dep arrays;
+  // without it the position effects loop every render (exhaustive-deps misses this
+  // because the dep IS listed, not missing — the test runner doesn't use the compiler).
   const recomputePosition = useCallback(() => {
     const triggerEl = triggerRef.current
     const menuEl = submenuRef.current
