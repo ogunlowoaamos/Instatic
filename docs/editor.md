@@ -178,6 +178,7 @@ src/admin/
 ├── lib/
 │   ├── routing/                ← in-house router
 │   ├── urlState/               ← workspace-agnostic URL query-string sync
+│   ├── useAsyncResource.ts     ← canonical single-resource async load hook
 │   └── useAdminNavigate.ts
 │
 ├── preauth/                    ← login / setup flows
@@ -207,6 +208,7 @@ src/admin/
 - **`AccountMenuButton`** — top-right avatar / account menu.
 - **`Panel`, `PanelHeader`, `SidebarResizeHandle`** — generic floating-panel chrome reused across the editor, content, and data workspaces.
 - **`StepUp`** — re-auth dialog gating sensitive actions.
+- **`useAsyncResource`** (`src/admin/lib/useAsyncResource.ts`) — canonical hook for single-resource async loads. Runs `loader` on mount and whenever `deps` change, tracks `{ data, loading, error }`, discards superseded responses, and exposes a stable `refresh()`. The loader receives an `AbortSignal` for in-flight cancellation. Reach for this first when a screen loads one resource; see the hook's JSDoc for the cases that intentionally don't use it (multi-fetch orchestrators, module-level cached loads, event-driven effects).
 
 ---
 

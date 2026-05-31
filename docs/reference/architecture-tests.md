@@ -6,7 +6,7 @@ Catalog of every test in `src/__tests__/architecture/`. These are structural gat
 
 ## TL;DR
 
-- 79 tests across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, etc.
+- 91 tests across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, etc.
 - Naming convention: `<topic>.test.ts` (kebab-case) or `<group>-<topic>.test.ts`. A few legacy `task<N>-*` / `phase<N>-*` / `guideline<N>-*` ids exist — when the codebase has stabilized, those should be renamed by topic.
 - Run them all: `bun test src/__tests__/architecture/`.
 - Most are **import / source scans** — they parse the files in scope and assert / reject patterns. Some are unit-style (a small in-test database, a synthesized page tree).
@@ -51,6 +51,7 @@ See [docs/reference/page-tree.md](page-tree.md), [docs/features/visual-component
 
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
+| `boundary-validation.test.ts`                 | Four HTTP / JSON-parse boundary rules: (1) no `res.json() as` in persistence or admin — use `apiRequest` or `readEnvelope`; (2) no `JSON.parse(...) as` in `src/core/persistence/`; (3) no raw `fetch(` in `src/admin/` outside the allowlist (streaming NDJSON, SVG bytes, and FormData multipart uploads are listed with `§3.x` justifications); (4) no `req.json(` in server handlers outside `server/http.ts`. |
 | `no-anthropic-sdk.test.ts`                    | No imports of `@anthropic-ai/sdk`. Use `@anthropic-ai/claude-agent-sdk`. Also: no `zod` imports outside `server/handlers/agent/tools.ts`. |
 | `storage-list-envelope.test.ts`               | Storage list endpoints return the typed envelope shape.                         |
 | `binding-compatibility-coverage.test.ts`      | All endpoint bindings have client-side schemas defined.                          |

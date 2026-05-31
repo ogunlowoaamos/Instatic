@@ -306,4 +306,5 @@ Common boundaries already wrapped — extend the same pattern when you add a new
   - `server/http.ts` — `readJsonObject`, `jsonResponse`, `badRequest`
   - `server/handlers/agent/tools.ts` — the one legitimate `zod` exemption
 - Gate tests:
-  - `src/__tests__/architecture/no-anthropic-sdk.test.ts`
+  - `src/__tests__/architecture/boundary-validation.test.ts` — enforces the four HTTP / JSON-parse boundary rules (no `res.json() as`, no `JSON.parse as`, no raw `fetch(` in admin, no raw `req.json(` in server handlers)
+  - `src/__tests__/architecture/no-anthropic-sdk.test.ts` — bans `@anthropic-ai/sdk` and `zod` outside the one exemption
