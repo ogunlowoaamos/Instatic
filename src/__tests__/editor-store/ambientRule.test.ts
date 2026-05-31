@@ -16,7 +16,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { useEditorStore } from '@site/store/store'
-import { classNamesForClassIds } from '@core/page-tree/classNames'
+import { classNamesForClassIds } from '@core/page-tree'
 import { collectClassCSS, generateClassCSS } from '@core/publisher'
 import type { StyleRule } from '@core/page-tree'
 import '@modules/base'
@@ -181,7 +181,7 @@ describe('publisher emits ambient rules', () => {
 
 describe('legacy backfill — old classes without kind/selector/order still render', () => {
   it('parseStyleRule backfills sensible defaults for legacy data', async () => {
-    const { parseStyleRule } = await import('@core/page-tree/styleRule')
+    const { parseStyleRule } = await import('@core/page-tree')
     const cls = parseStyleRule({
       id: 'x',
       name: 'legacy-name',

@@ -29,7 +29,7 @@ import { importHtml, type ImportFragment, type ImportResult } from '@core/htmlIm
 import { cssToStyleRules } from '@core/siteImport'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { registry } from '@core/module-engine'
-import { getNodeDisplayName } from '@core/page-tree/nodeDisplayName'
+import { getNodeDisplayName } from '@core/page-tree'
 import type { PageNode } from '@core/page-tree'
 import styles from './ImportHtmlModal.module.css'
 

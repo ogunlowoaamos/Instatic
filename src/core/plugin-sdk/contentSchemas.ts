@@ -130,7 +130,7 @@ export type ContentListResult = Static<typeof ContentListResultSchema>
 // Tree operations — the 11 named tree-mutation store actions
 // ---------------------------------------------------------------------------
 //
-// Mirrors the union in `@core/page-tree/mutations.ts`. The handler delegates
+// Mirrors the TreeOperation union exported by `@core/page-tree`. The handler delegates
 // each op through `applyTreeOperation` (same dispatcher the editor's store
 // reaches via `mutateActiveTree`). `node` and `wrapper` cells are unknown at
 // the schema layer — the underlying mutations validate per-node shape.

@@ -1,5 +1,5 @@
 import type { ClassPreviewAssignment } from '@site/store/slices/classSlice'
-import { classNamesForClassIds, type StyleRuleRegistry } from '@core/page-tree/classNames'
+import { classNamesForClassIds, type StyleRuleRegistry } from '@core/page-tree'
 import { isEmittableProperty, sanitiseCssValue } from '@core/publisher'
 
 export function getCanvasNodeClassIds(

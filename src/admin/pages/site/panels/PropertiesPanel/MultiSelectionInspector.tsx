@@ -38,7 +38,7 @@ import {
   getNodeDisplayName,
   getNodeHtmlTag,
   getNodeClassNames,
-} from '@core/page-tree/nodeDisplayName'
+} from '@core/page-tree'
 import { Button } from '@ui/components/Button'
 import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import {

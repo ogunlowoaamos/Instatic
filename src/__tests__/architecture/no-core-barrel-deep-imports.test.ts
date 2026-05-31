@@ -1,8 +1,9 @@
 /**
  * Architecture Source-Scan — Core Barrel Deep Imports
  *
- * Three heavily-used `src/core/` engine modules publish a public `index.ts`
+ * Four heavily-used `src/core/` engine modules publish a public `index.ts`
  * barrel as their canonical entrypoint:
+ *   - `@core/page-tree`
  *   - `@core/module-engine`
  *   - `@core/visualComponents`
  *   - `@core/publisher`
@@ -24,7 +25,7 @@ import { join, extname } from 'path'
 
 const ROOT = join(import.meta.dir, '../../..')
 
-const BARRELLED_MODULES = ['module-engine', 'visualComponents', 'publisher']
+const BARRELLED_MODULES = ['page-tree', 'module-engine', 'visualComponents', 'publisher']
 
 // Scan production + test sources in both the app and the server.
 const SCAN_ROOTS = [join(ROOT, 'src'), join(ROOT, 'server')]
@@ -54,7 +55,7 @@ const DEEP_IMPORT = new RegExp(
 )
 
 describe('Core barrel deep imports — external callers use the barrel, never a concrete file', () => {
-  it('no external file deep-imports @core/{module-engine,visualComponents,publisher}/<file>', () => {
+  it('no external file deep-imports a barrelled @core module concrete file', () => {
     const violations: string[] = []
 
     for (const root of SCAN_ROOTS) {

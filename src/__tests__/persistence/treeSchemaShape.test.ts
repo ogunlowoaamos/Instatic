@@ -19,8 +19,8 @@
 
 import { describe, it, expect } from 'bun:test'
 import { Value } from '@sinclair/typebox/value'
-import { NodeTreeSchema, type NodeTree } from '@core/page-tree/treeSchema'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import { NodeTreeSchema, type NodeTree } from '@core/page-tree'
+import type { BaseNode } from '@core/page-tree'
 
 function baseNode(id: string, moduleId: string, children: string[] = []): BaseNode {
   return {

@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SearchBar } from '@ui/components/SearchBar'
 import { useEditorPreference } from '@site/preferences/editorPreferences'
-import { isGeneratedClassLocked } from '@core/page-tree/classUtils'
+import { isGeneratedClassLocked } from '@core/page-tree'
 import type { StyleRule } from '@core/page-tree'
 import { ClassComposer } from './ClassComposer'
 import { StyleCategoryRail } from './StyleCategoryRail'

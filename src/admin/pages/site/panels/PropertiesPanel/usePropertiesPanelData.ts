@@ -16,7 +16,7 @@ import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorStore, selectSelectedNode } from '@site/store/store'
 import { registry } from '@core/module-engine'
-import { getAncestors, resolveProps } from '@core/page-tree/selectors'
+import { getAncestors, resolveProps } from '@core/page-tree'
 import { loopSourceRegistry } from '@core/loops/registry'
 import type {
   AnyModuleDefinition,

@@ -13,7 +13,7 @@
  */
 
 import type { Page, PageNode } from '@core/page-tree'
-import { selectVisualComponentById } from '@core/page-tree/siteSelectors'
+import { selectVisualComponentById } from '@core/page-tree'
 import { instantiateVCAtRef, type InstantiatedVCNode } from '@core/visualComponents'
 import { injectNodeClassIds, injectNodeInlineStyles } from './classInjection'
 import { escapeHtml } from './utils'

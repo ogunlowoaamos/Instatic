@@ -20,7 +20,7 @@ import { DndContext } from '@dnd-kit/core'
 import { useEditorStore } from '@site/store/store'
 import { CanvasRoot } from '@site/canvas/CanvasRoot'
 import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import '@modules/base'
 

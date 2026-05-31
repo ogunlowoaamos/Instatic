@@ -24,7 +24,7 @@
 
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 import type { VisualComponent, VCNode } from './schemas'
 import { VCNodeSchema } from './schemas'
 

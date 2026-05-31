@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import type { PageNode } from '@core/page-tree'
-import type { NodeTree } from '@core/page-tree/treeSchema'
+import type { NodeTree } from '@core/page-tree'
 import {
   createNode,
   insertNode,
@@ -23,7 +23,7 @@ import {
   renameNode,
   toggleNodeLocked,
   toggleNodeHidden,
-} from '@core/page-tree/mutations'
+} from '@core/page-tree'
 
 // ---------------------------------------------------------------------------
 // Fixture helpers

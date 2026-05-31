@@ -28,7 +28,7 @@ import {
   getNodeDisplayName,
   getNodeHtmlTag,
   getNodeClassNames,
-} from '@core/page-tree/nodeDisplayName'
+} from '@core/page-tree'
 import { useDraggable } from '@dnd-kit/core'
 import { useExpansionStore, useIsNodeExpanded } from './DomTreeContext'
 import { useDomPanelDndContext } from './DomPanelDndContext'

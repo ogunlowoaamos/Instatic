@@ -5,7 +5,7 @@ import {
   normalizePageSlug,
   pageSlugDuplicateError,
   pageSlugError,
-} from '@core/page-tree/slugs'
+} from '@core/page-tree'
 import { Button } from '@ui/components/Button'
 import { Dialog } from '@ui/components/Dialog'
 import { Input } from '@ui/components/Input'

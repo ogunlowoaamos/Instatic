@@ -14,7 +14,7 @@ import { describe, it, expect } from 'bun:test'
 import { useEditorStore } from '@site/store/store'
 import { executeAgentTool } from '@site/agent'
 import type { AiToolOutput } from '@core/ai'
-import { classNamesForClassIds } from '@core/page-tree/classNames'
+import { classNamesForClassIds } from '@core/page-tree'
 import '@modules/base'
 
 // ---------------------------------------------------------------------------

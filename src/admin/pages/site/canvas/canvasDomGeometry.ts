@@ -1,5 +1,5 @@
 import type { PageNode } from '@core/page-tree'
-import type { NodeTree } from '@core/page-tree/treeSchema'
+import type { NodeTree } from '@core/page-tree'
 import type {
   CanvasDropAxis,
   CanvasDropCandidate,

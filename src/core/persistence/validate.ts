@@ -28,17 +28,23 @@
  *     6. Richtext prop sanitization in page node trees
  */
 
-import { parseSiteDocument, parsePage, parseVisualComponent, type SiteShell } from '@core/page-tree'
+import { parseSiteDocument, parsePage, type SiteShell } from '@core/page-tree'
 import type { SiteDocument, Page } from '@core/page-tree'
 import type { VisualComponent } from '@core/visualComponents'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
-import { validateComponentName, getReferencedComponentIds, syncSlotInstances, applySlotSyncResult } from '@core/visualComponents'
+import {
+  parseVisualComponent,
+  validateComponentName,
+  getReferencedComponentIds,
+  syncSlotInstances,
+  applySlotSyncResult,
+} from '@core/visualComponents'
 import { sanitizeRichtext, isRichtextPropKey } from '@core/sanitize'
 import { normalizeSitePackageJson } from '@core/site-dependencies/manifest'
 import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
-import { pageSlugDuplicateError, pageSlugError } from '@core/page-tree/slugs'
+import { pageSlugDuplicateError, pageSlugError } from '@core/page-tree'
 import { generateDefaultDarkColor, normalizeFrameworkColorSlug } from '@core/framework/colors'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 
 // ---------------------------------------------------------------------------
 // Error type

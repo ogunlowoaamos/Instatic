@@ -12,8 +12,8 @@ import {
   renameNode,
   toggleNodeLocked,
   toggleNodeHidden,
-} from '@core/page-tree/mutations'
-import { getParent, flattenSubtree } from '@core/page-tree/selectors'
+} from '@core/page-tree'
+import { getParent, flattenSubtree } from '@core/page-tree'
 
 // ---------------------------------------------------------------------------
 // Helpers

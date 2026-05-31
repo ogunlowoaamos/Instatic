@@ -51,7 +51,7 @@ import {
   generatedClassKindLabel,
   isGeneratedClassLocked,
   isUserVisibleClass,
-} from '@core/page-tree/classUtils'
+} from '@core/page-tree'
 import { pillAccent } from '@ui/pillAccent'
 import { recordClassUsage } from '@site/preferences/classUsage'
 import { useClassPickerSuggestions } from './useClassPickerSuggestions'

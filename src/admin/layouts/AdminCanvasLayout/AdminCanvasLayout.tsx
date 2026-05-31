@@ -62,7 +62,7 @@ import { selectActiveCanvasPage, selectActivePage, selectRightSidebarExpanded, u
 import { resolveInsertLocation } from '@admin/pages/site/store/insertLocation'
 import { cmsAdapter } from '@core/persistence'
 import { useAdminUi } from '@admin/state/adminUi'
-import { pagePublicPath } from '@core/page-tree/slugs'
+import { pagePublicPath } from '@core/page-tree'
 import { cn } from '@ui/cn'
 import { useInstalledEditorPlugins } from '@admin/pages/plugins/hooks/useInstalledEditorPlugins'
 import { usePluginEventBridge } from '@admin/pages/plugins/hooks/usePluginEventBridge'

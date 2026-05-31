@@ -19,7 +19,7 @@ import { nanoid } from 'nanoid'
 import type { EditorStoreSliceCreator } from '@site/store/types'
 import type { VisualComponent, VCParam, VCNode } from '@core/visualComponents'
 import type { PageNode, StyleRule } from '@core/page-tree'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 import {
   validateComponentName,
   validateParamName,

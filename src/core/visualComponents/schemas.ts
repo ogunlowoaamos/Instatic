@@ -9,8 +9,7 @@
  */
 
 import { Type, type Static, withFallback } from '@core/utils/typeboxHelpers'
-import { BaseNodeSchema, type BaseNode, parsePropBindings } from '@core/page-tree/baseNode'
-import { NodeTreeSchema } from '@core/page-tree/treeSchema'
+import { BaseNodeSchema, NodeTreeSchema, type BaseNode, parsePropBindings } from '@core/page-tree'
 
 // ---------------------------------------------------------------------------
 // VCParamType — valid param type values

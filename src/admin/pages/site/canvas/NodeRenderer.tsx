@@ -14,7 +14,7 @@
 
 import { memo, use, useSyncExternalStore } from 'react'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
-import { resolveProps } from '@core/page-tree/selectors'
+import { resolveProps } from '@core/page-tree'
 import { registry } from '@core/module-engine'
 import type { NodeWrapperProps as NodeWrapperPropsType } from '@core/module-engine'
 import { resolveDynamicProps, type TemplateRenderDataContext } from '@core/templates/dynamicBindings'

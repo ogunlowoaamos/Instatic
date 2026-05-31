@@ -37,14 +37,14 @@ import {
 } from '@dnd-kit/core'
 import { createPortal } from 'react-dom'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
-import { flattenSubtree } from '@core/page-tree/selectors'
+import { flattenSubtree } from '@core/page-tree'
 import { getAncestorIds } from '@site/hooks/useTreeWalkOrder'
 import { registry } from '@core/module-engine'
 import {
   getNodeDisplayName,
   getNodeHtmlTag,
   getNodeClassNames,
-} from '@core/page-tree/nodeDisplayName'
+} from '@core/page-tree'
 import { TreeNode } from './TreeNode'
 import { TreeBackgroundContextMenu } from './TreeBackgroundContextMenu'
 import { useExpansionStore } from './DomTreeContext'

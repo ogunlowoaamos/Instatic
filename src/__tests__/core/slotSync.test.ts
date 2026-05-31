@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { syncSlotInstances, applySlotSyncResult } from '@core/visualComponents'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 import type { VisualComponent } from '@core/visualComponents'
 
 // ---------------------------------------------------------------------------

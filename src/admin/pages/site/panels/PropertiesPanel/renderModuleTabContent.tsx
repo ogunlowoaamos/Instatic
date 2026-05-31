@@ -21,7 +21,7 @@
  * from being editable without touching the panel shell.
  */
 import { PropertyControlRenderer } from '@site/property-controls/PropertyControlRenderer'
-import { evaluateCondition } from '@core/page-tree/selectors'
+import { evaluateCondition } from '@core/page-tree'
 import type {
   AnyModuleDefinition,
   PropertyControl,

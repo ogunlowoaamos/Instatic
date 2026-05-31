@@ -14,8 +14,8 @@ import {
   deletePage,
   renamePage,
   reorderPages,
-} from '@core/page-tree/mutations'
-import { createUniquePageSlug } from '@core/page-tree/slugs'
+} from '@core/page-tree'
+import { createUniquePageSlug } from '@core/page-tree'
 import { makeSite, makePage } from '../fixtures'
 
 // ---------------------------------------------------------------------------

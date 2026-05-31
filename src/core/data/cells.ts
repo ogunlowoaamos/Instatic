@@ -7,8 +7,8 @@
  * a sensible default when the cell is missing or malformed.
  */
 
-import { NodeTreeSchema, type NodeTree } from '@core/page-tree/treeSchema'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import { NodeTreeSchema, type NodeTree } from '@core/page-tree'
+import type { BaseNode } from '@core/page-tree'
 import { DataFieldSchema, type DataField, type DataRowCells } from './schemas'
 import { safeParseValue } from '@core/utils/typeboxHelpers'
 
