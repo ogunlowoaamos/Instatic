@@ -74,14 +74,12 @@ const SELECT_ACTIVE_PAGE_ALLOWLIST = new Set<string>([
   //   Renders a list of all site pages for add/rename/delete — never reads node data.
   'admin/modals/Settings/sections/PagesSection.tsx',
 
-  // §A.2 — module insertion hook: insertNode calls mutatePage which is page-only.
-  //   VC node insertion requires a separate addNodeToVc code path. useInsertModule
-  //   is intentionally page-mode-only; callers handle VC mode explicitly.
+  // §A.2 — module insertion hook: uses selectActiveCanvasPage so insertions
+  //   resolve against either page mode or Visual Component canvas mode.
   'admin/pages/site/hooks/useInsertModule.ts',
 
-  // §A.3 — module picker toolbar dropdown: uses `page` only in the explicit
-  //   page-mode branch of handleInsertVc. VC insertion is handled by a separate
-  //   activeDocument?.kind === 'visualComponent' branch directly above.
+  // §A.3 — module inserter toolbar trigger: uses selectActiveCanvasPage for
+  //   Component-ref insertion target resolution.
   'admin/pages/site/toolbar/ModulePickerDropdown.tsx',
 
   // §A.4 — page preview overlay: publishes the active page via publishPage() to

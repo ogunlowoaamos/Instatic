@@ -82,9 +82,8 @@ describe('CanvasNotch', () => {
     expect(picker).toContain('iconOnly')
     expect(picker).toContain('<AppGridPlusGlyphIcon size={13} />')
     // The literal "Add" text inside the trigger button is gone. The aria-label
-    // and tooltip describe the action for screen readers — "Add module" is
-    // accurate now that page/component creation lives elsewhere (Site Explorer).
-    expect(picker).toMatch(/aria-label="Add(?: module)?"/)
+    // and tooltip describe the dialog action for screen readers.
+    expect(picker).toContain('aria-label="Add to canvas"')
     expect(picker).not.toMatch(/<AppGridPlusGlyphIcon[^>]*\/>\s*Add\s*<\/Button>/)
   })
 })

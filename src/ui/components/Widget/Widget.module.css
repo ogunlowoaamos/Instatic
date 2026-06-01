@@ -18,7 +18,7 @@
     /* Borderless tile look — the 1px grid gap on the darker parent
        surface visually separates cards (see DashboardGrid.module.css). */
     border: 0;
-    border-radius: 16px;
+    border-radius: var(--card-radius);
     padding: 18px 18px 16px;
     display: flex;
     flex-direction: column;

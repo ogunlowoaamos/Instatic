@@ -1,7 +1,8 @@
 /**
  * ModulePicker — searchable list of base modules and Visual Components,
- * designed to live INSIDE a `ContextMenu` (top-level toolbar dropdown) or a
- * `ContextMenuSubmenu` (right-click DOM-panel second level).
+ * designed to live inside a `ContextMenuSubmenu` (right-click DOM-panel
+ * second level). The toolbar uses `ModuleInserterDialog`; this compact picker
+ * stays for anchored context-menu flows.
  *
  * The picker reuses the dropdown primitives directly:
  *   - rows are `ContextMenuItem` (same hover, padding, typography as any

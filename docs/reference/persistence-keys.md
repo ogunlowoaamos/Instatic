@@ -27,6 +27,7 @@ Catalog of every `localStorage` / `sessionStorage` key the admin app writes, and
 | `pb-data-grid-primary-widths-v1`          | Per-table primary-column widths in the Data workspace grid            | `src/admin/pages/data/components/DataGrid/usePrimaryColumnWidth.ts` |
 | `pb-media-page-view-mode`                 | Media workspace view mode (grid / list / large thumbs)                | `src/admin/pages/media/components/MediaCanvas/MediaCanvas.tsx`   |
 | `pb-media-explorer-view-mode`             | Media Explorer panel view mode (site workspace)                       | `src/admin/pages/site/panels/MediaExplorerPanel/MediaExplorerPanel.tsx` |
+| `pb-module-inserter-v1`                   | Module inserter view mode, recent inserts, and installed community ids | `src/admin/pages/site/module-picker/moduleInserterPrefs.ts`      |
 | `pb-onboarding-dismissed`                 | Dashboard onboarding panel: dismissed / open per-device              | `src/admin/pages/dashboard/hooks/useOnboardingState.ts`         |
 | `spotlight:recent-commands`               | Spotlight recents — last N executed command ids                       | `src/admin/spotlight/recentStore.ts`                            |
 | `spotlight:telemetry:v1`                  | Local Spotlight telemetry (command frequency)                         | `src/admin/spotlight/telemetry.ts`                              |

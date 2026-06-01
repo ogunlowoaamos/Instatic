@@ -122,6 +122,7 @@
     /* ─── Border Radius ──────────────────────────────────────────────────── */
     --editor-radius-sm: 3px;
     --editor-radius: 6px;
+    --card-radius: 16px;
 
     /* ─── Panels ─────────────────────────────────────────────────────────── */
     --editor-panel-border: #1f1f1f;
@@ -190,8 +191,7 @@
     --canvas-placeholder-bg:
         repeating-linear-gradient(
             -45deg,
-            color-mix(in srgb, var(--editor-text-muted) 6%, transparent) 0
-                6px,
+            color-mix(in srgb, var(--editor-text-muted) 6%, transparent) 0 6px,
             transparent 6px 12px
         ),
         color-mix(in srgb, var(--editor-text-muted) 4%, transparent);

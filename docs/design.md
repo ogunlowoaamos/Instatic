@@ -9,7 +9,7 @@ The design is a **two-layer color model**: an achromatic base (surfaces, borders
 ## TL;DR
 
 - **Base is achromatic; color is the layer on top.** Surfaces, borders, and default text are neutral. Color is used to convey **identity** (rail tints — mint, lilac, sky, peach) and **state** (danger, warning, success, info, canvas selection / hover). Color is never decorative — every colored pixel carries meaning.
-- **Borderless tile cards.** Dashboard widgets and equivalent surfaces sit on a darker parent (`--editor-surface`) with a 1px grid gap, no border, 16px radius. The gap reveals the parent and reads as a divider. Hover lifts the surface tone, never the border. Canonical implementation: `src/ui/components/Widget/Widget.module.css`.
+- **Borderless tile cards.** Dashboard widgets and equivalent surfaces sit on a darker parent (`--editor-surface`) with a 1px grid gap, no border, `--card-radius` (16px). The gap reveals the parent and reads as a divider. Hover lifts the surface tone, never the border. Canonical implementation: `src/ui/components/Widget/Widget.module.css`.
 - **Bordered transparent inputs.** Inputs have a 1px white-alpha border, transparent background, and a pill 1em radius. Focus adds an inset achromatic glow.
 - **Floating overlay panels.** Spotlight, popovers, modals use `--panel-*` tokens: panel background, 12px radius, blur backdrop, 3-layer composite shadow.
 - **Editor controls** (toolbar buttons, chips) use `--editor-radius` (6px) for default and `--editor-radius-sm` (3px) for tight badges.
@@ -193,11 +193,11 @@ These five are the entire text palette. Add a new tone only by adding a new toke
 | `--editor-radius-sm` | 3px   | Tight chips, micro-badges, segmented control inner indicator |
 | `--editor-radius`    | 6px   | Default editor controls, toolbar buttons, ghost menu items   |
 | `--panel-radius`     | 12px  | Floating overlay panels (Spotlight, modals, popovers)        |
-| (literal) 16px       | 16px  | Borderless tile cards (Widget, dashboard cells)              |
+| `--card-radius`      | 16px  | Borderless tile cards (Widget, dashboard cells, module inserter tiles) |
 | `--input-radius`     | 1em   | Pill-shaped inputs, classes / property chips                 |
 | `--tooltip-radius`   | 6px   | Tooltips                                                     |
 
-Do not introduce ad-hoc radius values. The "16px tile" value isn't yet a named token — it appears in `Widget.module.css` and `DashboardGrid.module.css` as a literal. If a third surface adopts the tile pattern, promote it to `--card-radius`.
+Do not introduce ad-hoc radius values. Tile-card surfaces use `--card-radius`.
 
 ### Scrollbar chrome
 
@@ -533,7 +533,7 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
 ## Adding a new tile-card surface
 
 1. Use `--editor-surface` on the parent container with `display: grid` and `gap: 1px`.
-2. The tile body is `background: var(--editor-surface-2)`, `border: 0`, `border-radius: 16px`.
+2. The tile body is `background: var(--editor-surface-2)`, `border: 0`, `border-radius: var(--card-radius)`.
 3. Hover lifts to `--editor-surface-3` — never recolor the border.
 4. Add a title row with a rail-tint dot (7px, `--editor-radius-sm` (3px), `background: var(--tint)`).
 5. Pick a rail tint per the table in §6 (Identity is a color).

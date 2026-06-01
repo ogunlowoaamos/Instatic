@@ -15,7 +15,7 @@
  *    canvas; the explorer registers the drag source with the `visualComponentRef`
  *    payload kind, and AdminCanvasLayout's `onDragEnd` calls `insertComponentRef`.
  * 3. LayerNodeContextMenu.tsx — 'Insert module here' submenu click (which
- *    opens the shared ModulePickerMenu; picking a Visual Component flows
+ *    embeds the compact ModulePicker; picking a Visual Component flows
  *    through this file via the onSelectVC callback).
  *
  * ENFORCED CONSTRAINTS:

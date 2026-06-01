@@ -480,9 +480,9 @@ describe('Toolbar — structural requirements', () => {
     expect(src).not.toContain('NewComponentButton')
   })
 
-  it('Add dropdown is module-only — no in-toolbar page/component create actions', () => {
+  it('Add inserter is module-only — no in-toolbar page/component create actions', () => {
     // Page / Component creation lives in the Site Explorer panel (the dedicated
-    // place for site structure). The toolbar "+ Add" dropdown is module-only.
+    // place for site structure). The toolbar "+ Add" inserter is module-only.
     const { readFileSync } = require('fs')
     const src = readFileSync(
       new URL('../../admin/pages/site/toolbar/ModulePickerDropdown.tsx', import.meta.url),
@@ -521,11 +521,11 @@ describe('Toolbar — structural requirements', () => {
 
   it('ModulePicker uses ContextMenu primitives (role="menu" + role="menuitem")', () => {
     const { readFileSync } = require('fs')
-    // The picker content lives in ModulePicker.tsx, shared by the toolbar
-    // "+ Add" dropdown and the DOM-panel right-click submenu. The picker
-    // doesn't author its own role="menu" — it relies on the wrapping
-    // ContextMenu (or ContextMenuSubmenu) for that — and uses ContextMenuItem
-    // for every row, which renders a `role="menuitem"` button.
+    // The compact picker content lives in ModulePicker.tsx for DOM-panel
+    // right-click submenus. The toolbar "+ Add" opens ModuleInserterDialog.
+    // ModulePicker doesn't author its own role="menu" — it relies on the
+    // wrapping ContextMenuSubmenu for that — and uses ContextMenuItem for
+    // every row, which renders a `role="menuitem"` button.
     const src = readFileSync(
       new URL('../../admin/pages/site/module-picker/ModulePicker.tsx', import.meta.url), 'utf-8',
     )
@@ -678,7 +678,7 @@ describe('Toolbar — structural requirements', () => {
 
 describe('ModulePicker — ArrowDown keyboard bridge (WCAG SC 2.1.1)', () => {
   // The bridge logic lives in the shared ModulePicker.tsx (used by both the
-  // toolbar "+ Add" dropdown and the DOM-panel right-click submenu).
+  // DOM-panel right-click submenu.
   const { readFileSync } = require('fs')
   const src = readFileSync(
     new URL('../../admin/pages/site/module-picker/ModulePicker.tsx', import.meta.url),

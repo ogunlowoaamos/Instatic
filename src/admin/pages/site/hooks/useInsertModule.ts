@@ -1,5 +1,5 @@
 import { selectActiveCanvasPage, useEditorStore } from '@site/store/store'
-import { resolveInsertLocation } from '@site/store/insertLocation'
+import { resolveInsertLocation, type InsertLocation } from '@site/store/insertLocation'
 import { getMissingModuleDependencies } from '@core/module-engine'
 import type { AnyModuleDefinition } from '@core/module-engine'
 
@@ -28,17 +28,18 @@ export function useInsertModule() {
   const packageJson = useEditorStore((s) => s.packageJson)
   const setDependency = useEditorStore((s) => s.setDependency)
 
-  return (mod: AnyModuleDefinition, explicitParentId?: string) => {
+  return (mod: AnyModuleDefinition, explicitTarget?: string | InsertLocation) => {
     if (!canvasPage) return null
 
-    // Resolve target → parent + index. Explicit parent wins over selection,
-    // selection wins over "drop at root".
-    const targetId =
-      (explicitParentId && canvasPage.nodes[explicitParentId] ? explicitParentId : null) ??
-      selectedNodeId ??
-      canvasPage.rootNodeId
-
-    const location = resolveInsertLocation(canvasPage, targetId)
+    const location =
+      typeof explicitTarget === 'object'
+        ? explicitTarget
+        : resolveInsertLocation(
+            canvasPage,
+            (explicitTarget && canvasPage.nodes[explicitTarget] ? explicitTarget : null) ??
+              selectedNodeId ??
+              canvasPage.rootNodeId,
+          )
     if (!location) return null
 
     for (const dependency of getMissingModuleDependencies(mod, packageJson)) {

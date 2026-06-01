@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Page, PageNode } from '@core/page-tree'
 import {
   getCanvasDropZone,
+  resolveCanvasInsertionTarget,
   resolveCanvasDropTarget,
   type CanvasDropCandidate,
 } from '@admin/pages/site/canvas/canvasDnd'
@@ -112,5 +113,38 @@ describe('canvasDnd', () => {
       rect: overLeaf.rect,
       axis: 'vertical',
     })
+  })
+
+  it('resolves new module insertion into containers and after leaf nodes', () => {
+    const tree = page({
+      root: node('root', 'base.body', ['container', 'leaf']),
+      container: node('container', 'base.container', ['child']),
+      child: node('child', 'base.text'),
+      leaf: node('leaf', 'base.text'),
+    })
+
+    const intoContainer = resolveCanvasInsertionTarget({
+      tree,
+      candidates: [
+        candidate('container', 1, { left: 0, top: 0, width: 200, height: 120 }),
+      ],
+      point: { x: 100, y: 60 },
+      canHaveChildren,
+    })
+    expect(intoContainer?.parentId).toBe('container')
+    expect(intoContainer?.index).toBe(1)
+    expect(intoContainer?.position).toBe('inside')
+
+    const afterLeaf = resolveCanvasInsertionTarget({
+      tree,
+      candidates: [
+        candidate('leaf', 1, { left: 0, top: 140, width: 200, height: 80 }),
+      ],
+      point: { x: 100, y: 180 },
+      canHaveChildren,
+    })
+    expect(afterLeaf?.parentId).toBe('root')
+    expect(afterLeaf?.index).toBe(2)
+    expect(afterLeaf?.position).toBe('after')
   })
 })

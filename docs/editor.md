@@ -242,7 +242,7 @@ The editor is a self-contained app inside the admin shell. It owns:
 - A canvas that renders the page tree into per-breakpoint iframes.
 - A heavy Zustand store with 11 slices.
 - Left and right sidebars with collapsible panels.
-- A toolbar with publish / save / zoom / module picker.
+- A toolbar with publish / save / zoom / the module inserter.
 - Property controls bound to selected nodes.
 
 ### Folder structure
@@ -263,7 +263,7 @@ src/admin/pages/site/
 ├── sidebars/                   ← LeftSidebar, RightSidebar, PanelRail
 ├── panels/                     ← per-panel implementations (DomPanel, PropertiesPanel, ...)
 ├── property-controls/          ← right-panel form controls
-├── module-picker/              ← module insert UI
+├── module-picker/              ← module inserter modal + compact context-menu picker
 ├── code-editor/                ← CodeMirror-backed code panel
 ├── toolbar/                    ← top toolbar
 ├── preview/                    ← preview iframe runtime
@@ -488,8 +488,25 @@ At the top of the Properties Panel, the selector picker is the single entry poin
 - `SaveIndicator` — save state (clean / dirty / saving / error)
 - `SettingsButton` — open settings modal
 - `ZoomControls` — canvas zoom
-- `ModulePickerDropdown` — insert a module
+- `ModulePickerDropdown` — opens the module inserter modal
 - `VCBreadcrumb` — current Visual Component breadcrumb (only in VC-mode)
+
+### Module Inserter
+
+`src/admin/pages/site/module-picker/` has two insertion surfaces:
+
+- Toolbar `+` opens `ModuleInserterDialog`, a centered command surface with category rail, search, grid/list view, wireframe previews, recents, and drag-to-canvas insertion.
+- DOM-panel context menus keep the compact `ModulePicker` inside `ContextMenuSubmenu`; those flows need a small anchored submenu rather than the full modal.
+
+Data sources:
+
+- **Modules:** `registry.list()` filtered by the same editor insertion rules as the compact picker (`base.body`, `base.visual-component-ref`, and `base.slot-instance` hidden; `base.slot-outlet` only in Visual Component mode).
+- **Layouts:** seeded `LAYOUT_PRESETS`, built from the same serialized subtree shape as `FORM_PRESETS`.
+- **Components:** `site.visualComponents`.
+- **Community:** reserved for a future plugin catalog backend; no mocked catalog is shown in the real editor.
+- **Recent:** per-browser local state in `pb-module-inserter-v1`, validated with TypeBox before use.
+
+The modal uses the tile-card pattern from `docs/design.md`: `--editor-surface` parent, 1px grid gap, `--editor-surface-2` tiles, `--card-radius`, rail-tint accents via `data-accent`, and an achromatic `--editor-focus-ring` selection state. Wireframe image regions reuse `--canvas-placeholder-bg`.
 
 ---
 

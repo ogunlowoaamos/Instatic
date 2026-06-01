@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEditorStore } from '@site/store/store'
 import { CanvasNotch } from '@site/canvas/CanvasNotch'
@@ -49,12 +49,13 @@ describe('CanvasNotch insertion events', () => {
     expect(state.propertiesPanel.collapsed).toBe(false)
   })
 
-  it('keeps Add-menu inserted modules selected when the canvas listens for background clicks', async () => {
+  it('keeps dialog-inserted modules selected when the canvas listens for background clicks', async () => {
     const user = userEvent.setup()
     renderInsideCanvasClickBoundary()
 
     await user.click(screen.getByTestId('canvas-notch-add-btn'))
-    await user.click(screen.getByRole('menuitem', { name: 'Text' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add to canvas' })
+    await user.click(within(dialog).getByRole('button', { name: /^Text\b/ }))
 
     const state = useEditorStore.getState()
     expect(state.selectedNodeId).toBeTruthy()

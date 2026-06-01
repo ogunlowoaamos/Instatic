@@ -1,0 +1,167 @@
+import { beforeEach, describe, expect, it } from 'bun:test'
+import {
+  getInsertableModuleItems,
+  moduleAccentForCategory,
+  type RegistryModuleForInserter,
+} from '@site/module-picker/moduleInserterModel'
+import { findCanvasViewportAtPoint } from '@site/module-picker/moduleInserterDropTarget'
+import { scrollSelectedItemIntoView } from '@site/module-picker/moduleInserterSelectionScroll'
+import {
+  MODULE_INSERTER_STORAGE_KEY,
+  readModuleInserterPrefs,
+  trackModuleInserterRecent,
+  writeModuleInserterView,
+} from '@site/module-picker/moduleInserterPrefs'
+
+function mod(id: string, category: string, name = id): RegistryModuleForInserter {
+  return { id, category, name, description: `${name} description` }
+}
+
+beforeEach(() => {
+  localStorage.clear()
+  document.body.replaceChildren()
+})
+
+describe('module inserter model', () => {
+  it('filters registry modules using the editor insertion rules', () => {
+    const modules = [
+      mod('base.body', 'Layout'),
+      mod('base.container', 'Layout', 'Container'),
+      mod('base.visual-component-ref', 'Components'),
+      mod('base.slot-instance', 'Components'),
+      mod('base.slot-outlet', 'Components', 'Slot'),
+      mod('base.text', 'Typography', 'Text'),
+    ]
+
+    const pageModeIds = getInsertableModuleItems(modules, false).map((item) => item.id)
+    expect(pageModeIds).toEqual(['base.container', 'base.text'])
+
+    const vcModeIds = getInsertableModuleItems(modules, true).map((item) => item.id)
+    expect(vcModeIds).toEqual(['base.container', 'base.slot-outlet', 'base.text'])
+  })
+
+  it('maps module categories to the rail-tint accent set', () => {
+    expect(moduleAccentForCategory('Layout')).toBe('lilac')
+    expect(moduleAccentForCategory('Forms')).toBe('mint')
+    expect(moduleAccentForCategory('Media')).toBe('sky')
+    expect(moduleAccentForCategory('Typography')).toBe('peach')
+    expect(moduleAccentForCategory('Interactive')).toBe('rose')
+    expect(moduleAccentForCategory('Custom')).toBe('lilac')
+  })
+})
+
+describe('module inserter preferences', () => {
+  it('falls back to grid view and empty recents for corrupted localStorage', () => {
+    localStorage.setItem(MODULE_INSERTER_STORAGE_KEY, '{not valid json')
+
+    expect(readModuleInserterPrefs()).toEqual({
+      view: 'grid',
+      recent: [],
+      installedCommunity: [],
+    })
+  })
+
+  it('persists view mode and de-duplicates recent insertion refs', () => {
+    writeModuleInserterView('list')
+
+    trackModuleInserterRecent({ kind: 'module', id: 'base.text' })
+    trackModuleInserterRecent({ kind: 'layout', id: 'layout.contact' })
+    trackModuleInserterRecent({ kind: 'module', id: 'base.text' })
+
+    expect(readModuleInserterPrefs()).toEqual({
+      view: 'list',
+      recent: [
+        { kind: 'module', id: 'base.text' },
+        { kind: 'layout', id: 'layout.contact' },
+      ],
+      installedCommunity: [],
+    })
+  })
+})
+
+describe('module inserter canvas drop targeting', () => {
+  it('finds the breakpoint viewport under the pointer instead of assuming the active frame', () => {
+    const desktop = document.createElement('div')
+    desktop.dataset.breakpointId = 'desktop'
+    const mobile = document.createElement('div')
+    mobile.dataset.breakpointId = 'mobile'
+
+    desktop.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 300,
+      width: 200,
+      height: 300,
+      toJSON: () => ({}),
+    })
+    mobile.getBoundingClientRect = () => ({
+      x: 240,
+      y: 0,
+      left: 240,
+      top: 0,
+      right: 360,
+      bottom: 300,
+      width: 120,
+      height: 300,
+      toJSON: () => ({}),
+    })
+
+    document.body.append(desktop, mobile)
+
+    expect(findCanvasViewportAtPoint(260, 100)).toBe(mobile)
+    expect(findCanvasViewportAtPoint(120, 100)).toBe(desktop)
+    expect(findCanvasViewportAtPoint(220, 100)).toBeNull()
+  })
+})
+
+describe('module inserter selection scrolling', () => {
+  it('only scrolls offscreen selection for keyboard navigation, not pointer hover', () => {
+    const container = document.createElement('div')
+    const selected = document.createElement('button')
+    let scrollOptions: ScrollToOptions | null = null
+    container.append(selected)
+    container.scrollTop = 20
+    container.scrollBy = ((options?: ScrollToOptions | number, y?: number) => {
+      if (typeof options === 'number') {
+        container.scrollTop += y ?? 0
+        return
+      }
+      scrollOptions = options ?? {}
+      container.scrollTop += options?.top ?? 0
+    }) as typeof container.scrollBy
+
+    container.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 300,
+      bottom: 100,
+      width: 300,
+      height: 100,
+      toJSON: () => ({}),
+    })
+    selected.getBoundingClientRect = () => ({
+      x: 0,
+      y: 120,
+      left: 0,
+      top: 120,
+      right: 300,
+      bottom: 170,
+      width: 300,
+      height: 50,
+      toJSON: () => ({}),
+    })
+
+    expect(scrollSelectedItemIntoView(container, selected, 'pointer')).toBe(false)
+    expect(container.scrollTop).toBe(20)
+
+    expect(scrollSelectedItemIntoView(container, selected, 'keyboard')).toBe(true)
+    expect(scrollOptions?.behavior).toBe('smooth')
+    expect(scrollOptions?.top).toBe(84)
+    expect(container.scrollTop).toBe(104)
+  })
+})
