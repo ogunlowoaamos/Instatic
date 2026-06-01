@@ -12,8 +12,7 @@
  * testable without rendering React. See `useClassPickerSuggestions.test.ts`.
  */
 
-import type { StyleRule } from '@core/page-tree'
-import { styleRuleSelector } from '@core/page-tree/classNames'
+import { styleRuleSelector, type StyleRule } from '@core/page-tree'
 import {
   CLASS_USAGE_RECENT_LIMIT,
   readClassUsage,

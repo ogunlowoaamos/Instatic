@@ -1,5 +1,4 @@
-import type { PageNode, StyleRule } from '@core/page-tree'
-import { styleRuleSelector } from '@core/page-tree/classNames'
+import { styleRuleSelector, type PageNode, type StyleRule } from '@core/page-tree'
 
 export type SelectorMatch =
   | { kind: 'direct' }

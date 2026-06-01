@@ -317,6 +317,8 @@ Rule **id** is stable; **name** is editable. The editor mutates `rule.name`. Nod
   - `src/core/page-tree/scopedClassClone.ts` — `cloneScopedClassesForNodeMap`
   - `src/core/publisher/classCss.ts` — `bagToCSS`
   - `src/core/publisher/cssCollector.ts` — `collectClassCSS`
+  - `src/admin/pages/site/panels/PropertiesPanel/selectorPickerModel.ts` — `deriveSelectorPickerModel`, `classifySelectorCreateInput`; the pure derivation layer for the unified selector picker
+  - `src/admin/pages/site/panels/PropertiesPanel/ClassPicker.tsx` — picker UI: pill strip, input, creation, context menus
 - Gate tests:
   - `src/__tests__/architecture/framework-typography-spacing.test.ts`
   - `src/__tests__/architecture/task427-preview-class-css.test.ts`

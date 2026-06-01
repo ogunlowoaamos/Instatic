@@ -6,10 +6,12 @@ import { Input } from '@ui/components/Input'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { CornerDownLeftIcon } from 'pixel-art-icons/icons/corner-down-left'
 import { cn } from '@ui/cn'
-import { generatedClassKindLabel } from '@core/page-tree/classUtils'
-import { styleRuleSelector } from '@core/page-tree/classNames'
 import { pillAccent } from '@ui/pillAccent'
-import type { StyleRule } from '@core/page-tree'
+import {
+  generatedClassKindLabel,
+  styleRuleSelector,
+  type StyleRule,
+} from '@core/page-tree'
 import type { SelectorPillItem, SelectorSuggestionItem } from './selectorPickerModel'
 import styles from './ClassPicker.module.css'
 

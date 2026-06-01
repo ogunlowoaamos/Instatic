@@ -533,6 +533,8 @@ See [docs/features/plugin-system.md](features/plugin-system.md) for the plugin S
   - `src/admin/pages/site/store/slices/site/nodeActions.ts` — `mutateActiveTree`
   - `src/admin/pages/site/canvas/CanvasRoot.tsx` — canvas mount
   - `src/admin/spotlight/SpotlightRoot.tsx` — Cmd+K palette
+  - `src/admin/pages/site/panels/PropertiesPanel/ClassPicker.tsx` — unified selector picker UI
+  - `src/admin/pages/site/panels/PropertiesPanel/selectorPickerModel.ts` — selector picker derivation model (`deriveSelectorPickerModel`, `classifySelectorCreateInput`)
 - Gate tests:
   - `src/__tests__/architecture/no-router-in-site-page.test.ts`
   - `src/__tests__/architecture/no-vc-mode-branches-in-mutations.test.ts`
