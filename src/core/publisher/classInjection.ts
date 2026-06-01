@@ -17,7 +17,7 @@
  */
 
 import type { SiteDocument } from '@core/page-tree'
-import { classNamesForClassIds } from '@core/page-tree/classNames'
+import { classNamesForClassIds } from '@core/page-tree'
 import { bagToInlineStyle } from './classCss'
 import { escapeHtml } from './utils'
 

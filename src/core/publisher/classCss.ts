@@ -1,5 +1,5 @@
 import type { StyleRule, Condition, ConditionDef } from '@core/page-tree'
-import { styleRuleSelector } from '@core/page-tree/classNames'
+import { styleRuleSelector } from '@core/page-tree'
 import { sanitiseCssValue } from './utils'
 
 /**

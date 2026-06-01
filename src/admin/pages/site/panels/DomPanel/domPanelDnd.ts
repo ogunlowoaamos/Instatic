@@ -3,7 +3,7 @@ import {
   resolvePageTreeDropTarget,
   type PageTreeDropPosition,
   type PageTreeDropTarget,
-} from '@core/page-tree/dnd'
+} from '@core/page-tree'
 
 type DomDropZone = PageTreeDropPosition
 

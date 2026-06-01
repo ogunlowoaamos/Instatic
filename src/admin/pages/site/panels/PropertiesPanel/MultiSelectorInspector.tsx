@@ -16,8 +16,8 @@
  */
 
 import { useEditorStore, selectSelectedNode } from '@site/store/store'
-import { styleRuleSelector } from '@core/page-tree/classNames'
-import { isGeneratedClassLocked } from '@core/page-tree/classUtils'
+import { styleRuleSelector } from '@core/page-tree'
+import { isGeneratedClassLocked } from '@core/page-tree'
 import type { StyleRule } from '@core/page-tree'
 import { Button } from '@ui/components/Button'
 import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'

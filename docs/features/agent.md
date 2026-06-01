@@ -9,9 +9,9 @@ The agent runs on a provider-agnostic AI runtime (`server/ai/`) that can drive a
 ## TL;DR
 
 - **Structure via HTML.** `insertHtml` and `replaceNodeHtml` accept semantic HTML strings; the browser executor calls `importHtml` (the same pipeline as the paste-HTML UI) to convert them into first-class, editable `PageNode`s.
-- **Styling via classes.** `createClass` / `updateClassStyles` / `assignClass` manage CSS classes. `<style>` blocks and `style=` attributes inside imported HTML are stripped — all styling lives on classes.
+- **Styling via classes.** `createClass` / `updateClassStyles` / `assignClass` manage CSS classes. CSS classes are the recommended way to style imported HTML. `<style>` blocks inside imported HTML are converted to Selector-panel classes; `style=` attributes land on the node's inline styles. Use the `classes` parameter in `insertHtml`/`replaceNodeHtml` to declare and bind classes atomically.
 - **25 tools total.** 8 server-side read tools (resolved from the snapshot) + 17 browser-bridged write tools.
-- **Two-endpoint bridge.** `POST /admin/api/ai/chat/site` opens an NDJSON stream. When the model calls a write tool, the server emits `toolRequest`; the browser executor applies it to the editor store and POSTs the result to `POST /admin/api/ai/tool-result`.
+- **Two-endpoint bridge.** `POST /admin/api/ai/chat/site` opens an NDJSON stream. When the model calls a write tool, the server emits `toolRequest`; the browser executor applies it to the editor store and POSTs the `AiToolOutput` result to `POST /admin/api/ai/tool-result`.
 - **Provider-agnostic.** The runtime selects a driver (Anthropic, OpenAI, Ollama) from the conversation's configured credential.
 - **Tools defined with TypeBox** (`server/ai/tools/`). Gated by `ai-tools-typebox-only.test.ts`.
 - **Capabilities.** `ai.chat` required to stream; `ai.tools.write` required for write tools. Gated by `ai-handlers-capability-gated.test.ts`.
@@ -21,6 +21,10 @@ The agent runs on a provider-agnostic AI runtime (`server/ai/`) that can drive a
 ## Where the code lives
 
 ```text
+src/core/ai/
+├── toolOutput.ts           — AiToolOutput type + AiToolOutputSchema + aiToolOk / aiToolError
+└── index.ts                — barrel re-export (canonical @core/ai import path)
+
 server/ai/
 ├── handlers/
 │   ├── chat.ts             — POST /admin/api/ai/chat/:scope  (NDJSON stream)
@@ -56,7 +60,7 @@ src/admin/pages/site/agent/
 ├── executor.ts             — browser-side dispatcher: validates + runs write tools
 ├── renderEvidence.ts       — captureAgentRenderSnapshot (render_snapshot tool)
 ├── storeRef.ts             — setAgentStoreApi / getAgentStoreApi (avoids store ↔ executor cycle)
-└── types.ts                — ServerStreamEvent, AgentMessage, AgentActionResult, PageContext, …
+└── types.ts                — ServerStreamEvent, AgentMessage, PageContext, …
 
 src/admin/pages/content/agent/
 ├── agentSliceConfig.content.ts — content-workspace config: scope, snapshot builder, executor wiring
@@ -174,11 +178,13 @@ The handler (`server/ai/handlers/chat.ts`):
 {
   bridgeId:  string
   requestId: string
-  result:    { ok: boolean; data?: unknown; error?: string }
+  result:    AiToolOutput   // { ok: boolean; data?: unknown; error?: string } — from src/core/ai/
 }
 ```
 
 Requires `ai.tools.write`. Calls `resolveBridgeToolResult(bridgeId, requestId, result)` which resolves the pending tool waiter inside the driver loop so streaming continues. If the bridge is gone (stream already closed), returns 404 and the result is silently dropped.
+
+`AiToolOutput` is the canonical result type shared by both sides of the bridge. Constructors: `aiToolOk(data?)` and `aiToolError(message)` from `@core/ai`.
 
 ---
 
@@ -201,15 +207,15 @@ Resolved from the snapshot. No browser round-trip. Results are returned directly
 
 ### Write tools — 17, browser-bridged
 
-All 17 tools carry `execution: 'browser'` in their `AiTool` definition. The server emits `toolRequest`; the browser executor validates input with TypeBox, runs the store action, and POSTs the result back.
+All 17 tools carry `execution: 'browser'` in their `AiTool` definition. The server emits `toolRequest`; the browser executor validates input with TypeBox, runs the store action, and POSTs the canonical `AiToolOutput` result back.
 
 **Structure (HTML-native)**
 
-| Tool              | Input                              | What it does                                           |
-|-------------------|------------------------------------|--------------------------------------------------------|
-| `insertHtml`      | `{ parentId, index?, html, classes? }` | Parse HTML → import as `PageNode`s under `parentId` |
-| `getNodeHtml`     | `{ nodeId }`                       | Render subtree to HTML via the publisher's `renderNode`|
-| `replaceNodeHtml` | `{ nodeId, html, classes? }`       | Delete existing children; re-import HTML under the same parent |
+| Tool              | Input                                  | Success `data`        | What it does                                           |
+|-------------------|----------------------------------------|-----------------------|--------------------------------------------------------|
+| `insertHtml`      | `{ parentId, index?, html, classes? }` | `{ nodeIds }`         | Parse HTML → import as `PageNode`s under `parentId` |
+| `getNodeHtml`     | `{ nodeId }`                           | `{ html }`            | Render subtree to HTML via the publisher's `renderNode`|
+| `replaceNodeHtml` | `{ nodeId, html, classes? }`           | `{ nodeIds }`         | Delete existing children; re-import HTML under the same parent |
 
 The `classes` field in `insertHtml` / `replaceNodeHtml`:
 ```ts
@@ -224,37 +230,37 @@ Declared classes are created (or resolved by name if they already exist) **with 
 
 **Node edits**
 
-| Tool              | Input                                      | What it does                                               |
-|-------------------|--------------------------------------------|------------------------------------------------------------|
-| `updateNodeProps` | `{ nodeId, breakpointId?, patch }`         | Shallow-merge props; `breakpointId` requires schema `breakpointOverridable: true` |
-| `moveNode`        | `{ nodeId, newParentId, newIndex }`        | Re-parent or reorder; `newIndex` is 0-based               |
-| `deleteNode`      | `{ nodeId }`                               | Remove node and all descendants                            |
-| `duplicateNode`   | `{ nodeId, count? }`                       | Clone subtree 1–50 times right after the source           |
-| `renameNode`      | `{ nodeId, label }`                        | Set the node's display label in the DOM panel (editor-only)|
+| Tool              | Input                                      | Success `data`          | What it does                                               |
+|-------------------|--------------------------------------------|-------------------------|------------------------------------------------------------|
+| `updateNodeProps` | `{ nodeId, breakpointId?, patch }`         | none                    | Shallow-merge props; `breakpointId` requires schema `breakpointOverridable: true` |
+| `moveNode`        | `{ nodeId, newParentId, newIndex }`        | none                    | Re-parent or reorder; `newIndex` is 0-based               |
+| `deleteNode`      | `{ nodeId }`                               | none                    | Remove node and all descendants                            |
+| `duplicateNode`   | `{ nodeId, count? }`                       | `{ nodeId, nodeIds }`   | Clone subtree 1–50 times right after the source           |
+| `renameNode`      | `{ nodeId, label }`                        | none                    | Set the node's display label in the DOM panel (editor-only)|
 
 **Classes**
 
-| Tool                | Input                                  | What it does                                          |
-|---------------------|----------------------------------------|-------------------------------------------------------|
-| `createClass`       | `{ name, styles?, breakpointStyles? }` | Create a new CSS class; returns the new class id      |
-| `updateClassStyles` | `{ classId, breakpointId?, patch }`    | Shallow-merge styles; `classId` accepts id or name    |
-| `assignClass`       | `{ nodeId, classId }`                  | Attach a class to a node; `classId` accepts id or name|
-| `removeClass`       | `{ nodeId, classId }`                  | Detach a class from a node (the class itself remains) |
+| Tool                | Input                                  | Success `data` | What it does                                          |
+|---------------------|----------------------------------------|----------------|-------------------------------------------------------|
+| `createClass`       | `{ name, styles?, breakpointStyles? }` | `{ classId }`  | Create a new CSS class                                |
+| `updateClassStyles` | `{ classId, breakpointId?, patch }`    | none           | Shallow-merge styles; `classId` accepts id or name    |
+| `assignClass`       | `{ nodeId, classId }`                  | none           | Attach a class to a node; `classId` accepts id or name|
+| `removeClass`       | `{ nodeId, classId }`                  | none           | Detach a class from a node (the class itself remains) |
 
 **Pages**
 
-| Tool            | Input                             | What it does                                               |
-|-----------------|-----------------------------------|------------------------------------------------------------|
-| `addPage`       | `{ title, slug? }`                | Create an empty page; returns new page id                  |
-| `deletePage`    | `{ pageId }`                      | Delete page; fails if it would leave the site with 0 pages |
-| `renamePage`    | `{ pageId, title, slug? }`        | Change title/slug; `slug="index"` makes this the homepage  |
-| `duplicatePage` | `{ pageId, title, slug? }`        | Deep-clone page (all nodes, props, class assignments)      |
+| Tool            | Input                             | Success `data` | What it does                                               |
+|-----------------|-----------------------------------|----------------|------------------------------------------------------------|
+| `addPage`       | `{ title, slug? }`                | `{ pageId }`   | Create an empty page                                       |
+| `deletePage`    | `{ pageId }`                      | none           | Delete page; fails if it would leave the site with 0 pages |
+| `renamePage`    | `{ pageId, title, slug? }`        | none           | Change title/slug; `slug="index"` makes this the homepage  |
+| `duplicatePage` | `{ pageId, title, slug? }`        | `{ pageId }`   | Deep-clone page (all nodes, props, class assignments)      |
 
 **Capture**
 
-| Tool              | Input                 | What it does                                                     |
-|-------------------|-----------------------|------------------------------------------------------------------|
-| `render_snapshot` | `{ breakpointId? }`   | Canvas screenshot + layout data (bounding boxes, overflow warnings, image load status) |
+| Tool              | Input                 | Success `data` | What it does                                                     |
+|-------------------|-----------------------|----------------|------------------------------------------------------------------|
+| `render_snapshot` | `{ breakpointId? }`   | `{ snapshot }` | Canvas screenshot + layout data (bounding boxes, overflow warnings, image load status) |
 
 ---
 
@@ -267,11 +273,12 @@ Declared classes are created (or resolved by name if they already exist) **with 
 Drivers that support prompt caching (Anthropic) apply `cache_control` to the static prefix automatically; drivers that don't concatenate the three strings. Content is intentionally static across providers — every observable behaviour comes from the tool definitions, not prompt knobs.
 
 **Static prefix** (full text in `server/ai/tools/site/systemPrompt.ts`):
-- "Structure as HTML, styling as classes": use `insertHtml` / `replaceNodeHtml` for structure; use `createClass` + class references in HTML for styling.
-- `<style>` blocks and `style=` attributes inside imported HTML are stripped and have no effect.
+- Structure as HTML (`insertHtml` / `replaceNodeHtml`); style via CSS classes via `createClass` and `class=` attributes, or the `classes` parameter in the tool call.
+- `<style>` blocks inside imported HTML become Selectors-panel classes (`.foo {}` binds to `class="foo"`). `style=` attributes land on the node's inline styles. These are applied — not stripped. The `classes` parameter is preferred for reusable styles.
 - One `insertHtml` call per logical section (nav, hero, pricing, footer = 4–6 calls); smaller chunks recover better if one fails.
 - Per-breakpoint variation: use `breakpointStyles` on classes, keyed by breakpoint ids **verbatim from the dynamic suffix** — never invent ids like `"mobile"` or `"desktop"`.
 - Page ids come from the dynamic suffix; never invent them.
+- Write-tool success data uses explicit keys: `classId` for `createClass`, `pageId` for `addPage`/`duplicatePage`, `nodeId`/`nodeIds` for `duplicateNode`, `nodeIds` for HTML inserts.
 - Reply rule: 1–2 narrating sentences only. No raw HTML/CSS/JSON in the reply.
 
 **Dynamic suffix** (built per request by `buildDynamicSuffix(snap: SiteSnapshot)`):
@@ -358,7 +365,7 @@ Conversations and their message history are persisted server-side in `ai_convers
 
 - **Abort.** "Stop" calls `agentSlice.abortAgent()` → `AbortController.abort()` → the fetch stream closes → the server's `destroy()` hook fires → pending tool waiters reject → the driver loop terminates.
 - **Crash on server.** If `runChat` throws, the stream emits `{ type: 'error', message }`. The browser surfaces the message verbatim in the Agent Panel (admin-only surface, so info-disclosure is not a concern).
-- **Tool failure.** `executeAgentTool` wraps every call in try/catch. Failures return `{ success: false, error }`. The model reads the error message in the next turn and retries with corrected input.
+- **Tool failure.** Browser executors wrap every call in try/catch. Failures return `{ ok: false, error }`. The model reads the error message in the next turn and retries with corrected input.
 - **Bridge-result POST after abort.** If the browser POSTs a tool-result after the stream has closed, the server returns 404 and drops the result silently.
 - **Page reload mid-stream.** The stream dies. The conversation row and its persisted messages survive. The user can reload the past thread via `loadAgentConversation` and re-send.
 
@@ -372,7 +379,6 @@ Conversations and their message history are persisted server-side in `ai_convers
 | Importing any provider SDK outside `server/ai/drivers/` | Drivers only. Same gate. |
 | Importing `zod` in `server/ai/tools/**` | TypeBox only. Gated by `ai-tools-typebox-only.test.ts`. |
 | Routing a write tool as a server-side read (resolving from snapshot) | Write tools are `execution: 'browser'` — they must go through the bridge. The editor store is the write authority. |
-| Putting styles inside `<style>` blocks or `style=` attributes in `insertHtml` HTML | They are stripped on import. Put styles on classes via `createClass` or the `classes` parameter. |
 | Using invented breakpoint ids in `breakpointStyles` (`"mobile"`, `"desktop"`, etc.) | Use verbatim ids from the dynamic suffix. Invalid ids are rejected by the executor. |
 | Editing nodes outside the active page | Agent mutations target the active page tree. Cross-page edits require the user to switch pages first. |
 
@@ -385,6 +391,8 @@ Conversations and their message history are persisted server-side in `ai_convers
 - `docs/server.md` — handler routing; `/admin/api/ai/` is matched before `/admin/api/cms/`
 - `docs/features/auth-and-access.md` — capability model (`ai.chat`, `ai.tools.write`)
 - Source-of-truth files:
+  - `src/core/ai/toolOutput.ts` — `AiToolOutput` type, `AiToolOutputSchema`, `aiToolOk`, `aiToolError` (canonical bridge result)
+  - `src/core/ai/index.ts` — barrel re-exporting the above
   - `server/ai/tools/site/writeTools.ts` — 17 browser-bridged write tool definitions (TypeBox schemas)
   - `server/ai/tools/site/readTools.ts` — 8 server-side read tool definitions
   - `server/ai/tools/site/systemPrompt.ts` — HTML-native system prompt

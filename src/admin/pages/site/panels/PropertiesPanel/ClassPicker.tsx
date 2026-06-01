@@ -49,7 +49,9 @@ import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import {
   isGeneratedClassLocked,
   isUserVisibleClass,
-} from '@core/page-tree/classUtils'
+  type PageNode,
+  type StyleRule,
+} from '@core/page-tree'
 import { recordClassUsage } from '@site/preferences/classUsage'
 import { getErrorMessage } from '@core/utils/errorMessage'
 import { useClassPickerSuggestions } from './useClassPickerSuggestions'
@@ -63,7 +65,6 @@ import {
   SelectorPillStack,
   SelectorSuggestionsPortal,
 } from './ClassPickerParts'
-import type { PageNode, StyleRule } from '@core/page-tree'
 import dialogStyles from '../../../../shared/dialogs/SiteCreateDialog/SiteCreateDialog.module.css'
 import styles from './ClassPicker.module.css'
 

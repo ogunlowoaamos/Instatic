@@ -60,7 +60,7 @@
 import { use, useEffect, useEffectEvent, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useEditorStore } from '@site/store/store'
-import { styleRuleSelector } from '@core/page-tree/classNames'
+import { styleRuleSelector } from '@core/page-tree'
 import { useEditorPermissions } from '@site/editorPermissionsContext'
 import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@ui/components/Button'

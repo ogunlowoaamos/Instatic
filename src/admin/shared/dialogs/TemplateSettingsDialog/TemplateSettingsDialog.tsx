@@ -5,7 +5,7 @@ import {
   normalizePageSlug,
   pageSlugDuplicateError,
   pageSlugError,
-} from '@core/page-tree/slugs'
+} from '@core/page-tree'
 import { listCmsDataTables } from '@core/persistence/cmsData'
 import type { DataTable } from '@core/data/schemas'
 import { Button } from '@ui/components/Button'

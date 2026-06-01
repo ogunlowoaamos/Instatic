@@ -12,7 +12,7 @@ import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { useEditorPermissions } from '@site/editorPermissionsContext'
-import { isGeneratedClassLocked } from '@core/page-tree/classUtils'
+import { isGeneratedClassLocked } from '@core/page-tree'
 import type { StyleRule } from '@core/page-tree'
 import styles from './PropertiesPanel.module.css'
 

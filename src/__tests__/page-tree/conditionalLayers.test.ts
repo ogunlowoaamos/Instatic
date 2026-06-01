@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { parseStyleRule } from '@core/page-tree/styleRule'
+import { parseStyleRule } from '@core/page-tree'
 import { conditionId } from '@core/page-tree'
 
 function baseRaw(extra: Record<string, unknown> = {}) {

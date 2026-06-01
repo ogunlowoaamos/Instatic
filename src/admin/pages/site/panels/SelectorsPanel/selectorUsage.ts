@@ -1,4 +1,4 @@
-import { isUserVisibleClass } from '@core/page-tree/classUtils'
+import { isUserVisibleClass } from '@core/page-tree'
 import type { StyleRule, SiteDocument } from '@core/page-tree'
 
 export function getReusableClasses(classes: Record<string, StyleRule>): StyleRule[] {

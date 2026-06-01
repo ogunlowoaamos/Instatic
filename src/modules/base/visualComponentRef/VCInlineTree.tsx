@@ -25,7 +25,7 @@
 import { registry } from '@core/module-engine'
 import type { NodeWrapperProps as NodeWrapperPropsType } from '@core/module-engine'
 import type { VCNode } from '@core/visualComponents'
-import { classNamesForClassIds, type StyleRuleRegistry } from '@core/page-tree/classNames'
+import { classNamesForClassIds, type StyleRuleRegistry } from '@core/page-tree'
 
 interface VCInlineTreeProps {
   /** Flat node map from instantiateVCAtRef */

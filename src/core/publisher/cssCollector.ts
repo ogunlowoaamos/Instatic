@@ -19,7 +19,7 @@
  */
 
 import type { SiteDocument } from '@core/page-tree'
-import { isGeneratedClass } from '@core/page-tree/classUtils'
+import { isGeneratedClass } from '@core/page-tree'
 import { generateClassCSS } from './classCss'
 
 /**

@@ -221,7 +221,7 @@ export function createNodeActions(helpers: SiteSliceHelpers): NodeActions {
           if (!state.site) return
           const { activeDocument: ad } = state
 
-          type NodeMap = Record<string, import('@core/page-tree/baseNode').BaseNode>
+          type NodeMap = Record<string, import('@core/page-tree').BaseNode>
           const treeNodes: NodeMap | null = (() => {
             if (ad?.kind === 'visualComponent') {
               const activeVc = state.site!.visualComponents.find((v) => v.id === ad.vcId)

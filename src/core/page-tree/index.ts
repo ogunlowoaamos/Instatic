@@ -10,9 +10,11 @@
 
 // Schemas — exported as both runtime constants (for `parseValue` / `Value.Check`)
 // and types (via Static<typeof X>).
+export { BaseNodeSchema, parsePropBindings } from './baseNode'
+export { NodeTreeSchema } from './treeSchema'
 export { PageNodeSchema } from './pageNode'
 export { PageSchema } from './page'
-export { StyleRuleSchema, StyleRuleKindSchema, classKindSelector } from './styleRule'
+export { StyleRuleSchema, StyleRuleKindSchema, classKindSelector, parseStyleRule } from './styleRule'
 export { ConditionSchema, ConditionDefSchema } from './condition'
 export { SiteShellSchema } from './siteDocument'
 
@@ -40,7 +42,15 @@ export { parsePage } from './page'
 export { parseSiteDocument } from './siteDocument'
 
 // Slug → public path + internal page-reference links.
-export { pagePublicPath, isHomePage, findHomePage } from './slugs'
+export {
+  normalizePageSlug,
+  pageSlugError,
+  pageSlugDuplicateError,
+  createUniquePageSlug,
+  pagePublicPath,
+  isHomePage,
+  findHomePage,
+} from './slugs'
 export {
   PAGE_REF_PREFIX,
   makePageRef,
@@ -49,10 +59,6 @@ export {
   resolvePageRef,
 } from './pageRef'
 export type { ParsedPageRef } from './pageRef'
-
-// Re-export visualComponent parser for the persistence layer.
-// (Single canonical location: `@core/visualComponents/schemas`.)
-export { parseVisualComponent } from '@core/visualComponents'
 
 // Other re-exports unrelated to the schemas split
 export type { FontEntry } from '@core/fonts/schemas'
@@ -102,7 +108,37 @@ export type { TreeOperation, ApplyTreeOperationResult } from './mutations'
 
 export { cloneScopedClassesForNodeMap } from './scopedClassClone'
 
-export { getParent } from './selectors'
+export {
+  getNode,
+  getNodeOrThrow,
+  getChildren,
+  getParent,
+  getAncestors,
+  flattenSubtree,
+  isAncestor,
+  resolveProps,
+  evaluateCondition,
+} from './selectors'
+
+export {
+  assertValidCssClassName,
+  styleRuleSelector,
+  classNamesForClassIds,
+  escapeCssIdentifier,
+} from './classNames'
+export type { StyleRuleRegistry } from './classNames'
+
+export {
+  isUserVisibleClass,
+  isGeneratedClass,
+  isGeneratedClassLocked,
+  generatedClassKindLabel,
+} from './classUtils'
+
+export { getNodeDisplayName, getNodeHtmlTag, getNodeClassNames } from './nodeDisplayName'
+
+export { resolvePageTreeDropTarget } from './dnd'
+export type { PageTreeDropPosition, PageTreeDropTarget } from './dnd'
 
 export {
   selectPageById,

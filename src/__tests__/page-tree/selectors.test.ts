@@ -10,7 +10,7 @@ import {
   isAncestor,
   resolveProps,
   evaluateCondition,
-} from '@core/page-tree/selectors'
+} from '@core/page-tree'
 
 // ---------------------------------------------------------------------------
 // Fixtures

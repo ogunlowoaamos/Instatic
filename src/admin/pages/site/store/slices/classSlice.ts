@@ -20,8 +20,8 @@ import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
 import type { BaseNode, SiteDocument } from '@core/page-tree'
 import type { StyleRule, CSSPropertyBag, Condition } from '@core/page-tree'
 import { classKindSelector, conditionId, makeConditionDef } from '@core/page-tree'
-import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree/classUtils'
-import { assertValidCssClassName } from '@core/page-tree/classNames'
+import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree'
+import { assertValidCssClassName } from '@core/page-tree'
 import { buildSiteHelpers } from './site/helpers'
 
 /**

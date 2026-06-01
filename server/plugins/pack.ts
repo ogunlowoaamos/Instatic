@@ -31,7 +31,7 @@ import type { VisualComponent } from '@core/visualComponents'
 import { parseValue, safeParseValue, Value } from '@core/utils/typeboxHelpers'
 import { Type } from '@sinclair/typebox'
 import { PageSchema } from '@core/page-tree'
-import { parseStyleRule } from '@core/page-tree/styleRule'
+import { parseStyleRule } from '@core/page-tree'
 import { assertPluginPathWithin } from './runtime'
 
 export interface PluginPackContents {
@@ -119,7 +119,7 @@ export function parsePluginPack(pluginId: string, raw: unknown): PluginPackConte
       )
     }
     // The CSS class `name` doubles as the rendered HTML classname (see
-    // `classNamesForClassIds` in `@core/page-tree/classNames`). Whitespace
+    // `classNamesForClassIds` in `@core/page-tree`). Whitespace
     // would split it into multiple classes, none of which would have rules.
     // Reject pack authors that ship friendly names — the `id` is for
     // namespacing, the `name` is the CSS identifier.

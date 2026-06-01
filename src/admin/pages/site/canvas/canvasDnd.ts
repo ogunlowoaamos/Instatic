@@ -1,10 +1,10 @@
 import type { PageNode } from '@core/page-tree'
-import type { NodeTree } from '@core/page-tree/treeSchema'
+import type { NodeTree } from '@core/page-tree'
 import {
   resolvePageTreeDropTarget,
   type PageTreeDropPosition,
   type PageTreeDropTarget,
-} from '@core/page-tree/dnd'
+} from '@core/page-tree'
 
 export interface CanvasPoint {
   x: number

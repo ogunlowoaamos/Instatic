@@ -431,7 +431,7 @@ describe('Component System E2E smoke test', () => {
     // pageNodes provides the full subtree for recursive collection.
     // instantiateVCAtRef expands the base.slot-outlet with the provided content
     // and marks all slot content nodes _fromSlotContent = true.
-    const slotPageNodes = { [slotContentNodeId]: slotContentNode as unknown as import('@core/page-tree/baseNode').BaseNode }
+    const slotPageNodes = { [slotContentNodeId]: slotContentNode as unknown as import('@core/page-tree').BaseNode }
     const instantiatedWithSlot = instantiateVCAtRef(
       vcWithSlot,
       {},

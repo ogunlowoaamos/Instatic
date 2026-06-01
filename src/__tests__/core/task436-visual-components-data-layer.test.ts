@@ -13,8 +13,8 @@
  *   src/core/visualComponents/nameValidation.ts    — validateComponentName (5 error codes)
  *   src/core/visualComponents/recursionGuard.ts    — getReferencedComponentIds + wouldCreateCycle
  *   src/core/editor-store/slices/visualComponentsSlice.ts — CRUD slice (mirrors filesSlice)
- *   src/core/page-tree/schemas.ts (extension)      — PageNode.propBindings optional field
- *   src/core/page-tree/schemas.ts (extension)      — SiteDocument.visualComponents: VisualComponent[]
+ *   src/core/page-tree/pageNode.ts (extension)     — PageNode.propBindings optional field
+ *   src/core/page-tree/siteDocument.ts (type)      — SiteDocument.visualComponents: VisualComponent[]
  *   src/core/persistence/validate.ts (extension)   — validateSite lenient-per-item VC handling
  *
  * ── Gate groups ──────────────────────────────────────────────────────────────
@@ -274,16 +274,16 @@ describe('Gate DD-2 — visualComponentsSlice has no editor/ imports', () => {
 })
 
 // ============================================================================
-// Section 3 — Type shape (static source scan on page-tree/schemas.ts)
+// Section 3 — Type shape (static source scan on page-tree/siteDocument.ts)
 // ============================================================================
 
-describe('Gate TS-1 — SiteDocument.visualComponents field declared in schemas.ts', () => {
-  it('page-tree/schemas.ts declares visualComponents in SiteDocumentSchema (Final cleanup: types.ts shim deleted, schemas.ts is the canonical source)', () => {
-    // After final cleanup: types.ts shim deleted — SiteDocument lives exclusively in schemas.ts.
+describe('Gate TS-1 — SiteDocument.visualComponents field declared in siteDocument.ts', () => {
+  it('page-tree/siteDocument.ts declares visualComponents in the SiteDocument type', () => {
+    // After final cleanup: types.ts shim deleted — SiteDocument lives exclusively in siteDocument.ts.
     const schemas = readFileSync(PAGE_TREE_SCHEMAS, 'utf8')
-    // Must have a visualComponents field inside SiteDocumentSchema
+    // Must have a visualComponents field inside the in-memory SiteDocument type.
     expect(schemas).toMatch(/visualComponents\s*:/)
-    // SiteDocument type must be declared (via z.infer) in schemas.ts
+    // SiteDocument type must be declared in siteDocument.ts.
     expect(schemas).toMatch(/SiteDocument/)
     expect(schemas).not.toMatch(/interface SiteDocument/)
   })
@@ -291,7 +291,7 @@ describe('Gate TS-1 — SiteDocument.visualComponents field declared in schemas.
 
 describe('Gate TS-2 — BaseNode.propBindings optional field declared', () => {
   it('BaseNodeSchema declares propBindings as an optional record of paramId references', async () => {
-    const { BaseNodeSchema } = await import('@core/page-tree/baseNode')
+    const { BaseNodeSchema } = await import('@core/page-tree')
     const properties = (BaseNodeSchema as { properties?: Record<string, unknown> }).properties
     expect(properties).toBeDefined()
     expect(properties!['propBindings']).toBeDefined()

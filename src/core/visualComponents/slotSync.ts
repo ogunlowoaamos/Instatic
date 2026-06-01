@@ -16,7 +16,7 @@
  */
 
 import { nanoid } from 'nanoid'
-import type { BaseNode } from '@core/page-tree/baseNode'
+import type { BaseNode } from '@core/page-tree'
 import type { VisualComponent } from './schemas'
 
 // ---------------------------------------------------------------------------

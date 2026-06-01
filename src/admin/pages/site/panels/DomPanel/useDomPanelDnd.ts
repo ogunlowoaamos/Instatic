@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { DragCancelEvent, DragEndEvent, DragMoveEvent, DragStartEvent } from '@dnd-kit/core'
 import type { Page } from '@core/page-tree'
 import { registry } from '@core/module-engine'
-import { getNodeDisplayName } from '@core/page-tree/nodeDisplayName'
+import { getNodeDisplayName } from '@core/page-tree'
 import { useEditorStore } from '@site/store/store'
 import {
   findDomDropRow,

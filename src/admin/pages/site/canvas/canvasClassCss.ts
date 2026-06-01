@@ -1,7 +1,7 @@
 import { bagToCSS, conditionPrelude, PUBLISHER_RESET_CSS } from '@core/publisher'
 import { generateFrameworkRootCss } from '@core/framework/generate'
 import { generateFontsCss } from '@core/fonts/css'
-import { styleRuleSelector } from '@core/page-tree/classNames'
+import { styleRuleSelector } from '@core/page-tree'
 import type { StyleRule, Condition, ConditionDef } from '@core/page-tree'
 import type { SiteFontsSettings } from '@core/fonts/schemas'
 import type {

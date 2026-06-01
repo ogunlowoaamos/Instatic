@@ -91,7 +91,7 @@ describe('J6 DomPanel — store layer', () => {
 // J6: flattenSubtree — tree traversal
 // ---------------------------------------------------------------------------
 
-import { flattenSubtree } from '@core/page-tree/selectors'
+import { flattenSubtree } from '@core/page-tree'
 import type { Page } from '@core/page-tree'
 
 describe('J6 DomPanel — flattenSubtree', () => {
@@ -129,7 +129,7 @@ describe('J6 DomPanel — flattenSubtree', () => {
 // J7+J8: PropertiesPanel — property condition evaluation
 // ---------------------------------------------------------------------------
 
-import { evaluateCondition } from '@core/page-tree/selectors'
+import { evaluateCondition } from '@core/page-tree'
 
 describe('J7+J8 PropertiesPanel — evaluateCondition', () => {
   const props = { type: 'button', visible: true, count: 3 }
@@ -201,7 +201,7 @@ describe('J7+J8 PropertiesPanel — evaluateCondition', () => {
 // J7+J8: PropertiesPanel — resolveProps with breakpoint override
 // ---------------------------------------------------------------------------
 
-import { resolveProps } from '@core/page-tree/selectors'
+import { resolveProps } from '@core/page-tree'
 import type { PageNode } from '@core/page-tree'
 
 describe('J7+J8 PropertiesPanel — resolveProps', () => {
