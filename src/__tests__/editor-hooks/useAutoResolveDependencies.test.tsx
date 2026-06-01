@@ -10,6 +10,13 @@ import { normalizeSiteRuntimeConfig } from '@core/site-runtime'
 import { makeSite } from '../fixtures'
 
 const originalFetch = globalThis.fetch
+const CONFETTI_IMPORTMAP = {
+  lockHash: 'test-lock',
+  imports: {
+    'canvas-confetti': '/_pb/runtime/cache/test-lock/canvas-confetti/dist/confetti.module.mjs',
+    'canvas-confetti/': '/_pb/runtime/cache/test-lock/canvas-confetti/',
+  },
+}
 
 afterEach(() => {
   globalThis.fetch = originalFetch
@@ -32,6 +39,13 @@ function seedStore(packageDeps: Record<string, string>) {
 describe('useAutoResolveDependencies', () => {
   beforeEach(() => seedStore({ 'canvas-confetti': '^1.9.3' }))
 
+  async function flushResolveQueue(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await Promise.resolve()
+    })
+  }
+
   it('kicks off a background resolve when the lock is out of sync', async () => {
     let calls = 0
     globalThis.fetch = (async () => {
@@ -49,10 +63,11 @@ describe('useAutoResolveDependencies', () => {
           },
           updatedAt: 1,
         },
+        packageImportmap: CONFETTI_IMPORTMAP,
       }), { status: 200 })
     }) as typeof fetch
 
-    renderHook(() => useAutoResolveDependencies())
+    renderHook(() => useAutoResolveDependencies({ debounceMs: 0 }))
 
     await waitFor(() => {
       expect(useEditorStore.getState().siteRuntime.dependencyLock.packages['canvas-confetti']?.version).toBe('1.9.3')
@@ -98,10 +113,10 @@ describe('useAutoResolveDependencies', () => {
       site: { ...useEditorStore.getState().site!, runtime },
     } as Parameters<typeof useEditorStore.setState>[0])
 
-    renderHook(() => useAutoResolveDependencies())
+    renderHook(() => useAutoResolveDependencies({ debounceMs: 0 }))
 
-    // Wait past the debounce window to confirm nothing fires.
-    await new Promise((resolve) => setTimeout(resolve, 800))
+    // Wait one tick: with debounceMs: 0, a mistaken resolve would fire now.
+    await flushResolveQueue()
     expect(calls).toBe(0)
   })
 
@@ -125,13 +140,30 @@ describe('useAutoResolveDependencies', () => {
               version: '0.169.0',
               resolvedAt: 1,
             },
+            motion: {
+              name: 'motion',
+              requested: '*',
+              version: '12.0.0',
+              resolvedAt: 1,
+            },
           },
           updatedAt: 1,
+        },
+        packageImportmap: {
+          lockHash: 'test-lock-burst',
+          imports: {
+            'canvas-confetti': '/_pb/runtime/cache/test-lock-burst/canvas-confetti/dist/confetti.module.mjs',
+            'canvas-confetti/': '/_pb/runtime/cache/test-lock-burst/canvas-confetti/',
+            three: '/_pb/runtime/cache/test-lock-burst/three/build/three.module.js',
+            'three/': '/_pb/runtime/cache/test-lock-burst/three/',
+            motion: '/_pb/runtime/cache/test-lock-burst/motion/dist/index.mjs',
+            'motion/': '/_pb/runtime/cache/test-lock-burst/motion/',
+          },
         },
       }), { status: 200 })
     }) as typeof fetch
 
-    renderHook(() => useAutoResolveDependencies())
+    renderHook(() => useAutoResolveDependencies({ debounceMs: 0 }))
 
     // Two rapid edits — should debounce to one fetch.
     act(() => {
@@ -151,11 +183,16 @@ describe('useAutoResolveDependencies', () => {
     globalThis.fetch = (async () =>
       new Response('upstream blew up', { status: 502 })) as typeof fetch
 
-    renderHook(() => useAutoResolveDependencies())
+    const { unmount } = renderHook(() => useAutoResolveDependencies({ debounceMs: 0 }))
 
+    let observedError: string | null = null
     await waitFor(() => {
-      expect(useEditorStore.getState().dependencyResolveStatus).toBe('error')
+      const state = useEditorStore.getState()
+      expect(state.dependencyResolveStatus).toBe('error')
+      expect(state.dependencyResolveError).toBeTruthy()
+      observedError = state.dependencyResolveError
     }, { timeout: 2000 })
-    expect(useEditorStore.getState().dependencyResolveError).toBeTruthy()
+    unmount()
+    expect(observedError).toBeTruthy()
   })
 })

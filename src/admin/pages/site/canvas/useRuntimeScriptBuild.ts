@@ -64,6 +64,8 @@ interface UseRuntimeScriptBuildArgs {
   templateContext?: TemplateRenderDataContext
   /** Gates the effect — pass `false` when the "Run scripts" toggle is off. */
   enabled: boolean
+  /** Defaults to the production debounce; tests pass 0 to avoid real-time waits. */
+  debounceMs?: number
 }
 
 interface BuildResult {
@@ -115,6 +117,7 @@ export function useRuntimeScriptBuild({
   breakpointId,
   templateContext,
   enabled,
+  debounceMs = 350,
 }: UseRuntimeScriptBuildArgs): RuntimeScriptBuildState {
   const site = useEditorStore((s) => s.site)
   const [build, setBuild] = useState<BuildResult | null>(null)
@@ -172,7 +175,7 @@ export function useRuntimeScriptBuild({
             status: 'error',
           })
         })
-    }, 350)
+    }, debounceMs)
 
     return () => {
       cancelled = true
@@ -183,7 +186,7 @@ export function useRuntimeScriptBuild({
   useEffect(() => {
     if (isIdle || buildSignature === null) return
     return kickOffBuild() ?? undefined
-  }, [buildSignature, isIdle, refreshNonce])
+  }, [buildSignature, isIdle, refreshNonce, debounceMs])
 
   const refresh = () => {
     setRefreshNonce((n) => n + 1)

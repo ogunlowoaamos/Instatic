@@ -65,9 +65,11 @@ function getWasmModule(): Promise<QuickJSWASMModule> {
 export async function createPluginVm(args: {
   pluginSource: string
   env: PluginVmEnv
+  evalTimeoutMs?: number
 }): Promise<PluginVm> {
   const wasm = await getWasmModule()
   const ctx = wasm.newContext()
+  const defaultEvalTimeoutMs = args.evalTimeoutMs
 
   // Apply per-plugin resource limits BEFORE evaluating any plugin code.
   // setMemoryLimit / setMaxStackSize live on the runtime, not the context,
@@ -228,6 +230,7 @@ export async function createPluginVm(args: {
     const exportedHooks = await evalJson<Array<'install' | 'activate' | 'deactivate' | 'uninstall' | 'migrate'>>(
       ctx,
       `__detectExportedHooks()`,
+      defaultEvalTimeoutMs,
     )
 
     const pluginId = args.env.pluginId
@@ -237,22 +240,30 @@ export async function createPluginVm(args: {
       exportedHooks,
 
       async runLifecycle(hook) {
-        await evalVoid(ctx, `__runLifecycle(${JSON.stringify(hook)})`)
+        await evalVoid(ctx, `__runLifecycle(${JSON.stringify(hook)})`, defaultEvalTimeoutMs)
       },
 
       async runMigrate(fromVersion) {
-        await evalVoid(ctx, `__runMigrate(${JSON.stringify(fromVersion)})`)
+        await evalVoid(ctx, `__runMigrate(${JSON.stringify(fromVersion)})`, defaultEvalTimeoutMs)
       },
 
       async runRoute(routeKey, routeCtx) {
         const ctxJson = JSON.stringify(routeCtx)
-        const json = await evalString(ctx, `__runRoute(${JSON.stringify(routeKey)}, ${JSON.stringify(ctxJson)})`)
+        const json = await evalString(
+          ctx,
+          `__runRoute(${JSON.stringify(routeKey)}, ${JSON.stringify(ctxJson)})`,
+          defaultEvalTimeoutMs,
+        )
         return JSON.parse(json) as unknown
       },
 
       async runHookListener(listenerId, payload) {
         const payloadJson = JSON.stringify(payload ?? null)
-        await evalVoid(ctx, `__runHookListener(${JSON.stringify(listenerId)}, ${JSON.stringify(payloadJson)})`)
+        await evalVoid(
+          ctx,
+          `__runHookListener(${JSON.stringify(listenerId)}, ${JSON.stringify(payloadJson)})`,
+          defaultEvalTimeoutMs,
+        )
       },
 
       async runHookFilter(filterId, value, context) {
@@ -267,13 +278,18 @@ export async function createPluginVm(args: {
         const resultJson = await evalString(
           ctx,
           `__runHookFilter(${JSON.stringify(filterId)}, ${JSON.stringify(valueJson)}, ${JSON.stringify(contextJson)})`,
+          defaultEvalTimeoutMs,
         )
         return JSON.parse(resultJson) as unknown
       },
 
       async runLoopFetch(sourceId, loopCtx) {
         const ctxJson = JSON.stringify(loopCtx ?? null)
-        const json = await evalString(ctx, `__runLoopFetch(${JSON.stringify(sourceId)}, ${JSON.stringify(ctxJson)})`)
+        const json = await evalString(
+          ctx,
+          `__runLoopFetch(${JSON.stringify(sourceId)}, ${JSON.stringify(ctxJson)})`,
+          defaultEvalTimeoutMs,
+        )
         const parsed = JSON.parse(json) as { items?: unknown[]; totalItems?: number }
         return {
           items: Array.isArray(parsed.items) ? parsed.items : [],
@@ -283,7 +299,11 @@ export async function createPluginVm(args: {
 
       async runLoopPreview(sourceId, loopCtx) {
         const ctxJson = JSON.stringify(loopCtx ?? null)
-        const json = await evalString(ctx, `__runLoopPreview(${JSON.stringify(sourceId)}, ${JSON.stringify(ctxJson)})`)
+        const json = await evalString(
+          ctx,
+          `__runLoopPreview(${JSON.stringify(sourceId)}, ${JSON.stringify(ctxJson)})`,
+          defaultEvalTimeoutMs,
+        )
         const parsed = JSON.parse(json) as unknown
         return Array.isArray(parsed) ? parsed : []
       },
@@ -292,12 +312,12 @@ export async function createPluginVm(args: {
         // Per-schedule deadline replaces the VM's default 5s budget for
         // this single call. The interrupt is reset by withDeadline's
         // finally block so subsequent calls fall back to the default.
-        await evalVoid(ctx, `__runSchedule(${JSON.stringify(scheduleId)})`, maxDurationMs)
+        await evalVoid(ctx, `__runSchedule(${JSON.stringify(scheduleId)})`, maxDurationMs ?? defaultEvalTimeoutMs)
       },
 
       async updateSettings(next) {
         const json = JSON.stringify(next)
-        await evalVoid(ctx, `__updateSettings(${JSON.stringify(json)})`)
+        await evalVoid(ctx, `__updateSettings(${JSON.stringify(json)})`, defaultEvalTimeoutMs)
       },
 
       async runMediaAdapterCall(adapterId, method, callArgs) {
@@ -305,6 +325,7 @@ export async function createPluginVm(args: {
         const resultJson = await evalString(
           ctx,
           `__runMediaAdapterCall(${JSON.stringify(adapterId)}, ${JSON.stringify(method)}, ${JSON.stringify(argsJson)})`,
+          defaultEvalTimeoutMs,
         )
         return JSON.parse(resultJson) as unknown
       },
@@ -314,6 +335,7 @@ export async function createPluginVm(args: {
         const resultJson = await evalString(
           ctx,
           `__runMediaUrlTransformer(${JSON.stringify(transformerId)}, ${JSON.stringify(payloadJson)})`,
+          defaultEvalTimeoutMs,
         )
         const parsed = JSON.parse(resultJson) as unknown
         return typeof parsed === 'string' ? parsed : null

@@ -29,7 +29,14 @@ import { evaluateDependencyLockStatus } from '@site/panels/DependenciesPanel/loc
 
 const AUTO_RESOLVE_DEBOUNCE_MS = 600
 
-export function useAutoResolveDependencies(): void {
+interface UseAutoResolveDependenciesOptions {
+  /** Defaults to the production debounce; tests pass 0 to avoid real-time waits. */
+  debounceMs?: number
+}
+
+export function useAutoResolveDependencies({
+  debounceMs = AUTO_RESOLVE_DEBOUNCE_MS,
+}: UseAutoResolveDependenciesOptions = {}): void {
   const packageJson = useEditorStore((s) => s.packageJson)
   const lockedPackages = useEditorStore((s) => s.siteRuntime.dependencyLock.packages)
   const packageImportmap = useEditorStore((s) => s.siteRuntime.packageImportmap)
@@ -68,7 +75,7 @@ export function useAutoResolveDependencies(): void {
       // DepsSection to display. A thrown promise here would surface as an
       // unhandled rejection in the console.
       resolveDependencyLock().catch(() => {})
-    }, AUTO_RESOLVE_DEBOUNCE_MS)
+    }, debounceMs)
 
     return () => {
       if (timerRef.current !== null) {
@@ -76,5 +83,5 @@ export function useAutoResolveDependencies(): void {
         timerRef.current = null
       }
     }
-  }, [site, packageJson, lockedPackages, packageImportmap, resolveDependencyLock, dependencyResolveStatus])
+  }, [site, packageJson, lockedPackages, packageImportmap, resolveDependencyLock, dependencyResolveStatus, debounceMs])
 }

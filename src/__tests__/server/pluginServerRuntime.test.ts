@@ -445,6 +445,7 @@ describe('server plugin runtime SDK', () => {
         hostCall: async () => null,
         log: () => {},
       },
+      evalTimeoutMs: 50,
     })
     try {
       const start = Date.now()
@@ -456,12 +457,12 @@ describe('server plugin runtime SDK', () => {
       }
       const elapsed = Date.now() - start
       // The QuickJS interrupt handler aborts with `InternalError: interrupted`.
-      // We don't depend on the exact message — just that the call threw and
-      // returned within roughly the deadline window (5s + a bit of slack).
+      // Use a short test-only deadline so the regression coverage does not
+      // make the full suite sleep through the production 5s budget.
       expect(caught).not.toBeNull()
-      expect(elapsed).toBeLessThan(8_000)
+      expect(elapsed).toBeLessThan(1_000)
     } finally {
       vm.dispose()
     }
-  }, 15_000)
+  }, 3_000)
 })

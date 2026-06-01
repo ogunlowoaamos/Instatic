@@ -124,11 +124,11 @@ export function evalVoid(ctx: QuickJSContext, code: string, timeoutMs?: number):
   return evalResolved(ctx, code, () => undefined, timeoutMs)
 }
 
-export function evalString(ctx: QuickJSContext, code: string): Promise<string> {
-  return evalResolved(ctx, code, (h) => ctx.getString(h))
+export function evalString(ctx: QuickJSContext, code: string, timeoutMs?: number): Promise<string> {
+  return evalResolved(ctx, code, (h) => ctx.getString(h), timeoutMs)
 }
 
-export async function evalJson<T>(ctx: QuickJSContext, code: string): Promise<T> {
-  const raw = await evalString(ctx, `JSON.stringify((${code}))`)
+export async function evalJson<T>(ctx: QuickJSContext, code: string, timeoutMs?: number): Promise<T> {
+  const raw = await evalString(ctx, `JSON.stringify((${code}))`, timeoutMs)
   return JSON.parse(raw) as T
 }

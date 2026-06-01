@@ -194,7 +194,7 @@ function withRuntimeSite() {
  * tests can drive the public surface without a full canvas mount.
  */
 function ScriptBuildHarness({ page, enabled }: { page: Page; enabled: boolean }) {
-  const build = useRuntimeScriptBuild({ page, breakpointId: 'desktop', enabled })
+  const build = useRuntimeScriptBuild({ page, breakpointId: 'desktop', enabled, debounceMs: 0 })
   return (
     <button data-testid="script-status" data-status={build.status} onClick={build.refresh}>
       refresh
@@ -221,30 +221,31 @@ describe('useRuntimeScriptBuild', () => {
     }) as typeof fetch
   })
 
-  async function flushDebounce(): Promise<void> {
+  async function flushBuildQueue(): Promise<void> {
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await Promise.resolve()
     })
   }
 
   it('does not build while disabled', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled={false} />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(0)
   })
 
   it('builds once when enabled', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(1)
   })
 
   it('does NOT rebuild on a node-tree edit (scripts are tree-independent)', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(1)
 
     act(() => {
@@ -262,7 +263,7 @@ describe('useRuntimeScriptBuild', () => {
         site: { ...current, pages: nextPages, updatedAt: Date.now() },
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    await flushDebounce()
+    await flushBuildQueue()
 
     expect(buildCalls).toBe(1)
   })
@@ -270,7 +271,7 @@ describe('useRuntimeScriptBuild', () => {
   it('rebuilds when a script file changes', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(1)
 
     act(() => {
@@ -282,7 +283,7 @@ describe('useRuntimeScriptBuild', () => {
         site: { ...current, files: nextFiles, updatedAt: Date.now() },
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    await flushDebounce()
+    await flushBuildQueue()
 
     expect(buildCalls).toBe(2)
   })
@@ -290,7 +291,7 @@ describe('useRuntimeScriptBuild', () => {
   it('rebuilds when packageJson changes', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(1)
 
     act(() => {
@@ -304,7 +305,7 @@ describe('useRuntimeScriptBuild', () => {
         packageJson: nextPackageJson,
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    await flushDebounce()
+    await flushBuildQueue()
 
     expect(buildCalls).toBe(2)
   })
@@ -312,11 +313,11 @@ describe('useRuntimeScriptBuild', () => {
   it('rebuilds on Refresh even when nothing else changed', async () => {
     const { page } = withRuntimeSite()
     render(<ScriptBuildHarness page={page} enabled />)
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(1)
 
     fireEvent.click(screen.getByTestId('script-status'))
-    await flushDebounce()
+    await flushBuildQueue()
     expect(buildCalls).toBe(2)
   })
 })
