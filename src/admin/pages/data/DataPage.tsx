@@ -5,8 +5,6 @@
  * AdminWorkspaceCanvasLayout. Capability resolution mirrors ContentPage.
  */
 import { useState } from 'react'
-import { Button } from '@ui/components/Button'
-import { Settings2SolidIcon } from 'pixel-art-icons/icons/settings-2-solid'
 import { AdminWorkspaceCanvasLayout } from '@admin/layouts/AdminWorkspaceCanvasLayout'
 import { useAuthenticatedAdminUser } from '@admin/sessionContext'
 import { useNavigate } from '@admin/lib/routing'
@@ -25,7 +23,6 @@ import { DataInspector } from './components/DataInspector/DataInspector'
 import { NewTableDialog } from './components/NewTableDialog/NewTableDialog'
 import { ExportDialog } from './components/ExportDialog/ExportDialog'
 import { ImportDialog } from './components/ImportDialog/ImportDialog'
-import styles from './DataPage.module.css'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,28 +148,7 @@ export function DataPage() {
     return workspace.setRowStatus(rowId, status)
   }
 
-  // ---------------------------------------------------------------------------
-  // Toolbar
-  // ---------------------------------------------------------------------------
-
   const selectedTable = workspace.selectedTable
-
-  const toolbarRightSlot = selectedTable ? (
-    <div className={styles.toolbarSlot}>
-      <Button
-        variant="ghost"
-        size="sm"
-        pressed={workspace.selectedRowId === null}
-        onClick={() => {
-          workspace.selectRow(null)
-          setPropertiesPanel({ collapsed: false })
-        }}
-      >
-        <Settings2SolidIcon size={13} aria-hidden="true" />
-        <span>Table settings</span>
-      </Button>
-    </div>
-  ) : undefined
 
   // ---------------------------------------------------------------------------
   // Right panel (inspector)
@@ -208,7 +184,6 @@ export function DataPage() {
     <>
       <AdminWorkspaceCanvasLayout
         workspace="data"
-        toolbarRightSlot={toolbarRightSlot}
         contentSidebar={(
           <DataSidebar
             tables={workspace.tables}
