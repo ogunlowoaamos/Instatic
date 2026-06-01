@@ -422,6 +422,15 @@ Every color, gradient, and shadow in `src/admin/`, `src/admin/pages/site/`, and 
 
 **Exception:** `src/modules/*` is intentionally exempt — those CSS files ship to the published page output where editor tokens aren't available.
 
+### No `var(--name, fallback)` in admin / ui CSS modules
+
+Use bare `var(--name)` — never `var(--name, fallback)`. A fallback is either dead code (the token exists — drop the fallback) or a mask for a missing token (define the token in `globals.css` instead). Defaults for JS-driven custom properties belong in a CSS rule (`[data-x]` selector or `:root`), not scattered in every `var()` reader. Gated by `no-css-var-fallbacks.test.ts`.
+
+❌ `color: var(--editor-text-subtle, var(--editor-text-muted));`
+✅ `color: var(--editor-text-subtle);`
+
+**Exception:** `src/modules/*` is exempt — those styles ship to published pages where fallbacks may be the only sensible default.
+
 ### No inline `style={{...}}` (with one exception)
 
 Inline `style` is banned. The only legitimate use is **dynamic CSS custom properties** that the static module reads back via `var(--*)`:
@@ -479,6 +488,7 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
 | `<button>` in editor / admin code                        | `<Button>` from `src/ui/components/Button`               |
 | `color: #ededed;` (hardcoded color)                      | `color: var(--editor-text);`                             |
 | `border: 1px solid #333;` (hardcoded border)             | `border: 1px solid var(--editor-border);`                |
+| `var(--editor-text, #ededed)` (var with fallback)        | `var(--editor-text)` — define the token in `globals.css` |
 | `className="text-zinc-400"` (Tailwind utility)           | CSS Module class                                         |
 | `className="bg-blue-500"`, `min-h-[44px]`, etc.          | CSS Module class with a token                            |
 | `import { cn } from 'clsx'`                              | `import { cn } from '@ui/cn'`                            |
@@ -537,6 +547,7 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
   - `vendor/pixel-art-icons/` — vendored icon set
 - Gate tests:
   - `src/__tests__/architecture/css-token-policy.test.ts` — no hardcoded colors in admin / ui CSS modules
+  - `src/__tests__/architecture/no-css-var-fallbacks.test.ts` — no `var(--name, fallback)` in admin / ui CSS modules
   - `src/__tests__/architecture/noTailwindUtilities.test.ts` — no Tailwind utility classes (covers all palette names)
   - `src/__tests__/architecture/no-tailwind-deps.test.ts` — no Tailwind ecosystem dependencies
   - `src/__tests__/architecture/button-primitive-usage.test.ts` — every button goes through `Button`
