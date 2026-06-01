@@ -458,7 +458,7 @@ Canvas-internal values are not CSS tokens — they are raw integers intentionall
 
 ### Panel rail
 
-42px-wide vertical strip on the far left. Each button gets an automatic rail tint from its full panel identity, with repeats avoided inside the visible rail group, and opens a panel in the left sidebar. Implementation: `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css`.
+42px-wide vertical strip on the far left. Primary navigation panels sit in the top group; global workspace actions such as the AI assistant are pinned to the bottom group. Each button gets an automatic rail tint from its full panel identity, with repeats avoided inside the visible rail group, and opens a panel in the left sidebar. Implementation: `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css`.
 
 ### Left sidebar
 
@@ -479,6 +479,8 @@ Opens the rail-selected panel:
 Property controls bound to the selected node. Contents driven by the node's module schema (`src/core/module-engine/`).
 
 At the top of the Properties Panel, the selector picker is the single entry point for CSS rules that affect the selected element. Assigned class rules render as removable `TagPill` chips and are stored on `node.classIds`; matching ambient rules render as non-removable `TagPill` chips because they apply by selector matching, not assignment. The dropdown searches both class rules and ambient selectors. Ambient rows that do not match the selected canvas element stay visible but disabled with the mismatch reason, and selector-shaped input such as `.hero .title`, `h1`, or `a:hover` creates an ambient rule instead of a class.
+
+When the user clicks a rule in the Selectors Panel, the Properties Panel switches to **selector-editing mode** — the body shows style controls for that rule directly, and the header renders `SelectorHeader` with the rule's CSS selector, an inline rename input, and a delete button. The delete and rename actions are only shown for non-generated rules and require `site.style.edit`.
 
 When an eligible node is selected on a page canvas (not root, not already a ref, not inside VC mode), a **Componentize** button (`ConvertToComponentButton`) appears next to the class picker. Clicking it, or triggering `openComponentizeEditor(nodeId)` from the layer context menu, opens an inline name-input strip and, on confirmation, calls `convertNodeToComponent(nodeId, name)` to extract the subtree into a new Visual Component. Full details: [`docs/features/visual-components.md`](features/visual-components.md) → "Componentizing existing page content".
 

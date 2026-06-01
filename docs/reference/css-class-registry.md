@@ -99,6 +99,8 @@ Class order matters — drag-reorder is supported for assigned class pills.
 
 At render time, `classNamesForClassIds(classIds, registry)` returns the rendered class names that go onto the element's `class=` attribute. `injectNodeClassIds(html, node, site)` in the publisher splices them into the root tag.
 
+When the user selects a rule from the Selectors Panel, the Properties Panel enters **selector-editing mode** — the panel body shows style controls for that rule instead of a page node. The panel header renders `SelectorHeader`, which displays the rule's CSS selector and (for non-generated, non-locked rules) provides inline rename and delete actions. Delete opens `DeleteSelectorDialog` for confirmation. Both actions are gated by `canEditStyle && !isGeneratedClassLocked(cls)`.
+
 ---
 
 ## Compiling rules to CSS
@@ -338,6 +340,7 @@ Nodes that reference the rule by id keep working — only the rendered CSS outpu
   - `src/core/page-tree/styleRule.ts` — `classifySelectorCreateInput`; the shared classifier for selector creation surfaces
   - `src/admin/pages/site/store/styleRuleRename.ts` — `renameStyleRule`, `isValidCssSelector`; rename logic for both class-kind and ambient rules
   - `src/admin/pages/site/panels/PropertiesPanel/ClassPicker.tsx` — picker UI: pill strip, input, creation, context menus
+  - `src/admin/pages/site/panels/PropertiesPanel/SelectorHeader.tsx` — selector name, inline rename, and delete shown in the Properties Panel header during selector-editing mode
   - `src/admin/pages/site/panels/SelectorDialogs.tsx` — `SelectorNameDialog`, `DeleteSelectorDialog`; shared dialog components for selector editing surfaces
   - `src/admin/pages/site/panels/SelectorsPanel/SelectorContextMenu.tsx` — right-click context menu for selector rows
 - Gate tests:
