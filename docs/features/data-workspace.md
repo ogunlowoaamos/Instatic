@@ -138,6 +138,7 @@ Both dialogs are opened from `DataSidebar`.
 | Adding a `kind === 'postType'` branch inside `FieldsSection` | Classification belongs in `fieldGuards.ts`; `FieldsSection` reads `isMandatoryField`, `isOptionalBuiltIn`, etc. |
 | Editing a field's `type` after creation | Type is immutable; `FieldEditForm` shows it read-only with "(cannot be changed)" |
 | Writing manual `useMemo`/`useCallback` in any of these components | React Compiler auto-memoizes; the only exception is the async helper extraction pattern above |
+| Adding a "Table settings" shortcut to the `DataPage` toolbar | `TableSettings` is reached by deselecting a row — the inspector switches automatically. A duplicate toolbar affordance was removed; `src/__tests__/admin/data/dataPageToolbar.test.ts` prevents it from returning. |
 
 ---
 
