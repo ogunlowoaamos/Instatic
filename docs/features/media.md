@@ -94,11 +94,18 @@ The editor store does **not** grow new slices. The Media page is self-contained 
 - In **All files**, root folders render before root-level assets (assets with no folder assignment).
 - Inside a folder, immediate child folders render before assets, and a parent-folder item appears at the start of the grid/list.
 - Type filters other than `All` and active tag filters hide folder items so filtering remains literal. Search still matches folder names when folders are visible.
-- Image-metadata smart folders (`Missing alt text`, `Missing title`) only match `image/*` assets; fonts, documents, and other non-image files are excluded even when those metadata fields are empty.
+
+Drag/drop uses a media-specific `DataTransfer` payload helper in `src/admin/pages/media/utils/mediaDragDrop.ts`. Canvas folder items, the parent-folder item, and regular folder rows in `MediaFolderPanel` all accept the same payloads:
+
+- Asset drops call `useMediaWorkspace().moveAssetsToFolder(assetIds, targetFolderId)`.
+- Folder drops call the existing `moveFolder(folderId, parentId)` action after UI-side cycle/no-op checks.
+- Dropping on **All files** moves assets/folders back to the root (`targetFolderId: null`).
+
+Storage remains `media_asset_folders` (many-to-many), but the canvas move interaction is intentionally file-manager-like: moving an asset to a folder removes its previous folder assignments and adds only the target folder. The user-facing model is one current folder per asset move.
 
 ### Smart folders
 
-Smart folders are virtual views in the sidebar that match assets by predicate rather than by folder membership. They are rendered alongside real folders in `MediaFolderPanel` and use the same `FolderSelection` union type (`SmartFolderId`). The predicate for each ID lives in `src/admin/pages/media/utils/smartFolders.ts`.
+Smart folders are virtual views in the sidebar that match assets by predicate rather than by folder membership. They appear in the **Library** section of `MediaFolderPanel` (above the folder tree), alongside "All files", and use the same `FolderSelection` union type (`SmartFolderId`). The predicate for each ID lives in `src/admin/pages/media/utils/smartFolders.ts`.
 
 | Smart folder ID          | Label               | Matches                                          | Scope       |
 |--------------------------|---------------------|--------------------------------------------------|-------------|
@@ -113,14 +120,6 @@ Smart folders are virtual views in the sidebar that match assets by predicate ra
 Standard filters (type chip, search, tag) still apply inside a smart folder view — `useMediaWorkspace` runs the smart predicate on top of the already-filtered list (`filteredAssets → visibleAssets`).
 
 The count badge shown next to each smart folder in the sidebar is computed client-side from `workspace.assets` using `smartFolderPredicate(id)` directly — no extra server round-trip.
-
-Drag/drop uses a media-specific `DataTransfer` payload helper in `src/admin/pages/media/utils/mediaDragDrop.ts`. Canvas folder items, the parent-folder item, and regular folder rows in `MediaFolderPanel` all accept the same payloads:
-
-- Asset drops call `useMediaWorkspace().moveAssetsToFolder(assetIds, targetFolderId)`.
-- Folder drops call the existing `moveFolder(folderId, parentId)` action after UI-side cycle/no-op checks.
-- Dropping on **All files** moves assets/folders back to the root (`targetFolderId: null`).
-
-Storage remains `media_asset_folders` (many-to-many), but the canvas move interaction is intentionally file-manager-like: moving an asset to a folder removes its previous folder assignments and adds only the target folder. The user-facing model is one current folder per asset move.
 
 ### Floating windows
 
