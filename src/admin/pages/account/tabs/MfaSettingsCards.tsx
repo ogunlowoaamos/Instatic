@@ -125,16 +125,12 @@ async function renderQrCode(
   dispatch: Dispatch<MfaAction>,
 ): Promise<void> {
   try {
-    const { toString } = await import('qrcode')
-    const svg = await toString(setup.otpauthUrl, {
-      type: 'svg',
-      margin: 2,
-      errorCorrectionLevel: 'M',
-      width: 224,
-      color: {
-        dark: '#000000ff',
-        light: '#ffffffff',
-      },
+    const { renderSVG } = await import('uqr')
+    const svg = renderSVG(setup.otpauthUrl, {
+      border: 2,
+      ecc: 'M',
+      blackColor: '#000000',
+      whiteColor: '#ffffff',
     })
     if (!isCancelled()) {
       dispatch({
