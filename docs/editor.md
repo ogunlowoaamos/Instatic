@@ -377,11 +377,11 @@ Each `IframeFrameSurface` boots with an empty `srcDoc` skeleton and portals the 
 - **Plugin module isolation.** Plugin canvas modules (`ModuleSandboxFrame.tsx`) run inside nested iframes with `sandbox="allow-scripts"` for security; the `IframeFrameSurface` outer frame is same-origin.
 - **Per-breakpoint viewport.** Each frame is sized to the breakpoint width, so `vw`/`vh` units, media queries, and scroll behaviour all match the published page.
 
-### 2. Selection / hover are CSS rings on the iframe content
+### 2. Selection, hover, and inspect ladder overlays
 
-Selection isn't a React overlay — it's a `box-shadow: var(--canvas-selection-ring)` applied to the selected node inside the iframe. Same for hover (`--canvas-hover-ring`). The two ring colors (neon green and neon pink) are the only chromatic UI on the canvas; they're bright enough to be visible against any user content.
+Selection rings and hover rings are absolutely-positioned overlay divs portaled into the canvas root—outside the iframe and the transform layer. Their 1px border is a `box-shadow` using `--canvas-selection-ring` (neon green) for selection and `--canvas-hover-ring` (neon pink) for hover. Because the rings live in the canvas root's coordinate space rather than inside the scaled transform layer, that 1px border stays exactly 1px at every zoom level. The two ring colors are the only chromatic UI on the canvas; they're bright enough to be visible against any user content.
 
-`BreakpointSelectionOverlay` also owns the canvas-local action chrome that must escape iframe overflow: the selected-layer toolbar and the Alt/Option inspect ladder. Holding Alt/Option while hovering a canvas element opens a momentary tree-shaped target picker in the parent canvas root, anchored above or below the hovered element and clamped to the visible canvas. The picker is built from the active `NodeTree`, not raw DOM parents: ancestors appear above the hovered node, the hovered node is the current row, and the first visible child appears below it. ArrowUp/ArrowDown move the highlighted target, Enter commits selection, clicking a row commits immediately, and releasing Alt/Option or pressing Escape dismisses the ladder. Committing through the ladder changes the selected node without taking focus from the current side panel, so the Properties panel stays open while users retarget parent or child layers.
+`BreakpointSelectionOverlay` owns these rings and all other canvas-local action chrome that must escape iframe overflow: the selected-layer toolbar and the Alt/Option inspect ladder. Holding Alt/Option while hovering a canvas element opens a momentary tree-shaped target picker in the parent canvas root, anchored above or below the hovered element and clamped to the visible canvas. The picker is built from the active `NodeTree`, not raw DOM parents: ancestors appear above the hovered node, the hovered node is the current row, and the first visible child appears below it. ArrowUp/ArrowDown move the highlighted target, Enter commits selection, clicking a row commits immediately, and releasing Alt/Option or pressing Escape dismisses the ladder. Committing through the ladder changes the selected node without taking focus from the current side panel, so the Properties panel stays open while users retarget parent or child layers.
 
 ### CSS injection into the iframe
 
@@ -451,8 +451,12 @@ Canvas-internal values are not CSS tokens — they are raw integers intentionall
 | `CanvasLayerContextMenu.tsx`    | Right-click on a layer                                          |
 | `canvasDnd.ts`                  | Drag-and-drop (insert / move / wrap)                            |
 | `canvasDomGeometry.ts`          | Cross-iframe DOM measurement                                    |
+| `canvasOverlayGeometry.ts`      | Cross-iframe element rect → canvas-root coords; CSS attribute value escaping |
 | `canvasSelectionUtils.ts`       | Selection helpers                                               |
+| `BreakpointSelectionOverlay.tsx`| Selection / hover rings, selection toolbar, inspect ladder integration |
 | `canvasTreeLadder.ts`           | Alt/Option inspect ladder tree model                            |
+| `CanvasTreeLadderOverlay.tsx`   | `useCanvasTreeLadderOverlay` — wires the ladder model to canvas events and portal |
+| `CanvasTreeLadderRowButton.tsx` | Single row button in the Alt/Option inspect ladder              |
 | `useCanvasKeyboardShortcuts.ts` | Editor keyboard shortcuts (delete, duplicate, wrap, …)          |
 | `useRuntimeScriptBuild.ts`      | Builds the bundled runtime scripts for the Run-scripts toggle    |
 | `useIframeCursorBridge.ts`      | Bridges iframe-native cursor movement to parent-doc callbacks (used by breakpoint activation tooltip) |
