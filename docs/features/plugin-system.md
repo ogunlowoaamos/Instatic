@@ -203,6 +203,14 @@ These produce a build-time error and a runtime error if attempted:
 
 Sandbox invariants are gated by `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`.
 
+### VM lifecycle and disposal
+
+Each `activateSandboxedPluginModulePack` call constructs one QuickJS context via `createModulePackVm` and registers it in `packsByPlugin` (`src/core/plugins/modulePackLoader.ts`). The emscripten runtime backing the QuickJS WASM is **not reclaimed by JS GC** — explicit disposal is mandatory.
+
+`deactivatePluginModulePack` disposes the tracked VM (if any) before unregistering modules, and before installing the replacement on re-activation. `resetPluginModulePacks` (called on server reload) disposes every live VM. Without this discipline each activate/upgrade/restart cycle leaks one native context for the host-process lifetime.
+
+The browser editor path (`activatePluginModulePack`) evaluates the pack in the browser's own JS engine and registers no VM, so `packsByPlugin` stays empty on that path and dispose is a no-op.
+
 ### Disk-path containment
 
 Every server-side read of a plugin's on-disk files goes through `assertPathWithin(uploadsDir, resolvedPath)` from `server/util/pathWithin.ts` before any `readFile` or `rm` is issued. This covers:
@@ -618,7 +626,8 @@ Manifest:
   - `src/core/plugins/` — host-side runtime
   - `server/plugins/runtime.ts` — boot-time plugin activation
   - `server/plugins/quickjsHost.ts` — server entrypoint sandbox
-  - `server/plugins/modulePackVm.ts` — module pack sandbox
+  - `server/plugins/modulePackVm.ts` — module pack VM constructor
+  - `src/core/plugins/modulePackLoader.ts` — module pack lifecycle coordinator (activate, deactivate, reset, VM tracking)
   - `server/plugins/package.ts` — install / `assertSandboxSafe`
   - `server/plugins/scheduler.ts` — scheduled job dispatcher
   - `server/plugins/host/network.ts` — gated outbound fetch + SSRF guards
@@ -636,3 +645,4 @@ Manifest:
   - `src/__tests__/architecture/no-plugin-tab-shells.test.ts`
   - `src/__tests__/architecture/sandbox-crypto-bridge.test.ts`
   - `src/__tests__/plugins/gatedFetchSsrf.test.ts` — SSRF guards: allowlist, DNS rebinding, redirect re-validation, redirect cap
+  - `src/__tests__/plugins/pluginModulePack.test.ts` — module pack activation, re-activation, deactivation, and VM disposal
