@@ -160,7 +160,7 @@ export function validatePages(
   }
   validatePageSlugList(pages)
   pages = validatePageNodeTreesList(pages, tolerant)
-  syncVCSlotInstancesInPages(pages, visualComponents)
+  syncVCSlotInstancesInTrees(pages.map((p) => p.nodes as Record<string, BaseNode>), visualComponents)
   const knownVcIds = storedVcIds ?? new Set(visualComponents.map((vc) => vc.id))
   stripDanglingVCRefsInPages(pages, knownVcIds)
   sanitizePageNodeRichtextProps(pages)
@@ -198,6 +198,9 @@ export function validateVisualComponents(rawVCs: unknown[]): VisualComponent[] {
   const deduped = dedupeVCsByName(parsed)
   const acyclic = filterCyclicVCs(deduped)
   stripDanglingVCRefsInVCs(acyclic)
+  // Heal slot-instances for VC refs nested inside other VC trees (ISS-026) —
+  // refs are resolved against the surviving VC roster.
+  syncVCSlotInstancesInTrees(acyclic.map((vc) => vc.tree.nodes as Record<string, BaseNode>), acyclic)
   sanitizeVCNodeRichtextProps(acyclic)
   return acyclic
 }
@@ -556,17 +559,25 @@ function validatePageNodeTreesList(pages: Page[], tolerant: boolean): Page[] {
  * page tree matches each VC's current slot params. Heals drift from data
  * predating the mutation-side slot sync.
  */
-function syncVCSlotInstancesInPages(pages: Page[], visualComponents: VisualComponent[]): void {
+/**
+ * Reconcile base.slot-instance children for every VC ref in the given node
+ * maps. Tree-agnostic so it heals refs in page trees AND refs nested inside
+ * other VC definition trees — the latter was never swept, leaving nested refs
+ * without a fill location (ISS-026).
+ */
+function syncVCSlotInstancesInTrees(
+  nodeMaps: Array<Record<string, BaseNode>>,
+  visualComponents: VisualComponent[],
+): void {
   const vcById = new Map(visualComponents.map((vc) => [vc.id, vc]))
-  for (const page of pages) {
-    for (const node of Object.values(page.nodes)) {
+  for (const treeNodes of nodeMaps) {
+    for (const node of Object.values(treeNodes)) {
       if (node.moduleId !== 'base.visual-component-ref') continue
       const componentId = node.props.componentId
       if (typeof componentId !== 'string' || !componentId) continue
       const vc = vcById.get(componentId)
       if (!vc) continue
-      const treeNodes = page.nodes as Record<string, BaseNode>
-      const syncResult = syncSlotInstances(node as BaseNode, vc, treeNodes)
+      const syncResult = syncSlotInstances(node, vc, treeNodes)
       if (syncResult.ops.length > 0 || Object.keys(syncResult.newNodes).length > 0) {
         applySlotSyncResult(treeNodes, syncResult, node.id)
       }

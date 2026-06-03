@@ -256,22 +256,36 @@ function clonePageSubtreeToFlatNodes(
  * subtree is mutated in place via `applySlotSyncResult`.
  */
 function syncAllVCRefSlotInstances(
-  pages: Array<{ nodes: Record<string, PageNode> }>,
+  nodeMaps: Array<Record<string, BaseNode>>,
   vcId: string,
   vc: VisualComponent,
 ): void {
-  for (const page of pages) {
-    for (const node of Object.values(page.nodes)) {
+  for (const treeNodes of nodeMaps) {
+    for (const node of Object.values(treeNodes)) {
       if (
         node.moduleId === 'base.visual-component-ref' &&
         node.props.componentId === vcId
       ) {
-        const treeNodes = page.nodes as Record<string, BaseNode>
-        const syncResult = syncSlotInstances(node as BaseNode, vc, treeNodes)
+        const syncResult = syncSlotInstances(node, vc, treeNodes)
         applySlotSyncResult(treeNodes, syncResult, node.id)
       }
     }
   }
+}
+
+/**
+ * Every node map that can host a VC ref: each page's nodes AND each VC's tree
+ * nodes. A slot edit on one VC must reconcile refs to it wherever they live,
+ * including refs nested inside *other* VC trees (ISS-026).
+ */
+function allTreeNodeMaps(site: {
+  pages: Array<{ nodes: Record<string, PageNode> }>
+  visualComponents: Array<{ tree: { nodes: Record<string, BaseNode> } }>
+}): Array<Record<string, BaseNode>> {
+  return [
+    ...site.pages.map((p) => p.nodes as Record<string, BaseNode>),
+    ...site.visualComponents.map((vc) => vc.tree.nodes),
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -531,7 +545,7 @@ export const createVisualComponentsSlice: EditorStoreSliceCreator<VisualComponen
       // If a slot param was added, sync every VC ref on every page so the new
       // slot gets a materialized slot-instance child immediately.
       if (type === 'slot') {
-        syncAllVCRefSlotInstances(site.pages, vcId, vc)
+        syncAllVCRefSlotInstances(allTreeNodeMaps(site), vcId, vc)
       }
       return true
     })
@@ -564,10 +578,10 @@ export const createVisualComponentsSlice: EditorStoreSliceCreator<VisualComponen
       // 2. Remove the param itself (before syncing, so syncSlotInstances sees the final params)
       vc.params.splice(paramIdx, 1)
 
-      // 3. Clean up every page node that is a base.visual-component-ref for this VC:
-      //    drop propOverrides[paramId] from each ref…
-      for (const page of site.pages) {
-        for (const node of Object.values(page.nodes)) {
+      // 3. Clean up every ref for this VC — in pages AND nested in other VC
+      //    trees (ISS-026): drop propOverrides[paramId] from each ref…
+      for (const treeNodes of allTreeNodeMaps(site)) {
+        for (const node of Object.values(treeNodes)) {
           if (
             node.moduleId === 'base.visual-component-ref' &&
             node.props.componentId === vcId
@@ -583,7 +597,7 @@ export const createVisualComponentsSlice: EditorStoreSliceCreator<VisualComponen
       // …then, if a slot param was removed, re-sync slot-instance children
       // for every ref so the deleted slot's instance disappears.
       if (isSlot) {
-        syncAllVCRefSlotInstances(site.pages, vcId, vc)
+        syncAllVCRefSlotInstances(allTreeNodeMaps(site), vcId, vc)
       }
       return true
     })
@@ -744,7 +758,7 @@ export const createVisualComponentsSlice: EditorStoreSliceCreator<VisualComponen
       // If this is a slot param, sync all VC refs on all pages so the
       // slot-instance's slotName prop tracks the renamed param.
       if (isSlot) {
-        syncAllVCRefSlotInstances(site.pages, vcId, vc)
+        syncAllVCRefSlotInstances(allTreeNodeMaps(site), vcId, vc)
       }
       return true
     })
