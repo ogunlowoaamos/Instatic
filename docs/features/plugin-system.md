@@ -28,6 +28,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | Host-side plugin runtime       | `src/core/plugins/`                       |
 | Sandbox host (server entrypoint)| `server/plugins/quickjsHost.ts`          |
 | Sandbox host (module pack VMs) | `server/plugins/modulePackVm.ts`          |
+| Gated outbound fetch + SSRF guards | `server/plugins/host/network.ts`       |
 | Plugin lifecycle (boot, install, activate, uninstall) | `server/plugins/runtime.ts`, `package.ts` |
 | Plugin scheduler               | `server/plugins/scheduler.ts`             |
 | HTTP route bridge              | `server/handlers/cms/runtime.ts`          |
@@ -423,7 +424,13 @@ const res  = await fetch('https://api.example.com/data')
 const data = await res.json()
 ```
 
-The permission alone is insufficient — the URL host must also be on the manifest's `networkAllowedHosts` allowlist. Wildcards (`*.cdn.example.com`) are supported. Calls to non-allowlisted hosts are rejected at the host bridge.
+The permission alone is insufficient. `performGatedFetch` in `server/plugins/host/network.ts` enforces three checks on **every request and every redirect hop**:
+
+1. **Allowlist check.** The URL host must match an entry in `manifest.networkAllowedHosts`. Wildcards (`*.cdn.example.com`) match one level deep — `*.foo.com` matches `bar.foo.com` but not `foo.com` or `a.bar.foo.com`. An empty or missing allowlist fails closed (all outbound denied).
+
+2. **DNS resolution + SSRF guard.** The hostname is resolved to its addresses via the system DNS resolver **before** the connection is made. If any resolved address falls in a blocked range, the request is rejected — even when the host is allowlisted. Blocked ranges: loopback (`127.0.0.0/8`, `::1`), private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local (`169.254.0.0/16`, `fe80::/10`), CGNAT (`100.64.0.0/10`), unique-local (`fc00::/7`), unspecified (`0.0.0.0/8`, `::`), and IPv4-mapped IPv6 forms of all of the above. This prevents DNS rebinding attacks (an allowlisted hostname that resolves to an internal IP is blocked).
+
+3. **Manual redirect following with re-validation.** The host does not use transparent redirect following (`redirect: 'manual'` is always set). Each redirect location is validated with both the allowlist and the DNS SSRF guard before the next hop. The chain is capped at 5 hops. Method downgrade (303 → GET; 301/302 non-GET → GET) follows the Fetch spec.
 
 ---
 
@@ -593,6 +600,7 @@ Manifest:
   - `server/plugins/modulePackVm.ts` — module pack sandbox
   - `server/plugins/package.ts` — install / `assertSandboxSafe`
   - `server/plugins/scheduler.ts` — scheduled job dispatcher
+  - `server/plugins/host/network.ts` — gated outbound fetch + SSRF guards
   - `server/handlers/cms/runtime.ts` — plugin HTTP route bridge
   - `examples/plugins/template/` — example plugin
 - Gate tests:
@@ -606,3 +614,4 @@ Manifest:
   - `src/__tests__/architecture/plugin-schedule-invariants.test.ts`
   - `src/__tests__/architecture/no-plugin-tab-shells.test.ts`
   - `src/__tests__/architecture/sandbox-crypto-bridge.test.ts`
+  - `src/__tests__/plugins/gatedFetchSsrf.test.ts` — SSRF guards: allowlist, DNS rebinding, redirect re-validation, redirect cap
