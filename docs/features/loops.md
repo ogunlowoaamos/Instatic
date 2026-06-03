@@ -40,44 +40,52 @@ server/publish/loopPrefetch.ts    — server-side pre-fetch before render
 
 ```ts
 interface LoopEntitySource {
-  /** Stable id — 'content.entries', 'site.pages', 'site.media', plugin: 'acme.products' */
-  id:        string
-  label:     string
+  /** Namespaced id — 'content.entries', 'site.pages', 'site.media', 'acme.products' */
+  id:           string
+  label:        string
+  description?: string
 
   /** Field metadata — what's available to dynamic bindings inside the loop. */
-  fields:    LoopSourceField[]
+  fields:       LoopSourceField[]
 
-  /** Optional: PropertySchema of filter controls shown in the Properties panel. */
-  filterSchema?:   PropertySchema
+  /** PropertySchema of filter controls shown in the Properties panel. */
+  filterSchema: PropertySchema
 
-  /** Optional: allowed `orderBy` values shown in the Properties panel. */
-  orderByOptions?: { value: string; label: string }[]
+  /** Allowed `orderBy` values; first entry is the default. Each uses `id`, not `value`. */
+  orderByOptions: { id: string; label: string }[]
 
   /** Server-side fetch — runs at publish time (and live at editor render time). */
-  fetch:     (ctx: SourceFetchContext) => Promise<LoopFetchResult>
+  fetch(ctx: SourceFetchContext): Promise<LoopFetchResult>
 
-  /** Optional: synthesized items for editor canvas preview. */
-  preview?:  (ctx: SourcePreviewContext) => LoopFetchResult
+  /** Editor canvas preview — returns synthesized items (no DB access). */
+  preview(ctx: SourcePreviewContext): LoopItem[]
 
   /**
-   * Optional. Default `false`. Set `true` when the source returns data
-   * that varies per visitor request (live API, time-of-day data, per-
-   * visitor results). Loops using a request-dependent source become
-   * Layer C "holes" — the publisher emits a placeholder + a tiny client
+   * Default `false`. Set `true` when the source returns data that varies per
+   * request (live API, time-of-day data). Loops using a request-dependent source
+   * become Layer C "holes" — the publisher emits a placeholder + a tiny client
    * runtime fetches the rendered fragment lazily via `/_instatic/hole/<nodeId>`.
    *
-   * Built-in sources (`content.entries`, `site.pages`, `site.media`)
-   * declare `false` — their data is publish-time-deterministic, the loop
-   * bakes into the static disk artefact and re-bakes on every publish.
-   * Plugin sources backed by `cms.storage.*` should also stay `false`;
-   * only mark `true` when the source genuinely needs per-visitor data.
+   * A `requestDependent` (non-perVisitor) hole is rendered at request time and
+   * cached by Layer B per `(nodeId, query, publishVersion)`.
+   *
+   * Built-in sources (`content.entries`, `site.pages`, `site.media`) are
+   * publish-time-deterministic — leave this unset. Plugin sources that hit
+   * live external APIs should set it.
    */
   requestDependent?: boolean
+
+  /**
+   * Default `false`. Implies `requestDependent`. Output varies per individual
+   * visitor (cookies, randomization). Bypasses the Layer B cache; `fetch()`
+   * runs on every page load. Use sparingly.
+   */
+  perVisitor?: boolean
 }
 
 interface LoopSourceField {
-  id:     string            // 'title', 'slug', 'featuredMedia', ...
-  label:  string
+  id:      string            // 'title', 'slug', 'featuredMedia', ...
+  label:   string
   format?: 'plain' | 'html' | 'url' | 'media'
 }
 
@@ -87,10 +95,8 @@ interface LoopItem {
 }
 
 interface LoopFetchResult {
-  items:    LoopItem[]
-  total?:   number
-  hasMore?: boolean
-  cursor?:  string
+  items:      LoopItem[]
+  totalItems: number         // total across all pages — used for hasMore + paginators
 }
 ```
 
@@ -303,17 +309,22 @@ export function activate(api) {
       },
     },
     orderByOptions: [
-      { value: 'createdAt:desc', label: 'Newest' },
-      { value: 'price:asc',      label: 'Price low → high' },
+      { id: 'createdAt:desc', label: 'Newest' },
+      { id: 'price:asc',      label: 'Price low → high' },
     ],
     async fetch(ctx) {
       const all = await products.list()
       const items = all
-        .filter((p) => !ctx.filter?.category || p.category === ctx.filter.category)
+        .filter((p) => !ctx.filters?.category || p.category === ctx.filters.category)
         .sort(/* by ctx.orderBy */)
-        .slice(0, ctx.limit ?? 100)
+        .slice(0, ctx.limit)
         .map((p) => ({ id: p.id, fields: p }))
-      return { items, total: items.length }
+      return { items, totalItems: items.length }
+    },
+    preview(ctx) {
+      return [
+        { id: 'preview-1', fields: { name: 'Example product', price: 99 } },
+      ]
     },
   })
 }
@@ -339,10 +350,19 @@ Use **two `base.loop` nodes** side by side, one filtered by `featured: true` and
 
 ### Pagination
 
-The current built-in sources fetch up to `ctx.limit` per render (no live pagination on published pages). For paginated UI:
+Two modes are available via the loop node's `pagination` prop:
 
-- Use a custom `base.loop` per page (loop with `offset` filter) — works for static "page 1", "page 2" pages.
-- For interactive pagination, ship a plugin frontend script that fetches from a plugin endpoint and replaces the loop's DOM.
+**`pagination: 'none'` (default)** — renders up to `limit` items at publish time. No load-more affordance.
+
+**`pagination: 'infinite'`** — renders the first `pageSize` items and appends a **"Load more"** button. Each click fetches the next page from `/_instatic/loop/<loopId>?page=N&pagePath=<path>` and appends the returned HTML before the button. When `hasMore` is false the button is removed automatically.
+
+To enable infinite loading:
+1. Set `props.pagination = 'infinite'` on the loop node.
+2. Set `props.pageSize` (items per click; defaults to 10).
+3. The publisher auto-injects `<script type="module" src="/_instatic/assets/loop-runtime.js">` when at least one infinite loop exists on the page (see `server/publish/loopRuntime.ts`). The runtime is < 2 KB and ships only when needed.
+
+For static multi-page navigation (no JS required):
+- Use separate `base.loop` nodes with an `offset` filter — one per "page" — and static links between pages.
 
 ---
 

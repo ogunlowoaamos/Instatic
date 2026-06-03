@@ -132,7 +132,7 @@ Three op kinds:
 
 Slot-instances are matched to slots by **slot id, not name**, so renaming a slot in the VC carries the user's content with it.
 
-`applySlotSyncResult` is called inside Immer producers in `siteSlice` and `visualComponentsSlice` so the mutation participates in the editor's undo history. In `visualComponentsSlice`, `allTreeNodeMaps(site)` supplies both page node maps and every VC definition tree's node map, so a `base.visual-component-ref` nested inside another VC's tree is reconciled exactly like a ref on a page. The load-time validator (`validateVisualComponents` in `src/core/persistence/validate.ts`) runs the same sweep over all surviving VC trees to self-heal any stored drift.
+`applySlotSyncResult` is called inside Immer producers in `siteSlice` and `visualComponentsSlice` so the mutation participates in the editor's undo history. `allTreeNodeMaps(site)` (from `vcSlotReconcile.ts`) supplies both page node maps and every VC definition tree's node map, so a `base.visual-component-ref` nested inside another VC's tree is reconciled exactly like a ref on a page. The load-time validator (`validateVisualComponents` in `src/core/persistence/validate.ts`) runs the same sweep over all surviving VC trees to self-heal any stored drift.
 
 When the ref is first inserted, slot-instances are seeded with the slot's default content from the VC's `slot-outlet.children` (if any). After that, edits inside slot-instances are owned by the consumer page.
 
@@ -381,7 +381,7 @@ const { refNode, slotInstances } = instantiateVCAtRef(vc, { /* instanceProps */ 
 | Binding a prop on a VC tree node to a literal value                    | The literal goes in `node.props`. Bindings are `propBindings` mapping prop → `{ paramId }`. |
 | Looking up a param by `name`                                           | Use `id` — names can be renamed, ids are stable               |
 | Inserting a ref without running `syncSlotInstances`                    | Always sync, even on first insert. `instantiateVCAtRef` does it for you. |
-| Running slot sync against page trees only when a slot shape changes    | Use `allTreeNodeMaps(site)` in `visualComponentsSlice` (covers pages + all VC trees) so refs nested inside other VCs are also reconciled |
+| Running slot sync against page trees only when a slot shape changes    | Use `allTreeNodeMaps(site)` from `vcSlotReconcile.ts` (covers pages + all VC trees) so refs nested inside other VCs are also reconciled |
 | Allowing recursive VC refs                                             | Call `wouldCreateCycle(...)` before insert / rebind           |
 | Branching on `kind === 'visualComponent'` inside a tree mutation       | Mutations operate on `NodeTree<TNode>` — `mutateActiveTree` is the only branch (gated). |
 
@@ -407,6 +407,7 @@ const { refNode, slotInstances } = instantiateVCAtRef(vc, { /* instanceProps */ 
   - `src/admin/pages/site/componentization/componentizeEligibility.ts` — `canComponentizeNode`
   - `src/admin/pages/site/panels/PropertiesPanel/ConvertToComponentButton.tsx` — inline name-input strip
   - `src/admin/pages/site/store/slices/visualComponentsSlice.ts` — `convertNodeToComponent`
+  - `src/admin/pages/site/store/slices/vcSlotReconcile.ts` — `syncAllVCRefSlotInstances`, `allTreeNodeMaps`
 - Gate tests:
   - `src/__tests__/architecture/visual-components-mutation-contract.test.ts`
   - `src/__tests__/architecture/no-vc-in-site-shell.test.ts`
