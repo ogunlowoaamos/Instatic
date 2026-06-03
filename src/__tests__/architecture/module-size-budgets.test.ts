@@ -96,7 +96,7 @@ const GRANDFATHERED: Record<string, number> = {
   'src/admin/pages/site/panels/PropertiesPanel/ClassPicker.tsx': 761,
   'src/admin/pages/site/store/slices/visualComponentsSlice.ts': 954,
   'server/repositories/media.ts': 704,
-  'server/handlers/cms/auth.ts': 913,
+  'server/handlers/cms/auth.ts': 854,
   'src/core/loops/sources/dataRows.ts': 903,
   'src/core/page-tree/mutations.ts': 882,
   'server/plugins/host/handlers/content.ts': 848,
