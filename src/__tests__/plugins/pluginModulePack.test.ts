@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   activatePluginModulePack,
+  activateSandboxedPluginModulePack,
   deactivatePluginModulePack,
   listPluginRegisteredModuleIds,
   resetPluginModulePacks,
+  type SandboxedModulePack,
 } from '@core/plugins/modulePackLoader'
 import {
   pluginModuleToHostModule,
@@ -44,6 +46,52 @@ beforeEach(() => {
 
 afterEach(() => {
   resetPluginModulePacks()
+})
+
+function makeStubPack(pluginId: string, onDispose: () => void): SandboxedModulePack {
+  return {
+    pluginId,
+    modules: [
+      {
+        id: 'acme.canvas.counter',
+        name: 'Counter',
+        category: 'Acme Pack',
+        version: '1.0.0',
+        defaults: {},
+        schema: {},
+        hasPreview: false,
+      },
+    ],
+    render: () => ({ html: '' }),
+    preview: () => ({ html: '' }),
+    dispose: onDispose,
+  }
+}
+
+// ISS-033: server-side QuickJS module-pack contexts must be disposed on every
+// lifecycle teardown, otherwise each activate/upgrade/restart cycle leaks a
+// native context for the host-process lifetime.
+describe('sandboxed module-pack VM disposal', () => {
+  it('disposes the VM on deactivate', () => {
+    let disposed = 0
+    activateSandboxedPluginModulePack(sampleManifest, makeStubPack('acme.canvas', () => { disposed++ }))
+    deactivatePluginModulePack('acme.canvas')
+    expect(disposed).toBe(1)
+  })
+
+  it('disposes the prior VM when the pack is re-activated', () => {
+    let disposedFirst = 0
+    activateSandboxedPluginModulePack(sampleManifest, makeStubPack('acme.canvas', () => { disposedFirst++ }))
+    activateSandboxedPluginModulePack(sampleManifest, makeStubPack('acme.canvas', () => {}))
+    expect(disposedFirst).toBe(1)
+  })
+
+  it('disposes every VM on reset', () => {
+    let disposed = 0
+    activateSandboxedPluginModulePack(sampleManifest, makeStubPack('acme.canvas', () => { disposed++ }))
+    resetPluginModulePacks()
+    expect(disposed).toBe(1)
+  })
 })
 
 describe('pluginModuleToHostModule', () => {

@@ -44,6 +44,13 @@ import {
  */
 const registeredByPlugin = new Map<string, Set<string>>()
 
+// Live sandboxed VMs by plugin id. Tracked so every lifecycle teardown can
+// dispose the QuickJS context — the emscripten runtime is not reclaimed by JS
+// GC, so without this each activate/upgrade/restart cycle leaks one native
+// context for the host-process lifetime (ISS-033). Stays empty on the browser
+// editor path (activatePluginModulePack), where there is no VM.
+const packsByPlugin = new Map<string, SandboxedModulePack>()
+
 function resolveDefinitions(
   pluginId: string,
   entry: PluginModulePackEntrypoint,
@@ -90,6 +97,15 @@ export function activatePluginModulePack(
 }
 
 export function deactivatePluginModulePack(pluginId: string): void {
+  const pack = packsByPlugin.get(pluginId)
+  if (pack) {
+    try {
+      pack.dispose()
+    } catch (err) {
+      console.error(`[plugin:${pluginId}] module pack dispose failed`, err)
+    }
+    packsByPlugin.delete(pluginId)
+  }
   const ids = registeredByPlugin.get(pluginId)
   if (!ids) return
   for (const id of ids) registry.unregister(id)
@@ -101,6 +117,14 @@ export function listPluginRegisteredModuleIds(pluginId: string): string[] {
 }
 
 export function resetPluginModulePacks(): void {
+  for (const pack of packsByPlugin.values()) {
+    try {
+      pack.dispose()
+    } catch (err) {
+      console.error(`[plugin:${pack.pluginId}] module pack dispose failed`, err)
+    }
+  }
+  packsByPlugin.clear()
   for (const ids of registeredByPlugin.values()) {
     for (const id of ids) registry.unregister(id)
   }
@@ -186,4 +210,7 @@ export function activateSandboxedPluginModulePack(
     ids.add(hostModule.id)
   }
   registeredByPlugin.set(manifest.id, ids)
+  // Track the live VM so the next deactivate/reset disposes it (the
+  // deactivate above already disposed any prior pack for this id).
+  packsByPlugin.set(manifest.id, pack)
 }
