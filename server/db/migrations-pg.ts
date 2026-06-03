@@ -703,7 +703,7 @@ export const pgMigrations: Migration[] = [
         updated_at timestamptz not null default now(),
         last_used_at timestamptz,
         constraint ai_creds_provider_check
-          check (provider_id in ('anthropic', 'openai', 'ollama')),
+          check (provider_id in ('anthropic', 'openai', 'ollama', 'openrouter')),
         constraint ai_creds_authmode_check
           check (auth_mode in ('apiKey', 'baseUrl')),
         constraint ai_creds_apikey_shape_check

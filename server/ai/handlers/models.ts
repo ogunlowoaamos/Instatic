@@ -17,7 +17,7 @@ import {
 } from '../credentials/store'
 import type { AiProviderId } from '../runtime/types'
 
-const VALID_PROVIDERS: AiProviderId[] = ['anthropic', 'openai', 'ollama']
+const VALID_PROVIDERS: AiProviderId[] = ['anthropic', 'openai', 'ollama', 'openrouter']
 
 export function tryHandleAiModels(
   req: Request,

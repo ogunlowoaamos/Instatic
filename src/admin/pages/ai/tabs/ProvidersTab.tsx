@@ -26,14 +26,15 @@ import {
 import { ApiError } from '@core/http'
 import styles from '../AiPage.module.css'
 
-type ProviderId = 'anthropic' | 'openai' | 'ollama'
+type ProviderId = 'anthropic' | 'openai' | 'ollama' | 'openrouter'
 type AuthMode = 'apiKey' | 'baseUrl'
 
-// Anthropic + OpenAI require an API key. Ollama uses a local endpoint
-// URL with an optional bearer token for proxied installs.
+// Anthropic + OpenAI + OpenRouter require an API key. Ollama uses a local
+// endpoint URL with an optional bearer token for proxied installs.
 const PROVIDERS: Array<{ id: ProviderId; label: string; modes: AuthMode[] }> = [
   { id: 'anthropic', label: 'Anthropic (Claude)', modes: ['apiKey'] },
   { id: 'openai', label: 'OpenAI', modes: ['apiKey'] },
+  { id: 'openrouter', label: 'OpenRouter', modes: ['apiKey'] },
   { id: 'ollama', label: 'Ollama (local)', modes: ['baseUrl'] },
 ]
 
@@ -45,7 +46,14 @@ const AUTH_MODE_LABEL: Record<AuthMode, string> = {
 const PROVIDER_LABEL: Record<ProviderId, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
+  openrouter: 'OpenRouter',
   ollama: 'Ollama',
+}
+
+// Hint text for the API-key field, per provider key prefix.
+const API_KEY_PLACEHOLDER: Partial<Record<ProviderId, string>> = {
+  anthropic: 'sk-ant-...',
+  openrouter: 'sk-or-...',
 }
 
 async function deleteCredentialAction(
@@ -344,7 +352,7 @@ function AddCredentialDialog({
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.currentTarget.value)}
-              placeholder={providerId === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
+              placeholder={API_KEY_PLACEHOLDER[providerId] ?? 'sk-...'}
               autoComplete="off"
               required
             />

@@ -15,6 +15,11 @@
  *   work can split cached/non-cached counts onto separate fields in the
  *   `usage` event and use these here.
  *
+ * OpenRouter is intentionally absent: its driver emits OpenRouter's native
+ * per-call USD cost on the `usage.costUsd` field, which the persister honours
+ * directly (`usage.costUsd ?? calculateCostUsd(...)`). Hand-maintaining a table
+ * for OpenRouter's 400+ models would be both impractical and redundant.
+ *
  * Sources:
  *   - Anthropic:  https://www.anthropic.com/pricing
  *   - OpenAI:     https://openai.com/api/pricing

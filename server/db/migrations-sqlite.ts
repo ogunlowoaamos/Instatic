@@ -695,7 +695,7 @@ export const sqliteMigrations: Migration[] = [
         updated_at text not null default current_timestamp,
         last_used_at text,
         constraint ai_creds_provider_check
-          check (provider_id in ('anthropic', 'openai', 'ollama')),
+          check (provider_id in ('anthropic', 'openai', 'ollama', 'openrouter')),
         constraint ai_creds_authmode_check
           check (auth_mode in ('apiKey', 'baseUrl')),
         constraint ai_creds_apikey_shape_check

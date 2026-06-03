@@ -2,7 +2,7 @@
 
 The AI Agent is a model-powered assistant integrated into the visual editor. The user types a request in the Agent Panel; the agent reads the current page snapshot, plans a sequence of edits, and executes them by calling tools. Structure is written as semantic HTML (`insertHtml` / `replaceNodeHtml`); styling is written as CSS classes (`createClass` / `updateClassStyles` / `assignClass`).
 
-The agent runs on a provider-agnostic AI runtime (`server/ai/`) that can drive any supported model (Anthropic Claude, OpenAI, Ollama). Provider SDKs are isolated to `server/ai/drivers/`. The plain `@anthropic-ai/sdk` is banned repo-wide. Gated by `ai-driver-isolation.test.ts`.
+The agent runs on a provider-agnostic AI runtime (`server/ai/`) that can drive any supported model (Anthropic Claude, OpenAI, OpenRouter, Ollama). Provider SDKs are isolated to `server/ai/drivers/`. The plain `@anthropic-ai/sdk` is banned repo-wide. Gated by `ai-driver-isolation.test.ts`.
 
 ---
 
@@ -12,7 +12,7 @@ The agent runs on a provider-agnostic AI runtime (`server/ai/`) that can drive a
 - **Styling via classes.** `createClass` / `updateClassStyles` / `assignClass` manage CSS classes. CSS classes are the recommended way to style imported HTML. `<style>` blocks inside imported HTML are converted to Selector-panel classes; `style=` attributes land on the node's inline styles. Use the `classes` parameter in `insertHtml`/`replaceNodeHtml` to declare and bind classes atomically.
 - **25 tools total.** 8 server-side read tools (resolved from the snapshot) + 17 browser-bridged write tools.
 - **Two-endpoint bridge.** `POST /admin/api/ai/chat/site` opens an NDJSON stream. When the model calls a write tool, the server emits `toolRequest`; the browser executor applies it to the editor store and POSTs the `AiToolOutput` result to `POST /admin/api/ai/tool-result`.
-- **Provider-agnostic.** The runtime selects a driver (Anthropic, OpenAI, Ollama) from the conversation's configured credential.
+- **Provider-agnostic.** The runtime selects a driver (Anthropic, OpenAI, OpenRouter, Ollama) from the conversation's configured credential.
 - **Tools defined with TypeBox** (`server/ai/tools/`). Gated by `ai-tools-typebox-only.test.ts`.
 - **Capabilities.** `ai.chat` required to stream; `ai.tools.write` required for write tools. Gated by `ai-handlers-capability-gated.test.ts`.
 
@@ -41,10 +41,11 @@ server/ai/
 │   │   └── snapshot.ts     — SiteSnapshot interface (wire shape from browser)
 │   └── content/            — content-workspace tools (separate scope)
 ├── drivers/
-│   ├── anthropic.ts        — Anthropic driver (only file allowed to import the Agent SDK + Zod)
+│   ├── anthropic.ts        — Anthropic driver (allowed to import the Claude Agent SDK + Zod)
 │   ├── openai.ts           — OpenAI Agents driver
+│   ├── openrouter.ts       — OpenRouter driver (allowed to import @openrouter/agent + Zod; native cost)
 │   ├── ollama.ts           — Ollama driver
-│   └── typeboxToZod.ts     — TypeBox→Zod conversion helper for the Anthropic driver
+│   └── typeboxToZod.ts     — TypeBox→Zod conversion helper (Anthropic + OpenRouter drivers)
 └── runtime/
     ├── runner.ts           — runChat(): drives a driver, emits stream events
     ├── persister.ts        — ConversationsPersister: messages + usage + session id to DB

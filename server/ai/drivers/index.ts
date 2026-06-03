@@ -11,11 +11,13 @@ import type { AiProviderId } from '../runtime/types'
 import { anthropicDriver } from './anthropic'
 import { openaiDriver } from './openai'
 import { ollamaDriver } from './ollama'
+import { openrouterDriver } from './openrouter'
 
 const DRIVERS: Record<AiProviderId, AiProvider> = {
   anthropic: anthropicDriver,
   openai: openaiDriver,
   ollama: ollamaDriver,
+  openrouter: openrouterDriver,
 }
 
 /** Returns the driver for a provider id, or throws if unknown. */

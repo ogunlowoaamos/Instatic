@@ -56,10 +56,18 @@ const RULES: PackageRule[] = [
     ],
   },
   {
+    label: '@openrouter/agent',
+    importRe: /from\s+['"]@openrouter\/agent['"]|require\s*\(\s*['"]@openrouter\/agent['"]\s*\)/,
+    allowed: [
+      'server/ai/drivers/openrouter.ts',
+    ],
+  },
+  {
     label: 'zod',
     importRe: /from\s+['"]zod['"]|require\s*\(\s*['"]zod['"]\s*\)/,
     allowed: [
       'server/ai/drivers/anthropic.ts',
+      'server/ai/drivers/openrouter.ts',
       'server/ai/drivers/typeboxToZod.ts',
     ],
   },

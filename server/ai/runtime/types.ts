@@ -23,11 +23,11 @@ export type { AiToolOutput } from '@core/ai'
 // Provider identity + auth modes
 // ---------------------------------------------------------------------------
 
-export type AiProviderId = 'anthropic' | 'openai' | 'ollama'
+export type AiProviderId = 'anthropic' | 'openai' | 'ollama' | 'openrouter'
 /**
  * Credential auth modes.
  *
- *   - `apiKey`   — encrypted user-supplied key (Anthropic, OpenAI).
+ *   - `apiKey`   — encrypted user-supplied key (Anthropic, OpenAI, OpenRouter).
  *   - `baseUrl`  — OpenAI-compatible local endpoint (Ollama). Optional
  *                  bearer token may be stored alongside the URL.
  */
