@@ -8,7 +8,7 @@
  */
 
 import type { DbClient } from '../../db/client'
-import { appendMessage } from '../conversations/store'
+import { appendMessage, setConversationSessionId } from '../conversations/store'
 import { calculateCostUsd } from '../pricing'
 import type { AiContentBlock, AiProviderId } from './types'
 
@@ -32,6 +32,11 @@ export interface ConversationsPersister {
     cacheReadTokens?: number
     cacheCreationTokens?: number
   }): Promise<void>
+  /**
+   * Persist the SDK session id so the next turn resumes the same session and
+   * the model sees the prior conversation history (ISS-031).
+   */
+  recordSession(sessionId: string): Promise<void>
 }
 
 export interface ConversationsPersisterContext {
@@ -124,6 +129,10 @@ export function createConversationsPersister(
         usage.cacheReadTokens ?? 0,
         usage.cacheCreationTokens ?? 0,
       )
+    },
+
+    async recordSession(sessionId) {
+      await setConversationSessionId(db, conversationId, sessionId)
     },
   }
 }

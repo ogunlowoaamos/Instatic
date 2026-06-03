@@ -285,6 +285,25 @@ export async function createConversationForUser(
 }
 
 /**
+ * Set just the provider session id on a conversation. Server-internal (called
+ * by the chat runner after the conversation is already authorised), so it is
+ * keyed on id alone — the next turn resumes this session to replay history
+ * (ISS-031).
+ */
+export async function setConversationSessionId(
+  db: DbClient,
+  conversationId: string,
+  sessionId: string,
+): Promise<void> {
+  await db`
+    update ai_conversations
+    set session_id = ${sessionId},
+        updated_at = current_timestamp
+    where id = ${conversationId}
+  `
+}
+
+/**
  * Patch a conversation. Pass only fields to update. `sessionId: null`
  * explicitly clears the provider session.
  */

@@ -116,7 +116,13 @@ export async function runChat(args: RunChatArgs): Promise<void> {
           await flushPendingAssistantText()
           return
         }
-        // `bridgeReady`, `session`, `toolRequest`, `done`: nothing to persist.
+        case 'session': {
+          // Persist the SDK session id so the next turn resumes this session
+          // and the model sees prior history (ISS-031).
+          await persister.recordSession(event.sessionId)
+          break
+        }
+        // `bridgeReady`, `toolRequest`, `done`: nothing to persist.
         default:
           break
       }

@@ -135,8 +135,19 @@ async function* runAnthropicStream(req: AiStreamRequest): AsyncIterable<AiStream
   const options = buildQueryOptions(req, mcpServer)
   const prompt = serialiseMessagesAsPrompt(req.messages)
   const streamState = createAnthropicStreamState()
+  let emittedSession = false
 
   for await (const message of query({ prompt, options })) {
+    // Surface the SDK session id once so the runner can persist it; the next
+    // turn passes it back as `resume` to replay history (ISS-031).
+    if (!emittedSession) {
+      const sessionId = (message as { session_id?: unknown }).session_id
+      if (typeof sessionId === 'string' && sessionId) {
+        emittedSession = true
+        yield { type: 'session', sessionId }
+      }
+    }
+
     for (const event of toAiStreamEvents(message, streamState)) {
       yield event
     }
@@ -236,6 +247,10 @@ function buildQueryOptions(
   if (req.signal.aborted) controller.abort()
   else req.signal.addEventListener('abort', () => controller.abort(), { once: true })
   options.abortController = controller
+
+  // Resume the prior session so the model sees the conversation history
+  // (ISS-031). The SDK replays the stored transcript for this session id.
+  if (req.resumeSessionId) options.resume = req.resumeSessionId
 
   return options
 }
@@ -349,13 +364,10 @@ function errorResult(message: string): CallToolResult {
  * for history; we serialise it back into a single string.
  *
  * For a brand-new conversation the array contains one user message and we
- * emit just its text. For resumed conversations the SDK's `Options.resume`
- * via `session_id` is the canonical history mechanism — Phase 3 will wire
- * the session id end-to-end.
- *
- * This intentionally only handles the simplest case for v1. Multi-turn
- * threading through the SDK happens via `resume`, not via a recomposed
- * prompt string.
+ * emit just its text. For a follow-up turn, history is replayed by the SDK via
+ * `Options.resume` (wired end-to-end: the runner persists each turn's session
+ * id and the handler passes it back as `resumeSessionId`), so the prompt only
+ * needs to carry the latest user message.
  */
 function serialiseMessagesAsPrompt(messages: AiMessage[]): string {
   const last = messages.at(-1)
