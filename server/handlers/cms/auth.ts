@@ -415,6 +415,23 @@ async function handleMfaVerify(req: Request, db: DbClient): Promise<Response> {
   if (!user) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
 
   const ip = clientIp(req)
+
+  // A locked account cannot attempt MFA from ANY source IP. This is the
+  // cross-IP ceiling the per-IP limiter alone cannot provide — without it a
+  // rotating-IP attacker who already holds the password could brute-force the
+  // TOTP step indefinitely (ISS-001).
+  const lockState = evaluateLockState(user.lockedUntil)
+  if (lockState.locked) {
+    await recordLoginAttempt(db, {
+      emailNorm: user.email.toLowerCase(),
+      ipAddress: ip,
+      userAgent: req.headers.get('user-agent'),
+      userId: user.id,
+      result: 'rate_limited',
+    })
+    return rateLimitedResponse('Account temporarily locked due to repeated failed attempts.', lockState.retryAfterMs)
+  }
+
   const rateLimitKey = ip ?? 'unknown'
   const decision = mfaRateLimit.consume(rateLimitKey)
   if (!decision.ok) {
@@ -441,12 +458,19 @@ async function handleMfaVerify(req: Request, db: DbClient): Promise<Response> {
       userId: user.id,
       result: 'mfa_failed',
     })
+    // Feed the failure into the per-account lockout exactly as the password
+    // step does — this is the defense distributed TOTP brute force was missing
+    // (ISS-001). A successful verify resets it via markUserLoggedIn.
+    const lockout = evaluateFailedAttempt(user.failedLoginCount)
+    await recordFailedLoginAttempt(db, user.id, lockout.lockedUntil)
     await createAuditEvent(db, {
       actorUserId: user.id,
-      action: 'login.failure',
+      action: lockout.triggered ? 'login.locked' : 'login.failure',
       targetType: 'user',
       targetId: user.id,
-      metadata: { reason: 'mfa' },
+      metadata: lockout.triggered
+        ? { reason: 'mfa', locked: true, lockedUntil: lockout.lockedUntil?.toISOString() ?? '' }
+        : { reason: 'mfa' },
       ...requestAuditContext(req),
     })
     return jsonResponse({ error: 'Invalid authentication code' }, { status: 401 })

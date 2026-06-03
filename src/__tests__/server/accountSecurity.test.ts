@@ -326,6 +326,37 @@ describe('Account security endpoints', () => {
     expect(verifiedMeRes.status).toBe(200)
   })
 
+  it('locks the account after repeated failed MFA codes — even a correct code is then rejected (ISS-001)', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+    const { secret } = await enableMfa(db, cookie)
+
+    const pending = await login(db)
+    expect(pending.body.mfaRequired).toBe(true)
+
+    const postMfa = async (code: string) => {
+      const r = new Request('http://localhost/admin/api/cms/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      r.headers.set('cookie', pending.cookie)
+      return handleCmsRequest(r, db)
+    }
+
+    // LOCKOUT_THRESHOLD (5) wrong codes must trip the per-account lockout.
+    for (let i = 0; i < 5; i++) {
+      const res = await postMfa('000000')
+      expect(res.status).toBe(401)
+    }
+
+    // The account is now locked: a CORRECT TOTP code must be refused (429),
+    // proving MFA failures feed the per-account lockout so distributed brute
+    // force can no longer grind indefinitely.
+    const lockedRes = await postMfa(totpCode(secret))
+    expect(lockedRes.status).toBe(429)
+  })
+
   it('accepts one recovery code during MFA login and burns it after use', async () => {
     const { db } = testDb
     const { cookie } = await login(db)
