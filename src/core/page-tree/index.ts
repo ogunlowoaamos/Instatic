@@ -123,7 +123,6 @@ export {
   duplicateNode,
   buildSubtreeNodeIdMap,
   pasteSubtree,
-  removeNodeSubtrees,
   wrapNode,
   wrapNodes,
   addPage,
@@ -133,6 +132,8 @@ export {
   duplicatePage,
   applyTreeOperation,
 } from './mutations'
+
+export { removeNodeSubtrees } from './subtreeRemoval'
 
 export { cloneScopedClassesForNodeMap } from './scopedClassClone'
 
