@@ -386,6 +386,8 @@ tryServePublicRoute (server/router.ts)
           │     (URLs with only junk params hit Layer A just like bare URLs)
           │
           ├─→ resolvePublicRoute(db, url) → page | row | redirect | not-found
+          │     page slug hit skipped when page.template.enabled === true (template pages
+          │     are never directly routable — falls through to row/redirect/not-found)
           │     redirects → 301 (not cached)
           │     not-found → null (router falls through to next handler)
           │

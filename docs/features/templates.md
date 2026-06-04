@@ -240,6 +240,7 @@ The publisher's text-emitting modules call `interpolateTokens(props.text, ctx)`.
 | Walking a deep path with `JSON.parse(JSON.stringify(...))`           | Use `walkFieldPath(frame, 'a.b.c')`                      |
 | Showing the literal `{currentEntry.title}` in published output       | The publisher calls `interpolateTokens` — make sure your module opted in |
 | Pushing `currentEntry` outside the publisher (in the editor store)   | Entry stack lives in `RenderContext`, not in the editor store |
+| Expecting to visit a template page at its own slug                   | Template pages (`page.template.enabled === true`) are never directly routable — `resolvePublicRoute` skips any page-slug hit for a template and falls through to row/redirect/not-found. They only ever wrap other content. |
 
 ---
 
