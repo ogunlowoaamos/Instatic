@@ -311,7 +311,7 @@ Common boundaries already wrapped — extend the same pattern when you add a new
 | `await res.json() as Foo`                                     | `apiRequest(path, { schema })` (client) or `readEnvelope(res, FooSchema, msg)` (held `Response`) — `parseJsonResponse` only for `@core/http` internals / XHR / server-side |
 | `JSON.parse(raw) as Foo`                                      | `safeParseJson(raw, FooSchema)` / `parseJsonWithFallback`       |
 | Hand-rolled `interface Foo` next to a `FooSchema`             | `type Foo = Static<typeof FooSchema>`                            |
-| Importing `zod` in app code                                   | TypeBox — the only legitimate `zod` use is inside `server/ai/drivers/` (TypeBox→Zod adapter for the Anthropic SDK) |
+| Importing `zod` anywhere                                      | TypeBox everywhere — `zod` is banned repo-wide and has been removed from `package.json`. Gated by `ai-driver-isolation.test.ts`. |
 | `try { JSON.parse(raw) } catch (err) { /* swallow */ }`       | `parseJsonWithFallback` for soft, `safeParseJson` for hard       |
 | `if (typeof body.email !== 'string') return badRequest(...)` (ad-hoc shape check) | TypeBox schema + `parseValue`                       |
 | Re-wrapping `Error` in a way that loses the original cause    | `new Error(message, { cause: err })`                             |
