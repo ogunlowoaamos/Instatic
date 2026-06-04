@@ -191,6 +191,43 @@ The Postgres adapter relies on `Bun.sql`'s native handling of `jsonb` columns an
    ```
 4. **Run `bun test`** — the parity gate and the JSON-naming gate confirm you got it right.
 
+### Dropping a constraint or altering a table in SQLite (table-rebuild dance)
+
+SQLite doesn't support `ALTER TABLE DROP CONSTRAINT` or `ALTER TABLE DROP COLUMN`. To remove or change a constraint, rebuild the table:
+
+**Postgres** (migration SQL):
+```sql
+alter table my_table drop constraint if exists my_constraint_name;
+```
+
+**SQLite** (migration SQL — the table-rebuild dance):
+```sql
+pragma defer_foreign_keys = on;
+
+-- 1. Create the new table with the desired final schema.
+create table my_table__migr042 (
+  id text primary key,
+  -- ... same columns, omitting (or changing) the constraint
+);
+
+-- 2. Copy all rows.
+insert into my_table__migr042 (id, col_a, col_b)
+select id, col_a, col_b from my_table;
+
+-- 3. Swap.
+drop table my_table;
+alter table my_table__migr042 rename to my_table;
+
+-- 4. Re-create indexes that lived on the original table.
+create unique index if not exists my_table_unique_idx on my_table (col_a, col_b);
+```
+
+`pragma defer_foreign_keys = on` is transaction-scoped — it defers FK enforcement to COMMIT so foreign keys that reference `my_table` don't break during the drop+recreate. SQLite re-enables FK enforcement automatically at COMMIT.
+
+The rebuilt table produces the same schema as the updated `CREATE TABLE` statement in the original migration, so the migration is safe to run on both existing and fresh installs.
+
+Examples in the codebase: `migrations-sqlite.ts` migration `006_data_rows_scheduled_publish` (drop status CHECK) and `012_ai_drop_provider_check` (drop provider_id CHECK).
+
 ### Adding a new repository
 
 1. Create `server/repositories/<resource>.ts`.
@@ -286,6 +323,7 @@ The callback receives a `DbClient` scoped to the transaction. If it throws, the 
 | Reading a JSON value as a string and then `JSON.parse`ing | Read it as `Record<string, unknown>` — auto-parsed in SQLite, auto-decoded in PG |
 | Adding a migration to only one dialect's file          | Mirror it to the other — `migration-parity.test.ts` enforces this |
 | Hand-running `db.unsafe(...)` for queryable statements | Use the tagged-template form — `unsafe` is for stored migration blocks |
+| DB-level CHECK constraints that enumerate application domain values (e.g. `check (provider_id in ('anthropic', 'openai'))`) | Put the validation at the application boundary via a TypeBox `Type.Union` / `Type.Literal` — see `server/ai/handlers/credentials.ts`. A DB enum that duplicates the list forces a destructive migration (especially on SQLite) every time a new value is added. |
 
 ---
 
