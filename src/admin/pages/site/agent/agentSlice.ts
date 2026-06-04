@@ -414,7 +414,6 @@ export function createAgentSlice(
             config.scope,
             credentialId,
             modelId,
-            JSON.stringify(snapshot),
           )
           conversationId = conv.id
           set({

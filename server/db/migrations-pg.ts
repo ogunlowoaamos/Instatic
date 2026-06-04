@@ -731,10 +731,7 @@ export const pgMigrations: Migration[] = [
           check (scope in ('site', 'content', 'data', 'plugin'))
       );
 
-      -- Persistent conversations per (user, scope). context_json captures the
-      -- snapshot the chat started with (pageId, postId, tableId, ...) so a
-      -- reopened conversation can still reason about its original target even
-      -- if the user has navigated elsewhere.
+      -- Persistent conversations per (user, scope).
       create table if not exists ai_conversations (
         id text primary key,
         user_id text not null references users(id) on delete cascade,
@@ -742,7 +739,6 @@ export const pgMigrations: Migration[] = [
         title text not null,
         credential_id text references ai_provider_credentials(id) on delete set null,
         model_id text not null,
-        context_json text,
         prompt_tokens_total bigint not null default 0,
         completion_tokens_total bigint not null default 0,
         cost_usd_total numeric(10, 6) not null default 0,

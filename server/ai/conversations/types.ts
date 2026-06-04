@@ -23,7 +23,6 @@ export interface ConversationRecord {
   readonly title: string
   readonly credentialId: string | null
   readonly modelId: string
-  readonly contextJson: string | null
   readonly promptTokensTotal: number
   readonly completionTokensTotal: number
   readonly costUsdTotal: number
@@ -84,7 +83,6 @@ export interface MessageView {
 }
 
 export interface ConversationDetailView extends ConversationView {
-  readonly contextJson: string | null
   readonly messages: MessageView[]
 }
 
@@ -97,7 +95,6 @@ export interface CreateConversationInput {
   readonly title?: string
   readonly credentialId: string
   readonly modelId: string
-  readonly contextJson?: string
 }
 
 export interface UpdateConversationInput {

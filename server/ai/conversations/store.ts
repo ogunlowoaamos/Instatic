@@ -51,7 +51,6 @@ interface ConversationRow {
   title: string
   credential_id: string | null
   model_id: string
-  context_json: string | null
   prompt_tokens_total: number | string
   completion_tokens_total: number | string
   cost_usd_total: number | string
@@ -92,7 +91,6 @@ function conversationRowToRecord(row: ConversationRow): ConversationRecord {
     title: row.title,
     credentialId: row.credential_id,
     modelId: row.model_id,
-    contextJson: row.context_json,
     promptTokensTotal: toNumber(row.prompt_tokens_total),
     completionTokensTotal: toNumber(row.completion_tokens_total),
     costUsdTotal: toNumber(row.cost_usd_total),
@@ -178,7 +176,6 @@ export function toConversationDetailView(
 ): ConversationDetailView {
   return {
     ...toConversationView(conversation),
-    contextJson: conversation.contextJson,
     messages: messages.map(toMessageView),
   }
 }
@@ -198,7 +195,7 @@ export async function listConversationsForUserScope(
 ): Promise<ConversationRecord[]> {
   const { rows } = await db<ConversationRow>`
     select id, user_id, scope, title, credential_id, model_id,
-           context_json, prompt_tokens_total, completion_tokens_total,
+           prompt_tokens_total, completion_tokens_total,
            cost_usd_total, cache_read_tokens_total, cache_creation_tokens_total, created_at, updated_at, deleted_at
     from ai_conversations
     where user_id = ${userId}
@@ -220,7 +217,7 @@ export async function readConversationForUser(
 ): Promise<ConversationRecord | null> {
   const { rows } = await db<ConversationRow>`
     select id, user_id, scope, title, credential_id, model_id,
-           context_json, prompt_tokens_total, completion_tokens_total,
+           prompt_tokens_total, completion_tokens_total,
            cost_usd_total, cache_read_tokens_total, cache_creation_tokens_total, created_at, updated_at, deleted_at
     from ai_conversations
     where id = ${conversationId}
@@ -269,14 +266,14 @@ export async function createConversationForUser(
   const title = (input.title ?? '').trim() || 'New conversation'
   const { rows } = await db<ConversationRow>`
     insert into ai_conversations (
-      id, user_id, scope, title, credential_id, model_id, context_json
+      id, user_id, scope, title, credential_id, model_id
     )
     values (
       ${id}, ${userId}, ${input.scope}, ${title},
-      ${input.credentialId}, ${input.modelId}, ${input.contextJson ?? null}
+      ${input.credentialId}, ${input.modelId}
     )
     returning id, user_id, scope, title, credential_id, model_id,
-              context_json, prompt_tokens_total, completion_tokens_total,
+              prompt_tokens_total, completion_tokens_total,
               cost_usd_total, cache_read_tokens_total, cache_creation_tokens_total, created_at, updated_at, deleted_at
   `
   return conversationRowToRecord(rows[0]!)
@@ -308,7 +305,7 @@ export async function updateConversationForUser(
         updated_at = current_timestamp
     where id = ${conversationId} and user_id = ${userId}
     returning id, user_id, scope, title, credential_id, model_id,
-              context_json, prompt_tokens_total, completion_tokens_total,
+              prompt_tokens_total, completion_tokens_total,
               cost_usd_total, cache_read_tokens_total, cache_creation_tokens_total, created_at, updated_at, deleted_at
   `
   return rows[0] ? conversationRowToRecord(rows[0]) : null

@@ -169,11 +169,10 @@ export async function createConversationForScope(
   scope: AgentToolScope,
   credentialId: string,
   modelId: string,
-  contextJson: string | undefined,
 ): Promise<CreatedConversation> {
   const body = await apiRequest(AI_CONVERSATIONS_PATH, {
     method: 'POST',
-    body: { scope, credentialId, modelId, ...(contextJson ? { contextJson } : {}) },
+    body: { scope, credentialId, modelId },
     schema: CreatedConversationEnvelopeSchema,
     fallbackMessage: 'Conversation create failed',
   })

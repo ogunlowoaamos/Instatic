@@ -140,7 +140,6 @@ export type MessageView = Static<typeof MessageViewSchema>
 export const ConversationDetailViewSchema = Type.Composite([
   ConversationViewSchema,
   Type.Object({
-    contextJson: Type.Union([Type.String(), Type.Null()]),
     messages: Type.Array(MessageViewSchema),
   }),
 ])

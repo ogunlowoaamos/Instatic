@@ -34,7 +34,6 @@ const CreateBodySchema = Type.Object({
   title: Type.Optional(Type.String()),
   credentialId: Type.String({ minLength: 1 }),
   modelId: Type.String({ minLength: 1 }),
-  contextJson: Type.Optional(Type.String()),
 })
 
 const UpdateBodySchema = Type.Object({
