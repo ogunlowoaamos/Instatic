@@ -373,6 +373,23 @@ const triggerRef = useRef<HTMLButtonElement>(null)
 
 **Dismiss handling.** Outside `mousedown` and `contextmenu` events (capture phase) dismiss the menu without cancelling the underlying event — the first outside click both closes the menu and reaches the clicked element. Dismiss listeners attach to the parent document **and every same-origin iframe document** (`collectSameOriginDocuments` in `src/ui/lib/sameOriginDocuments.ts`), so clicking inside the canvas's per-breakpoint iframes correctly dismisses open menus. `anchorRef` gates dismiss handling (clicks inside the anchor element don't close the menu) and provides the rect for auto-flip positioning. `triggerRef` is dismiss-gate only — use it when the trigger is an editable input that must stay focused while the menu is open (e.g. `ClassPicker`). Items use `ContextMenuItem`, separators use `ContextMenuSeparator`, and nested menus use `ContextMenuSubmenu`.
 
+**Submenus (`ContextMenuSubmenu`).** Opens a positioned flyout to the right of the trigger row (flips left when it doesn't fit). Hover or `ArrowRight` opens; `ArrowLeft` / `Escape` closes the submenu only (not the parent). Clicking a submenu item calls `onClose` to close the parent menu:
+
+```tsx
+import { ContextMenu, ContextMenuItem, ContextMenuSubmenu } from '@ui/components/ContextMenu'
+import { PlusIcon } from 'pixel-art-icons/icons/plus'
+
+<ContextMenu x={menu.x} y={menu.y} ariaLabel="Insert" animateExit onClose={close}>
+  <ContextMenuSubmenu label="Insert here" icon={<PlusIcon size={12} />} onClose={close}>
+    <ContextMenuItem onClick={onInsertText}>Text block</ContextMenuItem>
+    <ContextMenuItem onClick={onInsertImage}>Image</ContextMenuItem>
+  </ContextMenuSubmenu>
+  <ContextMenuItem danger onClick={onDelete}>Delete</ContextMenuItem>
+</ContextMenu>
+```
+
+For searchable submenus that host a non-menuitem widget (e.g. a search input), pass `closeOnItemClickOnly` so only actual `[role="menuitem"]` clicks close the panel — clicking the input doesn't dismiss it.
+
 ---
 
 ## `Section`, `ControlRow`
@@ -540,6 +557,8 @@ The primitive must work entirely with existing design tokens. If you need a new 
   - `src/ui/components/Button/Button.module.css` — canonical button (with `!important` exception)
   - `src/ui/lib/sameOriginDocuments.ts` — `collectSameOriginDocuments`, `isNode`
   - `src/ui/components/ContextMenu/useDeferredClose.ts` — exit-animation deferred close hook
+  - `src/ui/components/ContextMenu/useAnchorPosition.ts` — anchor-based auto-flip positioning hook
+  - `src/ui/components/ContextMenu/usePointPosition.ts` — point-anchored viewport-fit positioning hook
 - Gate tests:
   - `src/__tests__/architecture/button-primitive-usage.test.ts`
   - `src/__tests__/architecture/ui-primitives-location.test.ts`
