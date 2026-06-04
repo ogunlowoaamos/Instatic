@@ -26,6 +26,8 @@ import { Skeleton, SkeletonCircle } from '@ui/components/Skeleton'
 import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
 import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
+import { PowerIcon } from 'pixel-art-icons/icons/power'
+import { PowerOffIcon } from 'pixel-art-icons/icons/power-off'
 import { SaveSolidIcon } from 'pixel-art-icons/icons/save-solid'
 import {
   createCmsUser,
@@ -368,7 +370,9 @@ export function UsersTab({ data, canManageUsers }: UsersTabProps) {
                           },
                           {
                             label: user.status === 'active' ? 'Suspend' : 'Activate',
-                            icon: <EditSolidIcon size={12} aria-hidden="true" />,
+                            icon: user.status === 'active'
+                              ? <PowerOffIcon size={12} aria-hidden="true" />
+                              : <PowerIcon size={12} aria-hidden="true" />,
                             onSelect: () => void toggleStatus(user),
                           },
                           {
