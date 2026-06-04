@@ -36,7 +36,7 @@ src/modules/base/
 ├── body/                — base.body (root container)
 ├── container/           — base.container (flex/grid container)
 ├── text/                — base.text (single-line text)
-├── content/             — base.content (rich text / paragraphs)
+├── outlet/              — base.outlet (Content Outlet — template content slot)
 ├── button/              — base.button
 ├── link/                — base.link
 ├── image/               — base.image

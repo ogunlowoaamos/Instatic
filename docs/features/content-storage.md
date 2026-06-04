@@ -214,13 +214,9 @@ For postType rows, `publishDataRow` does the same but incrementally: writes the 
 
 See [docs/features/publisher.md](publisher.md) for the full pipeline.
 
-For **post-types**, each `data_table` has a **default entry template** (a `pages` row with `kind: 'page'` and a special `entryTemplateForTableId` link). When you publish a post, the renderer:
+For **post-types**, each `data_table` has a **default entry template** (a `pages` row with `template.target = { kind: 'postTypes', tableSlugs: [table.slug] }`). When you publish a post, the renderer resolves the template chain for the entry route (`resolveTemplateChain`) and renders the merged tree with the post row pushed onto the entry stack as `currentEntry`. Dynamic bindings on the template nodes resolve `currentEntry.title`, `currentEntry.body`, etc.
 
-1. Picks the entry template (the page with the layout for individual posts in that post-type).
-2. Pushes the post row onto the entry stack as `currentEntry`.
-3. Renders the entry template — its `dynamicBindings` resolve `currentEntry.title`, `currentEntry.body`, etc.
-
-The entry template is seeded automatically when a new postType `data_table` is created (`backfillDefaultEntryTemplates(db)` at boot for legacy tables).
+The entry template is seeded automatically when a new postType `data_table` is created (`backfillDefaultEntryTemplates(db)` at boot for tables that predate the template system). See [docs/features/templates.md](templates.md) for the full template model.
 
 ### Scheduled publishing
 
