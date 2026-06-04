@@ -71,6 +71,7 @@ src/modules/    First-party block modules (container, text, image, button, …)
 src/ui/         Shared UI primitives (Button, Input, Tree, icons, cn helper)
 src/styles/     Global tokens (globals.css)
 src/__tests__/architecture/   Gate tests that enforce structural rules
+tests/          Playwright E2E specs (*.e2e.ts); config in playwright.config.ts
 docs/           This documentation tree
 examples/       Plugin templates, type declarations
 vendor/         Vendored pixel-art-icons package
@@ -91,7 +92,7 @@ The repo is organized by responsibility, not by feature. Every file has one reas
 | Repositories                 | `server/repositories/*.ts`            | Database access; dialect-naive ANSI SQL only                         |
 | Database adapters            | `server/db/postgres.ts`, `sqlite.ts`  | Engine-specific `DbClient` implementation                            |
 | Migrations                   | `server/db/migrations-*.ts`           | Schema in both dialects, parity-gated                                |
-| Publisher                    | `src/core/publisher/*`                | Page tree → clean HTML/CSS (`publishPage`, deterministic, no host I/O). Includes `dynamicDetection.ts` (single walker for the 4 auto-detection rules) and `staticAnalysis.ts` (thin projections for `isFullyStaticPage` / `staticReasons`). |
+| Publisher                    | `src/core/publisher/*`                | Page tree → clean HTML/CSS (`publishPage`, deterministic, no host I/O). Includes `dynamicDetection.ts`, the single walker for the auto-detection rules that power Layer A shell-vs-complete bakes and Layer C holes. |
 | Public-route surface         | `server/publish/publicRouter.ts`      | Resolve URL → page snapshot or data row + template. Layer A disk fast-path + Layer B in-memory LRU live here. |
 | Static artefact IO           | `server/publish/staticArtefact.ts`    | Layer A: two-slot symlink swap, atomic per-file rename, slot-aware read/write/purge. |
 | Render cache                 | `server/publish/renderCache.ts`       | Layer B: bounded LRU keyed by `(urlPath, queryString)`, each entry versioned. Single-flight, `bumpPublishVersion()` invalidates lazily; version captured at render start so a publish landing mid-render discards the result rather than caching stale HTML. |
@@ -202,7 +203,7 @@ See [docs/reference/page-tree.md](reference/page-tree.md) for the type shape and
 
 ## Publishing pipeline
 
-The pipeline is **static-by-default, dynamic-by-auto-detection**. Authors don't toggle anything — `findDynamicNodesWithReasons` in `src/core/publisher/dynamicDetection.ts` classifies each node, and the publisher routes through three layers accordingly.
+The pipeline is **static-by-default, dynamic-by-auto-detection**. Authors don't toggle anything — `findDynamicNodeIds` in `src/core/publisher/dynamicDetection.ts` classifies each node, and the publisher routes through three layers accordingly.
 
 ```text
 Editor state (Zustand store)
@@ -252,7 +253,7 @@ Key properties:
 
 - **One published-route surface.** `server/publish/publicRouter.ts:renderPublicResolution` is the single entry for every visitor URL. Stand-alone pages (`/about`) and content rows rendered through a postType's entry template (`/posts/hello`) both flow through it; only the lookup strategy differs. The earlier split between `tryServePublishedPage` and `tryServeContentRoute` collapsed into one path after the pages → `data_rows` migration finished.
 - **Atomic publishing.** `uploads/published/current` is a symlink that targets either `slot-a/` or `slot-b/`. Full publishes build the inactive slot then atomic-rename the symlink — `rename(2)` of a symlink is a single-inode swap and is atomic across POSIX filesystems. There is no moment when `current` is missing or partially populated. In-flight readers that already resolved the old symlink hold file descriptors into the old slot — Unix semantics keep those files alive until they close. Incremental row publish (`publishDataRow`) writes a single file via tmp + rename into the active slot.
-- **Auto-detection is the seam.** `findDynamicNodesWithReasons(page, site, registry)` is the single walker that powers Layer A's "is this bakeable" predicate, Layer C's placeholder emission, and the diagnostic `staticReasons` helper. The four detection rules — `dynamic: true` modules, request-dependent bindings, request-dependent loop sources, VC-ref recursion — live in exactly one file. Cannot drift between layers.
+- **Auto-detection is the seam.** `findDynamicNodeIds(page, site, registry)` is backed by the single walker that powers Layer A's shell-vs-complete decision and Layer C's placeholder emission. The detection rules — `dynamic: true` modules, request-dependent bindings, request-dependent loop sources, loop-body promotion, VC-ref recursion — live in exactly one file. Cannot drift between layers.
 - **`publish.html` runs at publish time** for static routes (baked into the disk artefact). For dynamic routes, the filter still fires inside the Layer B factory but caches the result so it runs at most once per `(url, querystring, publishVersion)` triple.
 - **Three layers, automatic routing.** Layer A bakes fully-static pages to disk at publish time (`uploads/published/current/<route>.html`, atomic two-slot symlink swap). Layer B is an in-memory LRU keyed by `(urlPath, queryString)` for dynamic routes — single-flight, lazily invalidated on publish; version is captured at render start so a publish landing mid-render discards the result rather than caching stale HTML. Layer C emits `<instatic-hole>` placeholders for nodes that auto-detect as request-dependent; a tiny client runtime lazy-loads each fragment via `IntersectionObserver`. The `PublishedPageSnapshot` (JSON) on `data_row_versions.snapshot_json` remains the canonical audit record from which all three layers derive.
 - **Pure render, no framework runtime on the page.** Published HTML is plain semantic HTML + CSS. Plugins can inject frontend assets (`server/publish/frontendInjections.ts`). The only first-party client script is the ~668 B Layer C hole runtime, and it's injected ONLY on pages that contain at least one `<instatic-hole>` — fully-static pages ship zero JS from us.
@@ -392,6 +393,10 @@ DATABASE_URL=postgres://… bun run dev   # Postgres mode
 bun run build            # tsc -b && vite build (typecheck + bundle)
 bun test                 # unit + architecture tests
 bun run lint             # eslint with cache
+
+# automated browser E2E (Playwright; runs a disposable local stack)
+bun run test:e2e:install  # install Chromium once
+bun run test:e2e          # run specs in tests/e2e/*.e2e.ts
 ```
 
 `bun run build` runs both `tsc -b` and `vite build` — a change that runs in dev but fails `tsc` is not done. Verification is an end-of-task gate, not a per-edit ritual; see `CLAUDE.md` for the rules around pre-existing failures from parallel sessions.

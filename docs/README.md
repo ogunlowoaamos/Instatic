@@ -60,7 +60,7 @@ docs/
 │   └── editor-history.md           ← patch-based undo/redo history
 │
 ├── deployment/                 ← operator docs (running the thing)
-├── e2e/                        ← agent-run browser test protocols
+├── e2e/                        ← browser test protocols (agent-run + Playwright automation)
 ├── plans/                      ← in-flight design plans (transient)
 └── superpowers/                ← Superpowers agent plans and specs (transient)
     ├── plans/                      ← implementation plans authored by Superpowers agents
@@ -187,7 +187,7 @@ Plans (`docs/plans/` and `docs/superpowers/`) describe in-flight work. Plans are
 | Folder                              | Contents                                                          |
 |-------------------------------------|-------------------------------------------------------------------|
 | [deployment/](deployment/)          | Platform deploys, VPS/Docker installs, TLS, backup, releases      |
-| [e2e/](e2e/)                        | Agent-run browser E2E protocols and run logs                      |
+| [e2e/](e2e/)                        | Browser E2E protocols: agent-run audits and Playwright automation docs |
 | [plans/](plans/)                    | In-flight design plans (transient — delete when shipped)          |
 | [superpowers/](superpowers/)        | Superpowers agent plans (`plans/`) and pre-implementation specs (`specs/`) — transient |
 
