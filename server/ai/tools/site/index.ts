@@ -33,4 +33,4 @@ export const siteTools: AiTool[] = [
 ]
 
 export { buildSiteSystemPrompt } from './systemPrompt'
-export type { SiteSnapshot } from './snapshot'
+export type { SiteAgentSnapshot } from './snapshot'

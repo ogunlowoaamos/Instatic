@@ -26,7 +26,9 @@ import type { SiteDocument } from '@core/page-tree'
 import type { SiteAgentSnapshot } from '@site/agent/siteAgentSnapshot'
 import { buildSiteCssBundle } from '../../../publish/siteCssBundle'
 import type { ModuleInfo, ModulePropInfo, ModuleStyleInfo, SnapshotTokens } from './snapshot'
-import type { TokenFamily } from './snapshotHelpers'
+
+/** A single token family name within `SnapshotTokens`. */
+export type TokenFamily = keyof SnapshotTokens
 
 export interface AgentPageRender {
   /** Annotated inner <body> HTML (uid="<nodeId>" on each element). */

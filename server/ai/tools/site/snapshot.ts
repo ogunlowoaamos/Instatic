@@ -1,31 +1,23 @@
 /**
- * SiteSnapshot — the page-context payload the chat handler hands to
- * site-scope tool handlers via `ToolContext.snapshot`.
+ * Site-scope snapshot types.
  *
- * This is the same wire shape the editor's `renderEvidence` builds and POSTs
- * with each chat turn. Kept loose in shape on purpose so the snapshot can
- * evolve without coupling the server to the editor's internal types — the
- * boundary validation lives in the chat handler.
+ * `SiteAgentSnapshot` is the raw authoritative tree the browser posts each turn
+ * (the chat handler hands it to site-scope tool handlers via
+ * `ToolContext.snapshot`). It is defined alongside its browser serializer in
+ * `@site/agent/siteAgentSnapshot` and re-exported here as the canonical
+ * server-side name.
+ *
+ * The remaining types are tool RESULT contracts: the module/token catalog
+ * shapes `read`-surface tools (`list_modules`, `list_tokens`) return. They are
+ * produced server-side by `render.ts` from the registry + posted site.
  */
 
-export interface SiteSnapshot {
-  pageId: string
-  pageTitle: string
-  rootNodeId: string
-  pages: PageSummary[]
-  activeBreakpointId: string
-  breakpoints: BreakpointInfo[]
-  nodes: NodeInfo[]
-  availableModules: ModuleInfo[]
-  selectedNodeId: string | null
-  classes: ClassInfo[]
-  tokens: SnapshotTokens
-}
+export type { SiteAgentSnapshot } from '@site/agent/siteAgentSnapshot'
 
 /**
  * The site's design tokens, surfaced so the agent references the design system
  * (`var(--primary)`, `class="text-l text-primary"`) instead of hardcoding
- * off-brand colors, sizes, and fonts. Built by `buildPageContext` from
+ * off-brand colors, sizes, and fonts. Built by `describeAgentTokens` from
  * `describeFrameworkTokens` + `describeFontTokens`.
  */
 export interface SnapshotTokens {
@@ -82,33 +74,6 @@ export interface SnapshotFontToken {
   stack: string
 }
 
-export interface PageSummary {
-  id: string
-  title: string
-  slug: string
-  active: boolean
-  isHomepage: boolean
-}
-
-export interface BreakpointInfo {
-  id: string
-  label: string
-  width: number
-  mediaQuery?: string
-  icon: string
-}
-
-export interface NodeInfo {
-  id: string
-  moduleId: string
-  label?: string
-  parentId: string | null
-  children: string[]
-  props: Record<string, unknown>
-  breakpointOverrides: Record<string, Partial<Record<string, unknown>>>
-  classIds: string[]
-}
-
 export interface ModuleInfo {
   id: string
   name: string
@@ -138,17 +103,4 @@ export interface ModuleStyleInfo {
   defaultValue?: unknown
   cssProperties: string[]
   options?: Array<{ label: string; value: unknown }>
-}
-
-export interface ClassInfo {
-  id: string
-  name: string
-  styles?: Record<string, unknown>
-  breakpointStyles?: Record<string, Record<string, unknown>>
-  /**
-   * Set when this class is a locked framework utility class generated from a
-   * design token (so the agent can prefer it over an ad-hoc class). The value
-   * is the token family it came from; omitted for user-authored classes.
-   */
-  generated?: 'color' | 'typography' | 'spacing'
 }
