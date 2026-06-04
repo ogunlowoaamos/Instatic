@@ -9,18 +9,53 @@ export function normalizeRouteBase(value: string): string {
   return withoutTrailingSlash || '/'
 }
 
-export function selectEntryTemplate(site: SiteDocument, tableSlug: string): Page | null {
-  const matching = site.pages
-    .map((page, index) => ({ page, index }))
-    .filter(({ page }) =>
-      page.template?.enabled === true &&
-      page.template.context === 'entry' &&
-      page.template.tableSlug === tableSlug
-    )
-    .sort((a, b) => {
-      const priorityDelta = (b.page.template?.priority ?? 0) - (a.page.template?.priority ?? 0)
-      return priorityDelta || a.index - b.index
-    })
+/** What an inbound public URL resolved to, for template matching. */
+export type RouteResolutionContext =
+  | { kind: 'page' }
+  | { kind: 'entry'; tableSlug: string }
 
-  return matching[0]?.page ?? null
+export function isTemplatePage(page: Page): boolean {
+  return page.template?.enabled === true
+}
+
+/**
+ * Breadth levels, OUTER → INNER. Adding a level here (e.g. a path-prefix
+ * "section" layout between everywhere and postTypes) is the only change
+ * needed to deepen nesting — the resolver loop is level-agnostic.
+ */
+function matchesLevel(
+  page: Page,
+  level: 'everywhere' | 'postTypes',
+  ctx: RouteResolutionContext,
+): boolean {
+  const target = page.template?.target
+  if (!target) return false
+  if (level === 'everywhere') return target.kind === 'everywhere'
+  if (level === 'postTypes') {
+    return target.kind === 'postTypes'
+      && ctx.kind === 'entry'
+      && target.tableSlugs.includes(ctx.tableSlug)
+  }
+  return false
+}
+
+const LEVELS = ['everywhere', 'postTypes'] as const
+
+/**
+ * Collect every template matching the route, ordered outer → inner. At most
+ * one template per breadth level (highest priority, document order breaks ties).
+ */
+export function resolveTemplateChain(
+  site: SiteDocument,
+  ctx: RouteResolutionContext,
+): Page[] {
+  const indexed = site.pages.map((page, index) => ({ page, index }))
+  const chain: Page[] = []
+  for (const level of LEVELS) {
+    const winner = indexed
+      .filter(({ page }) => isTemplatePage(page) && matchesLevel(page, level, ctx))
+      .sort((a, b) => ((b.page.template?.priority ?? 0) - (a.page.template?.priority ?? 0)) || a.index - b.index)[0]
+    if (winner) chain.push(winner.page)
+  }
+  return chain
 }
