@@ -225,10 +225,10 @@ When editing a template page, the canvas needs a `currentEntry` without a publis
 
 ## Seeding — default entry templates
 
-When a postType `data_table` is created, `seedDefaultEntryTemplate(db, table)` in `server/repositories/data/templateSeeding.ts` inserts a default template page:
+When a postType `data_table` is created, `ensureDefaultEntryTemplate(db, table)` in `server/repositories/data/templateSeeding.ts` inserts a default template page (idempotent — it no-ops if one already targets the table):
 
 - `templateEnabled: true`, `templateTarget: { kind: 'postTypes', tableSlugs: [table.slug] }`, `templatePriority: 0`
-- Page tree: `base.body` > `base.heading` (bound to `currentEntry.title`) + `base.outlet` (bound to `currentEntry.body` via `html` format)
+- Page tree: `base.body` > `base.text` (`<h1>` bound to `currentEntry.title` via token interpolation) + `base.outlet` (bound to `currentEntry.body` via `html` format)
 
 `backfillDefaultEntryTemplates(db)` at boot covers postType tables created before the template system was added.
 
@@ -273,7 +273,7 @@ node.props.text = 'Posted by {currentEntry.author.displayName} on {currentEntry.
 |---------|------------|
 | Reading `currentEntry` from a module's `render` without bindings | Set `dynamicBindings` on the node — keeps the schema honest |
 | Hardcoding a template's slug in server handlers | Use `resolveTemplateChain(site, ctx)` |
-| Creating a template page via raw `INSERT INTO pages` | Use `seedDefaultEntryTemplate(...)` or the admin dialog |
+| Creating a template page via raw `INSERT INTO pages` | Use `ensureDefaultEntryTemplate(...)` or the admin dialog |
 | Walking a deep binding path with `JSON.parse(JSON.stringify(...))` | Use `walkFieldPath(frame, 'a.b.c')` |
 | Expecting to visit a template page at its own slug | Template pages are never directly routable — the live router and bake loop both skip them |
 | Inlining `page.template?.target.kind === 'everywhere' ? … : …` in UI code | Use `templateTargetLabel(page)` from `@core/templates` |
