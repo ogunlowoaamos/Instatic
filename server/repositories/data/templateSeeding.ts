@@ -2,10 +2,10 @@
  * Default entry-template seeding for `postType` data tables.
  *
  * Every `postType` table needs a page in the `pages` table whose
- * `template.{enabled,context,tableSlug}` fields point at it — otherwise
- * the public route `/<route-base>/<row-slug>` has no template to bind the
- * row into and the dispatcher 404s. We seed a minimal default template
- * automatically:
+ * `template.{enabled,target}` fields point at it (a `postTypes` target
+ * listing the table slug) — otherwise the public route
+ * `/<route-base>/<row-slug>` has no template to bind the row into and the
+ * dispatcher 404s. We seed a minimal default template automatically:
  *
  *   - On `createDataTable` when `kind === 'postType'` (handled by the
  *     repository's `createDataTable`).
@@ -19,7 +19,7 @@
  *   - `base.body` root
  *     - `base.text` <h1> bound to `{currentEntry.title}` via static-token
  *       interpolation (cheap; no DynamicPropBinding overlay required).
- *     - `base.content` bound to `{currentEntry.body}` with `format: 'html'`
+ *     - `base.outlet` bound to `{currentEntry.body}` with `format: 'html'`
  *       so the publisher converts the post's markdown body to HTML before
  *       rendering. Markdown rendering is the host's responsibility for the
  *       post-type built-in `body` field.
@@ -64,9 +64,11 @@ async function hasEntryTemplate(db: DbClient, tableSlug: string): Promise<boolea
   `
   for (const row of rows) {
     const cells = row.cells_json ?? {}
+    const target = cells.templateTarget as { kind?: string; tableSlugs?: unknown } | undefined
     if (cells.templateEnabled === true
-      && cells.templateContext === 'entry'
-      && cells.templateTableSlug === tableSlug
+      && target?.kind === 'postTypes'
+      && Array.isArray(target.tableSlugs)
+      && target.tableSlugs.includes(tableSlug)
     ) {
       return true
     }
@@ -79,7 +81,7 @@ async function hasEntryTemplate(db: DbClient, tableSlug: string): Promise<boolea
  * cells_json shape ready for `createDataRow`. Node ids are stable per
  * seed call so a re-seed on a wiped row reproduces the same tree.
  */
-function buildDefaultTemplateCells(table: DataTable, slug: string): Record<string, unknown> {
+export function buildDefaultTemplateCells(table: DataTable, slug: string): Record<string, unknown> {
   const rootId = nanoid()
   const titleId = nanoid()
   const bodyId = nanoid()
@@ -109,7 +111,7 @@ function buildDefaultTemplateCells(table: DataTable, slug: string): Record<strin
         },
         [bodyId]: {
           id: bodyId,
-          moduleId: 'base.content',
+          moduleId: 'base.outlet',
           // For HTML output (markdown rendering) we need the dynamic
           // binding overlay — token interpolation only handles strings,
           // and we need the binding system's `format: 'html'` branch to
@@ -128,10 +130,8 @@ function buildDefaultTemplateCells(table: DataTable, slug: string): Record<strin
       },
     },
     templateEnabled: true,
-    templateContext: 'entry',
-    templateTableSlug: table.slug,
+    templateTarget: { kind: 'postTypes', tableSlugs: [table.slug] },
     templatePriority: 0,
-    templateConditions: [],
   }
 }
 
