@@ -111,6 +111,7 @@ All mutations live in `src/core/page-tree/mutations.ts`. They take a `NodeTree<P
 | `wrapNode(tree, nodeId, wrapperModuleId)`                         | Wrap a node in a new container                              |
 | `wrapNodes(tree, nodeIds, wrapperModuleId)`                       | Same, multi-select                                          |
 | `pasteSubtree(tree, subtree, parentId, index?)`                   | Insert a previously-copied subtree with new ids             |
+| `removeNodeSubtrees(nodes, rootNodeIds)`                          | Remove the given root nodes and their entire subtrees from a flat node map; splices each root from its parent's `children[]`. Takes `Record<string, BaseNode>` directly (not the full `NodeTree`) — works on both Mutative drafts and plain maps. Used for cascade-deletion of `base.visual-component-ref` nodes in both the editor and the persistence loader. |
 
 ### Site-level mutations (operate on a `SiteDocument`)
 

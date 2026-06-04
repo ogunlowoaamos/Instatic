@@ -299,7 +299,7 @@ This is why mutations don't need to branch — VC-mode looks like page-mode all 
 
 ## Deletion impact
 
-Deleting a VC has consequences across every page that references it. `src/core/visualComponents/deletionImpact.ts`:
+Deleting a VC has consequences across every page and every other VC tree that references it. `src/core/visualComponents/deletionImpact.ts`:
 
 ```ts
 previewVCDeletion(vcId, allPages) → VCDeletionImpact {
@@ -380,7 +380,9 @@ const { refNode, slotInstances } = instantiateVCAtRef(vc, { /* instanceProps */ 
 
 1. Call `previewVCDeletion(vcId, allPages)` to enumerate references.
 2. Show the impact list in the UI; require confirmation.
-3. On confirm, delete the VC row and delete every referencing ref node (and its subtree) from the affected pages in one transaction.
+3. On confirm, call `deleteVisualComponent(id)` (store action in `visualComponentsSlice.ts`), which in a single Mutative draft:
+   - Removes the VC from `site.visualComponents`.
+   - Calls `removeNodeSubtrees` (from `@core/page-tree`) to splice every `base.visual-component-ref` pointing at the deleted VC — plus its entire subtree of slot-instances and user content — from every **page** tree and every other **VC definition** tree in the site.
 
 ---
 
