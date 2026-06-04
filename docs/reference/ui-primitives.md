@@ -9,7 +9,7 @@ Every interactive control in `src/admin/` goes through one of these. Bare `<butt
 ## TL;DR
 
 - Import from `@ui/components/<Name>` — each primitive lives in its own folder with `Component.tsx`, `Component.module.css`, and `index.ts`.
-- The 29 primitives below cover every interactive control in the admin. If something's missing, add a new primitive (see "Adding a new primitive" below) — don't reach for a third-party library.
+- The 30 primitives below cover every interactive control in the admin. If something's missing, add a new primitive (see "Adding a new primitive" below) — don't reach for a third-party library.
 - Composition uses `cn` from `@ui/cn` — a 3-line in-house helper. **Never** `clsx` / `tailwind-merge` / `cva` / `@radix-ui/*` — gated by `no-tailwind-deps.test.ts`.
 - All colors / radii come from CSS custom properties in `src/styles/globals.css` — see [docs/reference/design-tokens.md](design-tokens.md).
 - Forbidden: Tailwind classes, hardcoded hex, inline `style` (except dynamic CSS custom properties), `!important`, native `title=` tooltips, native `alert()` / `confirm()`.
@@ -72,6 +72,8 @@ Every interactive control in `src/admin/` goes through one of these. Bare `<butt
 | `TagPill`                  | Compact tinted labels, selector chips, removable tag pills   | `label`, `active`, `muted`, `onClick`, `onRemove`        |
 | `Image`                    | Image with built-in blurhash fallback                        | `src`, `blurhash`, `alt`, `width`, `height`              |
 | `CanvasModulePlaceholder`  | Diagonal-stripe placeholder for empty modules on the canvas  | `label`                                                  |
+| `Kbd`                      | Single keyboard keycap. Use anywhere a key name appears as a hint. | `children`, `className`                             |
+| `ShortcutKeys`             | Full shortcut sequence ("⌘K", "Ctrl+Shift+P") — splits the label into individual `Kbd` spans. | `label`, `aria-hidden`, `className` |
 
 ### Loading / skeleton
 
@@ -411,6 +413,33 @@ import { Widget } from '@ui/components/Widget'
 | `peach`   | `#ffc7a8`       | "Posts / media / activity"              |
 
 `Widget` is the **canonical implementation** of the tile-card pattern — see [docs/design.md](../design.md). Build any equivalent tile by reusing `Widget`, not by recreating the pattern.
+
+---
+
+## `Kbd` and `ShortcutKeys`
+
+Single keycap and full shortcut-sequence primitives. The one canonical keycap style across the admin — used by the Spotlight footer, module inserter legend, and keybindings help screen.
+
+```tsx
+import { Kbd, ShortcutKeys } from '@ui/components/Kbd'
+
+// Single keycap
+<Kbd>⌘</Kbd>
+<Kbd>esc</Kbd>
+
+// Full shortcut — splits "⌘K" into [⌘][K], "Ctrl+Shift+P" into [Ctrl][Shift][P]
+<ShortcutKeys label="⌘K" />
+<ShortcutKeys label="Ctrl+Shift+P" />
+```
+
+`ShortcutKeys` is marked `aria-hidden="true"` by default because the surrounding element usually labels the action. Pass `aria-hidden={false}` (or `"false"`) when there is no other label.
+
+`splitShortcut` is also exported for cases where you only need the token array:
+
+```ts
+import { splitShortcut } from '@ui/components/Kbd'
+splitShortcut('⌘⇧P') // → ['⌘', '⇧', 'P']
+```
 
 ---
 

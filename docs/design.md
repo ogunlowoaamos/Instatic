@@ -200,7 +200,7 @@ These five are the entire text palette. Add a new tone only by adding a new toke
 | Token                | Value | Use                                                          |
 |----------------------|-------|--------------------------------------------------------------|
 | `--editor-radius-sm` | 3px   | Tight chips, micro-badges, segmented control inner indicator |
-| `--editor-radius`    | 12px  | Default editor controls, toolbar buttons, ghost menu items   |
+| `--editor-radius`    | 6px   | Default editor controls, toolbar buttons, ghost menu items   |
 | `--panel-radius`     | 12px  | Floating overlay panels (Spotlight, modals, popovers)        |
 | `--card-radius`      | 16px  | Borderless tile cards (Widget, dashboard cells, module inserter tiles) |
 | `--input-radius`     | 1em   | Pill-shaped inputs, classes / property chips                 |
@@ -217,8 +217,7 @@ Editor scrollbars are global chrome and stay achromatic. `globals.css` owns `--e
 | Token                       | Use                                                     |
 |-----------------------------|---------------------------------------------------------|
 | `--editor-focus-ring`       | Achromatic 1px focus ring (`0 0 0 1px rgba(255,255,255,0.25)`) |
-| `--panel-shadow`            | Composite for floating panels: inset-top highlight + inset-bottom shadow + drop shadow |
-| `--panel-shadow-inset-top`  | Sub-token: top inner highlight                          |
+| `--panel-shadow`            | Composite for floating panels: bottom-inset shadow + drop shadow |
 | `--panel-shadow-inset-bottom`| Sub-token: bottom inner shadow                         |
 | `--panel-shadow-drop`       | Sub-token: drop shadow                                  |
 | `--input-shadow-focus`      | Inset composite for focused inputs (achromatic glow)    |
@@ -383,6 +382,7 @@ Every interactive control in the admin and editor goes through a primitive from 
 | `CanvasModulePlaceholder`| Diagonal-stripe placeholder for empty modules.                          |
 | `ErrorBoundary`      | Component-level error containment.                                          |
 | `SkeletonBlock`, `SkeletonCards`, `SkeletonRows` | Loading-state shimmer primitives. Three named shapes cover nearly every loading region. Shimmer uses `--editor-surface-3/4` tokens. |
+| `Kbd`, `ShortcutKeys` | Keyboard keycap and shortcut-sequence primitives. `Kbd` renders a single keycap; `ShortcutKeys` splits a full label ("⌘K", "Ctrl+Shift+P") into per-key `Kbd` spans. Single canonical style across all keyboard hint surfaces (Spotlight footer, module inserter legend, keybindings help screen). |
 
 For tree-shaped controls (DOM panel, layers panel, site tree), use `Tree*` from `src/admin/pages/site/ui/Tree/`.
 

@@ -51,6 +51,7 @@ src/admin/spotlight/
 ├── spotlightControls.ts           — programmatic controls (open / close / set query)
 ├── spotlightSearch.ts             — search query parsing (scope:, action: prefixes)
 ├── telemetry.ts                   — usage logging
+├── groupAccent.ts                 — maps CommandGroup → categorical rail-tint accent
 ├── HelpKeybindingsList.tsx        — Cmd+? help screen
 ├── pendingAction.ts               — confirm-destructive flow
 ├── types.ts                       — Command, SpotlightProvider, Scope, CommandContext
@@ -190,9 +191,10 @@ Key behaviors:
 
 - **Lazy chunk.** `Spotlight` is `React.lazy`-loaded inside `SpotlightRoot`; first-time open downloads ~30KB of palette code.
 - **Backdrop blur** (`--spotlight-backdrop-blur: 8px`).
+- **Card rows.** Result rows have a border-radius and are laid out with a 1px gap — the same tile-card language as the module inserter and dashboard.
+- **Categorical group accents.** Each command group gets a stable rail-tint identity (e.g. `editor` → lilac, `navigation` → sky, `media` → peach). The accent drives the icon chip color and the group-header accent bar. Mapping lives in `groupAccent.ts`.
 - **Row selection** highlight via `--spotlight-row-selected-bg`.
 - **Fuzzy match highlighting** — matched characters wrapped in `<mark>` with `--spotlight-mark-bg`.
-- **Group headers** styled with `--spotlight-group-header-fg`.
 - **Skeleton shimmer** while providers are in flight.
 
 ### Destructive confirm
@@ -388,6 +390,7 @@ run: async (ctx) => {
   - `src/admin/spotlight/matcher.ts` — fuzzy match
   - `src/admin/spotlight/types.ts` — `Command`, `SpotlightProvider`, `Scope`
   - `src/admin/spotlight/keybindings.ts` — keybinding registry
+  - `src/admin/spotlight/groupAccent.ts` — CommandGroup → rail-tint accent mapping
 - Gate tests:
   - `src/__tests__/architecture/spotlight-no-direct-store-mutation.test.ts`
   - `src/__tests__/architecture/keybindings-registry-single-source.test.ts`

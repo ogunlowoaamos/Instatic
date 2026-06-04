@@ -232,7 +232,7 @@ Used inside CodeMirror only. Don't reach for these in editor chrome.
 | Token                | Value | Use                                                          |
 |----------------------|-------|--------------------------------------------------------------|
 | `--editor-radius-sm` | 3px   | Tight chips, micro-badges, segmented-control inner indicator |
-| `--editor-radius`    | 12px  | Default editor controls, toolbar buttons, ghost menu items   |
+| `--editor-radius`    | 6px   | Default editor controls, toolbar buttons, ghost menu items   |
 | `--panel-radius`     | 12px  | Floating overlay panels                                      |
 | `--card-radius`      | 16px  | Borderless tile cards (Widget, dashboard cells, module inserter tiles) |
 | `--input-radius`     | 1em   | Pill-shaped inputs, class / property chips                   |
@@ -245,8 +245,7 @@ Used inside CodeMirror only. Don't reach for these in editor chrome.
 | Token                          | Use                                                                       |
 |--------------------------------|---------------------------------------------------------------------------|
 | `--editor-focus-ring`          | `0 0 0 1px rgba(255, 255, 255, 0.25)` — 1px achromatic focus ring         |
-| `--panel-shadow`               | Composite (top-inset highlight + bottom-inset shadow + drop shadow)        |
-| `--panel-shadow-inset-top`     | Sub-token: `inset 0 1px 0 rgba(255, 255, 255, 0.08)`                       |
+| `--panel-shadow`               | Composite for floating panels: bottom-inset shadow + drop shadow           |
 | `--panel-shadow-inset-bottom`  | Sub-token: `inset 0 -1px 0 rgba(0, 0, 0, 0.35)`                            |
 | `--panel-shadow-drop`          | Sub-token: `0 12px 40px rgba(0, 0, 0, 0.65)`                               |
 | `--input-shadow-focus`         | Inset composite achromatic glow for focused inputs                         |
@@ -363,7 +362,6 @@ Spotlight has its own token group. Don't reuse outside Spotlight.
 | `--spotlight-row-selected-bg`      | `rgba(255, 255, 255, 0.08)`            |
 | `--spotlight-mark-bg`              | `rgba(52, 211, 153, 0.20)`             |
 | `--spotlight-mark-fg`              | `var(--editor-text-bright)`            |
-| `--spotlight-group-header-fg`      | `var(--editor-text-subtle)`            |
 | `--spotlight-footer-bg`            | `rgba(255, 255, 255, 0.03)`            |
 | `--spotlight-destructive-fg`       | `var(--editor-danger-light)`           |
 | `--spotlight-confirm-bg`           | `rgba(239, 68, 68, 0.08)`              |
