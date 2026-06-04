@@ -155,11 +155,11 @@ Measures how many tokens the site-editor agent's page **read surface** costs, co
 
 Tokens are counted with Anthropic's `count_tokens` endpoint (model-accurate, no SDK) against the **real seeded pages** in `.tmp/dev.db`. The report gives per-page and aggregate JSON-vs-HTML token counts and a ratio, plus fairness/fidelity facts it deliberately surfaces: how many `@media` breakpoint blocks the counted CSS carries, how many nodes got annotated, and how many carry per-node prop overrides that live in the JSON tree but not in the published CSS (published responsive styling flows through class `@media` blocks, which are counted on the HTML side).
 
-This bench informs (does not decide) whether to move the agent from the JSON snapshot to an annotated-HTML read surface. It is **opt-in**: it needs `ANTHROPIC_API_KEY` and a seeded dev DB, and it makes one network call per measured string. Run it with:
+The HTML read surface has shipped (`read_page` replaced the five legacy JSON tools). This bench now serves as a **regression guard** — confirming the HTML+CSS representation remains cheaper than the legacy JSON surface it replaced. It is **opt-in**: it needs `ANTHROPIC_API_KEY` and a seeded dev DB, and it makes one network call per measured string. Run it with:
 ```bash
 ANTHROPIC_API_KEY=sk-... bun run bench --only=snapshot-tokens
 ```
-With no key or no seeded DB it self-skips with an actionable message rather than crashing the suite. Design doc: [`docs/superpowers/specs/2026-06-04-html-vs-json-snapshot-design.md`](../../docs/superpowers/specs/2026-06-04-html-vs-json-snapshot-design.md).
+With no key or no seeded DB it self-skips with an actionable message rather than crashing the suite. Rationale: [`docs/features/agent.md` → Why HTML-native](../../docs/features/agent.md#why-html-native).
 
 ## Architecture
 
