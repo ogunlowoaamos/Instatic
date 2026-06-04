@@ -1,6 +1,6 @@
 /**
  * CanvasModulePlaceholder — shared empty-state primitive for module canvas
- * previews (base.image, base.video, base.content, base.loop,
+ * previews (base.image, base.video, base.outlet, base.loop,
  * base.slot-outlet, base.visual-component-ref, …).
  *
  * Why a dedicated primitive? Each module used to ship its own placeholder

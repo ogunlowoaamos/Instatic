@@ -81,7 +81,7 @@ export const MODULE_WIRES: Readonly<Record<string, WireNode>> = {
   'base.button': row([button({ width: 48 })], { center: true, align: 'center', height: 40 }),
   'base.checkbox': row([check(), lines(1, { flex: 1 })], { gap: 6, align: 'center' }),
   'base.container': box([], { dashed: true, height: 52 }),
-  'base.content': col([lines(1, { big: true, width: 60 }), lines(3), image({ height: 30 }), lines(2)], { gap: 6 }),
+  'base.outlet': col([lines(1, { big: true, width: 60 }), lines(3), image({ height: 30 }), lines(2)], { gap: 6 }),
   'base.form': col([field(), field(), button({ width: 40 })], { gap: 6 }),
   'base.form-message': box([row([icon(), lines(1, { flex: 1 })], { gap: 6, align: 'center' })], { pad: 6, message: true }),
   'base.image': image({ height: 52 }),
@@ -173,7 +173,7 @@ export function moduleWireForId(moduleId: string, category?: string): WireNode {
   if (category === 'Media') return MODULE_WIRES['base.image']
   if (category === 'Interactive') return MODULE_WIRES['base.button']
   if (category === 'Typography') return MODULE_WIRES['base.text']
-  if (category === 'CMS') return MODULE_WIRES['base.content']
+  if (category === 'CMS') return MODULE_WIRES['base.outlet']
   return MODULE_WIRES['base.container']
 }
 

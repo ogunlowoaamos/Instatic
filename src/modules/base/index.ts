@@ -20,7 +20,7 @@ import './loop'
 // Typography modules
 import './text'
 import './list'
-import './content'
+import './outlet'
 
 // Media modules
 import './image'

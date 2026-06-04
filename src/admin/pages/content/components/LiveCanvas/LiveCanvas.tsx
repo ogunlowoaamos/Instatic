@@ -14,7 +14,7 @@
  *      `/_instatic/assets/…`, `/uploads/…` all resolve and get proxied as
  *      usual in dev.
  *   3. After the iframe loads, find the body region marker
- *      (`[data-instatic-content-region]` emitted by `base.content`) inside
+ *      (`[data-instatic-content-region]` emitted by `base.outlet`) inside
  *      `iframe.contentDocument` and instantiate a fresh Tiptap editor
  *      against that element. ProseMirror handles cross-document mounts
  *      naturally as long as the host element belongs to the target
@@ -360,7 +360,7 @@ export function LiveCanvas({
 
     const target = iframe.contentDocument.querySelector<HTMLElement>('[data-instatic-content-region]')
     if (!target) {
-      // The template doesn't include a `base.content` module — fall
+      // The template doesn't include a `base.outlet` module — fall
       // back to read-only preview without an inline editor.
       return
     }
