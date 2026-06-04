@@ -10,8 +10,6 @@
  */
 
 import type { AiToolOutput } from '@core/ai'
-import type { ColorTokenDescriptor, ScaleGroupDescriptor } from '@core/framework'
-import type { FontTokenDescriptor } from '@core/fonts'
 
 // ---------------------------------------------------------------------------
 // Execution result
@@ -173,59 +171,10 @@ export interface AgentRequestBody {
   /**
    * Scope-specific snapshot handed to the read tools via
    * `ToolContext.snapshot`. Loose `unknown` here because the body now
-   * crosses every scope (site → PageContext, content → ContentSnapshot,
+   * crosses every scope (site → SiteAgentSnapshot, content → ContentSnapshot,
    * …); each scope's tool handlers cast at the boundary.
    */
   snapshot: unknown
-}
-
-interface AgentModulePropOptionContext {
-  label: string
-  value: unknown
-}
-
-export interface AgentModulePropContext {
-  key: string
-  type: string
-  label: string
-  description?: string
-  defaultValue?: unknown
-  options?: AgentModulePropOptionContext[]
-  /**
-   * When true, this prop can carry per-breakpoint overrides via
-   * `updateNodeProps` with `breakpointId`. Default `false` — module props are
-   * content (single value across breakpoints) unless the schema opts in.
-   */
-  breakpointOverridable?: boolean
-}
-
-export interface AgentModuleStyleContext {
-  key: string
-  type: string
-  label: string
-  description?: string
-  defaultValue?: unknown
-  cssProperties: string[]
-  options?: AgentModulePropOptionContext[]
-}
-
-export interface AgentModuleContext {
-  id: string
-  name: string
-  description?: string
-  category: string
-  canHaveChildren: boolean
-  defaults: Record<string, unknown>
-  props: AgentModulePropContext[]
-  styles: AgentModuleStyleContext[]
-}
-
-export interface AgentBreakpointContext {
-  id: string
-  label: string
-  width: number
-  mediaQuery?: string
-  icon: string
 }
 
 export interface AgentLayoutRect {
@@ -290,77 +239,6 @@ export interface AgentScreenshotContext {
   width?: number
   height?: number
   error?: string
-}
-
-export interface AgentPageSummary {
-  id: string
-  title: string
-  slug: string
-  /** True when this is the active page in the editor. */
-  active: boolean
-  /** True when this page resolves at the site's homepage path (slug === 'index'). */
-  isHomepage: boolean
-}
-
-export interface PageContext {
-  /** ID of the active page in the editor. */
-  pageId: string
-  /** Active page title */
-  pageTitle: string
-  /** Root node ID of the active page */
-  rootNodeId: string
-  /** Every page in the site (for site-level admin tools). */
-  pages: AgentPageSummary[]
-  /** Configured breakpoint ID currently active in the editor. */
-  activeBreakpointId: string
-  /** Live breakpoint configuration for the site. */
-  breakpoints: AgentBreakpointContext[]
-  /** All nodes on the active page (flat map, serialisable subset) */
-  nodes: Array<{
-    id: string
-    moduleId: string
-    label?: string
-    parentId: string | null
-    children: string[]
-    props: Record<string, unknown>
-    breakpointOverrides: Record<string, Partial<Record<string, unknown>>>
-    classIds: string[]
-  }>
-  /** Live module registry snapshot so Claude knows what can be inserted. */
-  availableModules: AgentModuleContext[]
-  /** Currently selected node ID, if any */
-  selectedNodeId: string | null
-  /**
-   * CSS class registry — all classes defined in the site.
-   * Use the `id` in assignClass/updateClassStyles for existing classes.
-   * The executor also resolves classId by name as a fallback.
-   */
-  classes: Array<{
-    id: string
-    name: string
-    styles?: Record<string, unknown>
-    breakpointStyles?: Record<string, Record<string, unknown>>
-    /**
-     * Set when this class is a locked framework utility class generated from a
-     * design token (so the agent can prefer it). The value is the token family;
-     * omitted for user-authored classes.
-     */
-    generated?: 'color' | 'typography' | 'spacing'
-  }>
-  /**
-   * The site's design tokens — color tokens, typography & spacing scale steps,
-   * and font tokens — each paired with its CSS variable and the utility
-   * class(es) bound to it, so the agent references the design system instead of
-   * hardcoding values. Built from `describeFrameworkTokens` + `describeFontTokens`.
-   */
-  tokens: PageContextTokens
-}
-
-export interface PageContextTokens {
-  colors: ColorTokenDescriptor[]
-  typography: ScaleGroupDescriptor[]
-  spacing: ScaleGroupDescriptor[]
-  fonts: FontTokenDescriptor[]
 }
 
 // ---------------------------------------------------------------------------

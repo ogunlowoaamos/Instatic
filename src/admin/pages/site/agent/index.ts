@@ -17,10 +17,11 @@ export { siteAgentSliceConfig } from './agentSliceConfig.site'
 // Stream protocol — schema + per-event reducer.
 export { processStreamEvent, ServerStreamEventSchema } from './streamEvents'
 
-// Site-specific page snapshot builders.
-export { buildPageContext, buildCurrentPageContext } from './pageContext'
-export { buildPageSnapshot } from './pageSnapshot'
-export type { PageSnapshotOptions } from './pageSnapshot'
+// Site-specific snapshot builder — emits the raw authoritative tree the server
+// renders into the agent's HTML read surface.
+export { buildCurrentPageContext } from './pageContext'
+export { buildSiteAgentSnapshot } from './siteAgentSnapshot'
+export type { SiteAgentSnapshot } from './siteAgentSnapshot'
 
 // Browser-side tool dispatch + render evidence + markdown rendering.
 export { executeAgentTool } from './executor'

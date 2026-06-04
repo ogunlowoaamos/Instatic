@@ -325,6 +325,7 @@ function runGetNodeHtml(input: Static<typeof getNodeHtmlSchema>): AiToolOutput {
     registry,
     breakpointId: undefined,
     cssMap: new Map(),
+    annotateNodeIds: true,
   }
 
   const html = renderNode(input.nodeId, ctx)

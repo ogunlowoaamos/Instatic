@@ -7,7 +7,7 @@
  * which uses the same factory with its own config). The site config:
  *
  *   - declares `scope: 'site'` for URL/JSON wiring,
- *   - snapshots the live page tree via buildCurrentPageContext,
+ *   - posts the raw live page tree (active page + site) via buildCurrentPageContext,
  *   - dispatches write tools through the existing executor.ts,
  *   - keeps the site-editor "no AI provider configured" copy so the panel can
  *     render its setup empty state with the right scope wording.
