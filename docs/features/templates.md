@@ -122,6 +122,19 @@ System frames still contain internal bookkeeping for runtime code, but `src/admi
 
 `walkFieldPath(frame, 'cells.author.displayName')` walks a dotted path. Returns `undefined` for missing keys.
 
+### Binding picker per-row preview
+
+Each row in the binding picker shows a preview value so authors can confirm the field has real data before committing. For `currentEntry` bindings, the preview item is resolved when the picker opens:
+
+1. **Loop-bound table scope** — fetches the most recently published row via `previewCmsDataLoopItems(tableId, { limit: 1, orderBy: 'publishedAt', direction: 'desc' })`.
+2. **Template-page scope (or loop-bound with no published rows)** — synthesizes preview values via `dataTablePreviewToLoopItem(table)`.
+
+The fetched item is stored together with its `tableId`. The popover derives the displayed value during render and only surfaces the item when it still matches the current scope — so switching scope never flashes the previous table's preview values.
+
+System-frame previews (`page`, `site`, `route`) are read live from the editor store via `buildPageFrame`, `buildSiteFrame`, `buildRouteFrame`.
+
+Source: `src/admin/pages/site/property-controls/DynamicBindingControl/BindingPickerPopover.tsx`
+
 ---
 
 ## Token interpolation
@@ -168,7 +181,7 @@ const cells = buildPreviewCells(table)
 
 The canvas pushes a synthesized `LoopItem` (`{ id: 'preview', fields: cells }`) onto the entry stack when rendering an entry-template page. Result: the user sees a meaningful preview at edit time without having to switch to a real published row.
 
-`dataTablePreviewToLoopItem(table)` is the helper.
+`dataTablePreviewToLoopItem(table)` wraps the cells as a `LoopItem` — used by both the canvas and the binding picker's synthetic fallback.
 
 ---
 
