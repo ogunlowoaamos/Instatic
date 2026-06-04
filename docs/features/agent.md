@@ -70,7 +70,7 @@ src/admin/pages/site/agent/
 ├── executor.ts             — browser-side dispatcher: validates + runs write tools
 ├── renderEvidence.ts       — captureAgentRenderSnapshot (render_snapshot tool)
 ├── storeRef.ts             — setAgentStoreApi / getAgentStoreApi (avoids store ↔ executor cycle)
-└── types.ts                — ServerStreamEvent, AgentMessage, PageContext, …
+└── types.ts                — ServerStreamEvent, AgentMessage, AgentRequestBody, …
 
 src/admin/pages/content/agent/
 ├── agentSliceConfig.content.ts — content-workspace config: scope, snapshot builder, executor wiring
@@ -92,7 +92,7 @@ User types prompt → Agent Panel
     ▼
 agentSlice.sendAgentMessage(content)
     │
-    ├─→ buildSnapshot()  →  PageContext  (page tree, classes, modules, breakpoints)
+    ├─→ buildSnapshot()  →  SiteAgentSnapshot  (raw active page + site tree)
     ├─→ ensure conversation row  (lazily created from AI defaults on first call)
     ├─→ POST /admin/api/ai/chat/site  { conversationId, prompt, snapshot }
     │
@@ -428,7 +428,7 @@ Conversations and their message history are persisted server-side in `ai_convers
   - `src/admin/pages/site/agent/executor.ts` — write-tool browser dispatcher
   - `src/admin/pages/site/agent/agentConfig.ts` — API path constants
   - `src/admin/pages/site/agent/renderEvidence.ts` — `captureAgentRenderSnapshot`
-  - `src/admin/pages/site/agent/types.ts` — `ServerStreamEvent`, `AgentMessage`, `PageContext`, …
+  - `src/admin/pages/site/agent/types.ts` — `ServerStreamEvent`, `AgentMessage`, `AgentRequestBody`, …
   - `src/admin/pages/site/agent/index.ts` — public barrel
   - `src/admin/pages/content/agent/contentAgentStore.ts` — standalone content-workspace agent store
   - `src/admin/pages/site/panels/AgentPanel/` — Agent Panel UI
