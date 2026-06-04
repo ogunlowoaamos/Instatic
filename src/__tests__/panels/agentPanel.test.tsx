@@ -81,7 +81,7 @@ describe('AgentPanel', () => {
       expect(screen.getByText('Connect an AI provider')).toBeTruthy()
     })
 
-    const headerButton = screen.getByTestId('agent-credentials-header-link')
+    const headerButton = screen.getByTestId('agent-settings-header-button')
     expect(headerButton.tagName).toBe('BUTTON')
     expect(headerButton.textContent?.trim()).toBe('')
 
@@ -121,6 +121,9 @@ describe('AgentPanel', () => {
     })
 
     expect(screen.queryByText('Connect an AI provider')).toBeNull()
-    expect(screen.queryByTestId('agent-credentials-header-link')).toBeNull()
+    // Settings and new-chat shortcuts are always available in the header,
+    // independent of credential state.
+    expect(screen.getByTestId('agent-settings-header-button')).toBeTruthy()
+    expect(screen.getByTestId('agent-new-chat-header-button')).toBeTruthy()
   })
 })

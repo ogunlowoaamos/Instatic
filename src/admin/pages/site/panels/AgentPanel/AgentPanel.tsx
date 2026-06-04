@@ -36,6 +36,7 @@ import { CheckIcon } from 'pixel-art-icons/icons/check'
 import { CircleAlertSolidIcon } from 'pixel-art-icons/icons/circle-alert-solid'
 import { AiBoxSolidIcon } from 'pixel-art-icons/icons/ai-box-solid'
 import { AiSettingsSolidIcon } from 'pixel-art-icons/icons/ai-settings-solid'
+import { EditSolidIcon } from 'pixel-art-icons/icons/edit-solid'
 import { ArrowRightIcon } from 'pixel-art-icons/icons/arrow-right'
 import { PanelHeader } from '@admin/shared/PanelHeader'
 import { Button } from '@ui/components/Button'
@@ -72,6 +73,7 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
   const sendAgentMessage = useAgentStore((s) => s.sendAgentMessage)
   const abortAgent = useAgentStore((s) => s.abortAgent)
   const clearAgentMessages = useAgentStore((s) => s.clearAgentMessages)
+  const startNewAgentConversation = useAgentStore((s) => s.startNewAgentConversation)
   const credentialsResource = useAsyncResource(
     (signal) => listCredentials(signal),
     [],
@@ -175,6 +177,18 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
       >
         {/* History popover — list past chats, start a new one, delete. */}
         <ConversationHistory />
+        {/* "New chat" — start a fresh conversation directly from the header. */}
+        <Button
+          variant="ghost"
+          size="xs"
+          iconOnly
+          onClick={startNewAgentConversation}
+          tooltip="New chat"
+          aria-label="New chat"
+          data-testid="agent-new-chat-header-button"
+        >
+          <EditSolidIcon size={14} />
+        </Button>
         {/* "Clear conversation" — shown when there are messages */}
         {messages.length > 0 && (
           <Button
@@ -194,13 +208,12 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
             Working…
           </span>
         )}
-        {showCredentialSetup && (
-          <AgentSettingsButton
-            variant="header"
-            label="AI settings"
-            data-testid="agent-credentials-header-link"
-          />
-        )}
+        {/* "AI settings" — always available; routes to /admin/ai. */}
+        <AgentSettingsButton
+          variant="header"
+          label="AI settings"
+          data-testid="agent-settings-header-button"
+        />
       </PanelHeader>
 
       {/* ── Message thread ──────────────────────────────────────────────────── */}
