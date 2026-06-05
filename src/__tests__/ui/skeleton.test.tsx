@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import { Skeleton, SkeletonRows } from '@ui/components/Skeleton'
+import { Skeleton, SkeletonRows, SkeletonTree } from '@ui/components/Skeleton'
 
 describe('Skeleton primitives', () => {
   it('renders local shimmer spans with CSS custom-property dimensions', () => {
@@ -21,5 +21,29 @@ describe('Skeleton primitives', () => {
     const status = screen.getByRole('status', { name: 'Loading rows' })
     expect(status.querySelectorAll('span')).toHaveLength(3)
     expect(status.querySelector('.react-loading-skeleton')).toBeNull()
+  })
+
+  it('renders an indented tree skeleton with staggered, depth-aware rows', () => {
+    render(<SkeletonTree count={4} ariaLabel="Loading layers" />)
+
+    const status = screen.getByRole('status', { name: 'Loading layers' })
+    const rows = status.children
+    expect(rows).toHaveLength(4)
+
+    // Rows are depth-indented and each starts its shimmer a beat later.
+    const firstRow = rows[0] as HTMLElement
+    const secondRow = rows[1] as HTMLElement
+    expect(firstRow.style.getPropertyValue('--skeleton-tree-indent')).toBe('8px')
+    expect(secondRow.style.getPropertyValue('--skeleton-tree-indent')).toBe('20px')
+    expect(firstRow.style.getPropertyValue('--skeleton-delay')).toBe('0ms')
+    expect(secondRow.style.getPropertyValue('--skeleton-delay')).toBe('60ms')
+  })
+
+  it('cascades the built-in tree silhouette when no count is given', () => {
+    render(<SkeletonTree ariaLabel="Loading tree" />)
+
+    const status = screen.getByRole('status', { name: 'Loading tree' })
+    // Default silhouette is 10 rows.
+    expect(status.children).toHaveLength(10)
   })
 })

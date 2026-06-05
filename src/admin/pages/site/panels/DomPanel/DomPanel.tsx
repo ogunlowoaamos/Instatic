@@ -55,7 +55,7 @@ import { TreeContainer, TreeIconSlot, TreeLabel, TreeRow } from '@site/ui/Tree'
 import { TagPill } from '@ui/components/TagPill'
 import { useEditorPreference } from '@site/preferences/editorPreferences'
 import { SearchBar } from '@ui/components/SearchBar'
-import { SkeletonRows } from '@ui/components/Skeleton'
+import { SkeletonTree } from '@ui/components/Skeleton'
 import { PanelHeader } from '@admin/shared/PanelHeader'
 import { useDraggablePanel } from '@site/hooks/useDraggablePanel'
 import { cn } from '@ui/cn'
@@ -472,7 +472,7 @@ function DomPanelInner({ variant = 'floating', editable = true }: { variant?: Pa
           onContextMenu={handleBackgroundContextMenu}
         >
           {!page ? (
-            <SkeletonRows count={6} rowHeight={22} ariaLabel="Loading layers" />
+            <SkeletonTree ariaLabel="Loading layers" />
           ) : searchQuery.trim() ? (
             /* ── Search results mode: flat filtered list ── */
             <TreeContainer
