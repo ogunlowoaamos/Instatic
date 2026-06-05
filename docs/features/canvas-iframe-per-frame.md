@@ -94,6 +94,8 @@ Source: `src/admin/pages/site/canvas/CanvasLiveSurface.tsx`
 
 Pan/zoom gestures are disabled in live mode (`useCanvas({ enabled: !isLive })`). The `CanvasModeToggle` shows an inline viewport icon row when live is active.
 
+Because the live frame sits flush against the top of the surface, both top-edge chrome controls — the `CanvasModeToggle` (top-left) and the `CanvasNotch` (top-center) — render in **peek** mode in live view. Each parks above the top edge (clipped by the canvas's `overflow:hidden`) and rolls down on hover or `:focus-within`, leaving a slim handle as the affordance, so neither overlays the page's own header. In design mode both stay pinned over the empty canvas chrome. The peek prop is passed as `peek={isLive}` from `CanvasRoot`.
+
 ---
 
 ## CSS injection into iframes

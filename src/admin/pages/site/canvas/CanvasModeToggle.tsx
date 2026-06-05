@@ -39,9 +39,16 @@ interface CanvasModeToggleProps {
   scriptStatus: RuntimeScriptStatus
   /** Force a rebuild + re-run of the runtime scripts. */
   onRefreshScripts: () => void
+  /**
+   * Auto-hide the switcher until hovered/focused, rolling it down from the top
+   * edge. Used in live mode, where the frame is flush with the top of the
+   * surface and a pinned switcher would overlay the page's header. A slim
+   * handle stays visible as the hover affordance. Mirrors `CanvasNotch`'s peek.
+   */
+  peek?: boolean
 }
 
-export function CanvasModeToggle({ scriptStatus, onRefreshScripts }: CanvasModeToggleProps) {
+export function CanvasModeToggle({ scriptStatus, onRefreshScripts, peek = false }: CanvasModeToggleProps) {
   const view = useEditorStore((s) => s.canvasView)
   const setView = useEditorStore((s) => s.setCanvasView)
   const breakpoints = useEditorStore((s) => s.site?.breakpoints ?? EMPTY_BREAKPOINTS)
@@ -58,13 +65,16 @@ export function CanvasModeToggle({ scriptStatus, onRefreshScripts }: CanvasModeT
   }
 
   return (
-    <div
-      className={styles.shell}
-      role="toolbar"
-      aria-label="Canvas mode"
-      data-testid="canvas-mode-toggle"
-      onClick={stopCanvasInteraction}
-    >
+    <div className={cn(styles.shell, peek && styles.shellPeek)}>
+      {peek && <div aria-hidden="true" className={styles.peekHandle} />}
+      <div className={styles.roller}>
+        <div
+          className={styles.pill}
+          role="toolbar"
+          aria-label="Canvas mode"
+          data-testid="canvas-mode-toggle"
+          onClick={stopCanvasInteraction}
+        >
       <div role="tablist" aria-label="Canvas view" className={styles.tablist}>
         <Tooltip content="Design mode (multi-breakpoint canvas)">
           <button
@@ -160,6 +170,8 @@ export function CanvasModeToggle({ scriptStatus, onRefreshScripts }: CanvasModeT
           </div>
         </>
       )}
+        </div>
+      </div>
     </div>
   )
 }

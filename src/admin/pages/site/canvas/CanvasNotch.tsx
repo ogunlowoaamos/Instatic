@@ -31,6 +31,7 @@ import {
   ContextMenuSeparator,
 } from "@ui/components/ContextMenu";
 import { UndoRedoButtons } from "./UndoRedoButtons";
+import { cn } from "@ui/cn";
 import styles from "./CanvasNotch.module.css";
 
 const ADD_TRIGGER_TEST_ID = "canvas-notch-add-btn";
@@ -63,6 +64,14 @@ interface CanvasNotchProps {
    * draft-management lifecycle).
    */
   showHistoryControls?: boolean;
+  /**
+   * Auto-hide the notch until hovered/focused, rolling it down from the top
+   * edge on demand. Used in live mode, where the frame sits flush against the
+   * top of the surface and a permanently-pinned notch would overlay the
+   * page's own header. A slim handle stays visible as the hover affordance.
+   * Defaults to false (the notch is always pinned, as in design mode).
+   */
+  peek?: boolean;
 }
 
 export function CanvasNotch({
@@ -70,38 +79,42 @@ export function CanvasNotch({
   addControl,
   floatingControl,
   showHistoryControls = true,
+  peek = false,
 }: CanvasNotchProps = {}) {
   return (
     <div
-      className={styles.shell}
+      className={cn(styles.shell, peek && styles.shellPeek)}
       aria-label="Insert modules"
       data-testid="canvas-notch"
       onClick={stopCanvasInteraction}
     >
-      <div className={styles.notch}>
-        {showHistoryControls && (
-          <>
-            <UndoRedoButtons />
-            <div aria-hidden="true" className={styles.divider} />
-          </>
-        )}
+      {peek && <div aria-hidden="true" className={styles.peekHandle} />}
+      <div className={styles.roller}>
+        <div className={styles.notch}>
+          {showHistoryControls && (
+            <>
+              <UndoRedoButtons />
+              <div aria-hidden="true" className={styles.divider} />
+            </>
+          )}
 
-        {actions
-          ? actions.map((action) => renderActionButton(action))
-          : <FavoriteNotchActions />}
+          {actions
+            ? actions.map((action) => renderActionButton(action))
+            : <FavoriteNotchActions />}
 
-        {addControl ?? (
-          <ModulePickerDropdown
-            triggerClassName={styles.addButton}
-            triggerTestId={ADD_TRIGGER_TEST_ID}
-          />
+          {addControl ?? (
+            <ModulePickerDropdown
+              triggerClassName={styles.addButton}
+              triggerTestId={ADD_TRIGGER_TEST_ID}
+            />
+          )}
+        </div>
+        {floatingControl && (
+          <div className={styles.floatingControl}>
+            {floatingControl}
+          </div>
         )}
       </div>
-      {floatingControl && (
-        <div className={styles.floatingControl}>
-          {floatingControl}
-        </div>
-      )}
     </div>
   );
 }
