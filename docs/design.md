@@ -381,7 +381,7 @@ Every interactive control in the admin and editor goes through a primitive from 
 | `Image`              | Image with built-in blurhash fallback.                                      |
 | `CanvasModulePlaceholder`| Diagonal-stripe placeholder for empty modules.                          |
 | `ErrorBoundary`      | Component-level error containment.                                          |
-| `SkeletonBlock`, `SkeletonCards`, `SkeletonRows` | Loading-state shimmer primitives. Three named shapes cover nearly every loading region. Shimmer uses `--editor-surface-3/4` tokens. |
+| `SkeletonBlock`, `SkeletonCards`, `SkeletonRows`, `SkeletonTree` | Loading-state shimmer primitives. Four named shapes cover nearly every loading region. `SkeletonTree` renders depth-indented placeholder rows with cascading shimmer for tree panels (Layers, Selectors). Shimmer uses `--editor-surface-3/4` tokens. |
 | `Kbd`, `ShortcutKeys` | Keyboard keycap and shortcut-sequence primitives. `Kbd` renders a single keycap; `ShortcutKeys` splits a full label ("⌘K", "Ctrl+Shift+P") into per-key `Kbd` spans. Single canonical style across all keyboard hint surfaces (Spotlight footer, module inserter legend, keybindings help screen). |
 
 For tree-shaped controls (DOM panel, layers panel, site tree), use `Tree*` from `src/admin/pages/site/ui/Tree/`.
