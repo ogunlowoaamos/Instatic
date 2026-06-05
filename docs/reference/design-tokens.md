@@ -278,6 +278,27 @@ Used by the `Code` primitive for inline code chip backgrounds. Don't reuse for b
 
 ---
 
+## Keycap (Kbd primitive)
+
+A sculpted, top-lit dark mechanical keycap. The face is a vertical gradient; the box-shadow stack fakes a raised cap — top highlight, concave inner shadow, a solid bottom edge, and a soft drop shadow. All values are achromatic, sitting inside the editor surface ramp.
+
+| Token                  | Value                              | Use                                                  |
+|------------------------|------------------------------------|------------------------------------------------------|
+| `--kbd-face-top`       | `#434343`                          | Top of the face gradient (between surface-3 and -4) |
+| `--kbd-face-bottom`    | `#2f2f2f`                          | Bottom of the face gradient (just below surface-3)  |
+| `--kbd-face-top-hover` | `#4d4d4d`                          | Hover face gradient top (one step brighter)         |
+| `--kbd-face-bottom-hover`| `#363636`                        | Hover face gradient bottom                          |
+| `--kbd-border`         | `var(--editor-border)`             | Keycap border — achromatic, same as editor controls |
+| `--kbd-text`           | `var(--editor-text-secondary)`     | Key label text — same register as surrounding labels|
+| `--kbd-highlight`      | `rgba(255, 255, 255, 0.06)`        | Top inner highlight (inset box-shadow)              |
+| `--kbd-inner-shadow`   | `rgba(0, 0, 0, 0.22)`              | Soft concave bottom inner shadow                    |
+| `--kbd-edge`           | `rgba(0, 0, 0, 0.30)`              | 1px bottom edge — the key's simulated thickness     |
+| `--kbd-drop`           | `rgba(0, 0, 0, 0.28)`              | Small drop shadow beneath the cap                  |
+
+These tokens are scoped to `Kbd` and `ShortcutKeys`. Don't reach for them in other components.
+
+---
+
 ## Inputs
 
 ```css

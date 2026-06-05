@@ -169,6 +169,12 @@ Canvas (selection / hover affordances):
   --canvas-hover-ring-color
   --canvas-placeholder-bg          (diagonal-stripe pattern for empty modules)
 
+Keycap (Kbd / ShortcutKeys — scoped to those primitives):
+  --kbd-face-top, --kbd-face-bottom
+  --kbd-face-top-hover, --kbd-face-bottom-hover
+  --kbd-border, --kbd-text
+  --kbd-highlight, --kbd-inner-shadow, --kbd-edge, --kbd-drop
+
 Code editor (GitHub Dark inspired — used inside CodeMirror only):
   --editor-syntax-keyword, --editor-syntax-entity,
   --editor-syntax-property, --editor-syntax-variable,
