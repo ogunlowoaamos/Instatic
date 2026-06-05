@@ -121,8 +121,7 @@
     color: inherit;
 }
 
-.leading,
-.suffix {
+.leading {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
@@ -133,12 +132,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.suffix {
-    color: var(--editor-text-muted);
-    font-size: 10px;
-    font-weight: 650;
 }
 
 .removeButton.removeButton {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { generateCanvasClassCSS } from '@site/canvas/canvasClassCss'
+import { generateCanvasClassCSS, generateForcedStateCSS } from '@site/canvas/canvasClassCss'
 import { generateFrameworkColorUtilityClasses } from '@core/framework'
 import { classKindSelector, type StyleRule } from '@core/page-tree'
 
@@ -104,5 +104,67 @@ describe('generateCanvasClassCSS', () => {
     expect(css).toContain('--primary: hsla(238, 100%, 62%, 1);')
     expect(css).toContain('.text-primary')
     expect(css).toContain('color: var(--primary);')
+  })
+})
+
+describe('generateForcedStateCSS', () => {
+  const hoverRule = (
+    styles: StyleRule['styles'],
+    contextStyles: StyleRule['contextStyles'] = {},
+  ): StyleRule => ({
+    id: 'hover',
+    name: '.btn:hover',
+    kind: 'ambient',
+    selector: '.btn:hover',
+    order: 0,
+    styles,
+    contextStyles,
+    createdAt: 0,
+    updatedAt: 0,
+  })
+
+  it('paints base declarations onto the node with a doubled attribute selector', () => {
+    const css = generateForcedStateCSS('node-1', hoverRule({ color: 'red', fontWeight: '700' }), [])
+    expect(css).toContain('[data-node-id="node-1"][data-node-id="node-1"]')
+    expect(css).toContain('color: red')
+    expect(css).toContain('font-weight: 700')
+  })
+
+  it('emits per-breakpoint overrides under the breakpoint media query, node-scoped', () => {
+    const css = generateForcedStateCSS(
+      'node-1',
+      hoverRule({ color: 'red' }, { mobile: { color: 'blue' } }),
+      [{ id: 'mobile', width: 375, mediaQuery: '(min-width: 375px)' }],
+    )
+    // Base hover preview.
+    expect(css).toContain('color: red')
+    // Breakpoint override wrapped in the real media query, still node-scoped — so
+    // only the matching-width frame previews it, like the published page.
+    expect(css).toContain('@media (min-width: 375px)')
+    expect(css).toContain('color: blue')
+    expect(css).toMatch(/@media[^{]*\{\s*\[data-node-id="node-1"\]\[data-node-id="node-1"\]/)
+  })
+
+  it('overlays an in-flight edit into the context it targets', () => {
+    const css = generateForcedStateCSS(
+      'node-1',
+      hoverRule({ color: 'red' }, { mobile: { color: 'blue' } }),
+      [{ id: 'mobile', width: 375, mediaQuery: '(min-width: 375px)' }],
+      [],
+      { contextId: 'mobile', styles: { color: 'green' } },
+    )
+    // Base unchanged; the mobile override reflects the in-flight green.
+    expect(css).toContain('color: red')
+    expect(css).toContain('color: green')
+    expect(css).not.toContain('color: blue')
+  })
+
+  it('returns an empty string when there are no declarations', () => {
+    expect(generateForcedStateCSS('node-1', hoverRule({}), [])).toBe('')
+  })
+
+  it('escapes quotes in the node id', () => {
+    const css = generateForcedStateCSS('a"b', hoverRule({ color: 'red' }), [])
+    expect(css).toContain('[data-node-id="a\\"b"]')
   })
 })

@@ -69,7 +69,6 @@ export function AmbientSelectorPill({
   onToggle: () => void
 }) {
   const selectorLabel = styleRuleSelector(pill.rule)
-  const suffix = pill.match.kind === 'inactive-pseudo' ? pill.match.pseudo : null
   const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -81,7 +80,6 @@ export function AmbientSelectorPill({
     <TagPill
       label={selectorLabel}
       active={pill.active}
-      suffix={suffix}
       onClick={onToggle}
       onMainKeyDown={handleKeyDown}
       mainAriaLabel={`${pill.active ? 'Deselect' : 'Edit'} selector ${selectorLabel}`}

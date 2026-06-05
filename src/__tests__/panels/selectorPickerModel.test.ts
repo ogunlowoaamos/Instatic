@@ -78,6 +78,145 @@ describe('selectorPickerModel', () => {
     expect(model.pills[0].match).toEqual({ kind: 'inactive-pseudo', pseudo: ':hover' })
   })
 
+  it('matches a pseudo state inside a comma-separated selector list', () => {
+    document.body.innerHTML = '<a data-node-id="btn" class="btn-card" href="#">Buy</a>'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="btn"]')!
+    // First entry carries the :hover state; the second entry targets a different
+    // element. Stripping only the whole string's trailing pseudo would miss this.
+    const listed = rule({
+      id: 'listed',
+      name: '.btn-card:hover, .featured .btn-card',
+      kind: 'ambient',
+      selector: '.btn-card:hover, .featured .btn-card',
+    })
+
+    const model = deriveSelectorPickerModel({
+      rules: { [listed.id]: listed },
+      node: { ...node(), id: 'btn' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    expect(model.pills).toHaveLength(1)
+    expect(model.pills[0].match).toEqual({ kind: 'inactive-pseudo', pseudo: ':hover' })
+  })
+
+  it('matches a pseudo state combined with a pseudo-element', () => {
+    document.body.innerHTML = '<div data-node-id="card" class="program-card"></div>'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="card"]')!
+    const hoverAfter = rule({
+      id: 'hoverAfter',
+      name: '.program-card:hover::after',
+      kind: 'ambient',
+      selector: '.program-card:hover::after',
+    })
+
+    const model = deriveSelectorPickerModel({
+      rules: { [hoverAfter.id]: hoverAfter },
+      node: { ...node(), id: 'card' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    expect(model.pills).toHaveLength(1)
+    expect(model.pills[0].match).toEqual({ kind: 'inactive-pseudo', pseudo: ':hover' })
+  })
+
+  it('surfaces other interaction-state pseudos (e.g. :checked) as inactive matches', () => {
+    document.body.innerHTML = '<input data-node-id="cb" type="checkbox" class="toggle">'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="cb"]')!
+    const checked = rule({
+      id: 'checked',
+      name: '.toggle:checked',
+      kind: 'ambient',
+      selector: '.toggle:checked',
+    })
+
+    const model = deriveSelectorPickerModel({
+      rules: { [checked.id]: checked },
+      node: { ...node(), id: 'cb' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    expect(model.pills).toHaveLength(1)
+    expect(model.pills[0].match).toEqual({ kind: 'inactive-pseudo', pseudo: ':checked' })
+  })
+
+  it('does not surface attribute-structural pseudos like :required as states', () => {
+    document.body.innerHTML = '<input data-node-id="f" class="field">'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="f"]')!
+    // `:required` is an attribute condition, not a transient state — on a field
+    // that isn't required it must not appear as an editable inactive-state pill.
+    const required = rule({
+      id: 'required',
+      name: '.field:required',
+      kind: 'ambient',
+      selector: '.field:required',
+    })
+
+    const model = deriveSelectorPickerModel({
+      rules: { [required.id]: required },
+      node: { ...node(), id: 'f' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    expect(model.pills).toHaveLength(0)
+  })
+
+  it('does not treat structural pseudo-classes as inactive pseudo states', () => {
+    document.body.innerHTML = '<ul><li data-node-id="row" class="row"></li></ul>'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="row"]')!
+    // :first-child is structural, not an interactive state — and it already
+    // matches directly, so it should be a direct match, never inactive-pseudo.
+    const firstChild = rule({
+      id: 'firstChild',
+      name: '.row:first-child',
+      kind: 'ambient',
+      selector: '.row:first-child',
+    })
+
+    const model = deriveSelectorPickerModel({
+      rules: { [firstChild.id]: firstChild },
+      node: { ...node(), id: 'row' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    expect(model.pills).toHaveLength(1)
+    expect(model.pills[0].match).toEqual({ kind: 'direct' })
+  })
+
+  it('orders pills weakest → strongest by specificity', () => {
+    document.body.innerHTML = '<a data-node-id="btn" class="btn-primary" href="#">Buy</a>'
+    const selected = document.querySelector<HTMLElement>('[data-node-id="btn"]')!
+    const star = rule({ id: 'star', name: '*', kind: 'ambient', selector: '*' })
+    const base = rule({ id: 'base', name: 'btn-primary', kind: 'class', selector: '.btn-primary', order: 5 })
+    const hover = rule({
+      id: 'hover',
+      name: '.btn-primary:hover',
+      kind: 'ambient',
+      selector: '.btn-primary:hover',
+    })
+
+    const model = deriveSelectorPickerModel({
+      // Registry insertion order deliberately scrambled to prove sort, not order.
+      rules: { [hover.id]: hover, [star.id]: star, [base.id]: base },
+      node: { ...node(['base']), id: 'btn' },
+      selectedElement: selected,
+      activeRuleId: null,
+    })
+
+    // `*` (0,0,0) < `.btn-primary` (0,1,0) < `.btn-primary:hover` (0,2,0) — and the
+    // base class sits next to its hover variant rather than behind `*`.
+    expect(model.pills.map((pill) => pill.rule.selector)).toEqual([
+      '*',
+      '.btn-primary',
+      '.btn-primary:hover',
+    ])
+  })
+
   it('disables non-matching ambient selector suggestions', () => {
     document.body.innerHTML = '<h1 data-node-id="title" class="title"></h1>'
     const selected = document.querySelector<HTMLElement>('[data-node-id="title"]')!

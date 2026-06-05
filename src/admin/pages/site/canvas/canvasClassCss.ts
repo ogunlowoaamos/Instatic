@@ -133,6 +133,98 @@ export function generatePreviewClassCSS(
   return `[data-breakpoint-id="${escapeCssAttribute(preview.breakpointId)}"] ${doubled} {\n${decls}\n}`
 }
 
+/**
+ * Optional in-flight edit overlaid onto the forced state preview so dragging a
+ * control updates it live. `contextId` is the breakpoint/condition the edit
+ * targets (`null` for the base context).
+ */
+export interface ForcedStateInflight {
+  contextId: string | null
+  styles: Record<string, unknown>
+}
+
+/**
+ * CSS that force-previews a *state* rule onto a single node, regardless of
+ * whether the state (`:hover`/`:focus`/…) is actually active.
+ *
+ * Selecting a state pill in the picker can't toggle a real `:hover` (there's no
+ * DOM API for it), so we paint the rule's declarations directly onto the
+ * selected element. The `[data-node-id]` attribute selector is doubled for
+ * specificity — the same trick `generatePreviewClassCSS` uses — so the forced
+ * state wins over the element's base class rules while leaving unspecified
+ * properties to fall through.
+ *
+ * Crucially this mirrors `generateCanvasClassCSS`'s per-rule emission: the base
+ * styles AND every `contextStyles` override are emitted under their real
+ * `@media`/`@container`/`@supports` preludes. Because each canvas frame is an
+ * iframe at a fixed width, those queries evaluate per-frame exactly as on the
+ * published page — so a hover override that only applies at a breakpoint is
+ * previewed only in that breakpoint's frame.
+ */
+export function generateForcedStateCSS(
+  nodeId: string,
+  rule: StyleRule,
+  breakpoints: ViewportContext[],
+  conditions: ReadonlyArray<ConditionDef> = [],
+  inflight?: ForcedStateInflight | null,
+): string {
+  const rawSelector = `[data-node-id="${escapeCssAttribute(nodeId)}"]`
+  const selector = `${rawSelector}${rawSelector}`
+  const blocks: string[] = []
+
+  const baseStyles = inflight && inflight.contextId === null
+    ? { ...rule.styles, ...inflight.styles }
+    : rule.styles
+  const baseDecls = bagToCSS(baseStyles)
+  if (baseDecls) blocks.push(`${selector} {\n${baseDecls}\n}`)
+
+  const breakpointById = new Map<string, { breakpoint: ViewportContext; index: number }>(
+    breakpoints.map((bp, index) => [bp.id, { breakpoint: bp, index }]),
+  )
+  const conditionById = new Map<string, { condition: Condition; index: number }>(
+    conditions.map((c, index) => [c.id, { condition: c.condition, index }]),
+  )
+
+  // Merge any in-flight edit into the context it targets so a brand-new
+  // context override previews live too.
+  const contextStyles: Record<string, Record<string, unknown>> = { ...(rule.contextStyles ?? {}) }
+  if (inflight && inflight.contextId !== null) {
+    contextStyles[inflight.contextId] = { ...(contextStyles[inflight.contextId] ?? {}), ...inflight.styles }
+  }
+
+  const conditionEntries: Array<{ bag: Record<string, unknown>; condition: Condition; index: number }> = []
+  const bpEntries: Array<{ bag: Record<string, unknown>; breakpoint: ViewportContext; index: number }> = []
+  for (const [contextId, bag] of Object.entries(contextStyles)) {
+    const cond = conditionById.get(contextId)
+    if (cond) {
+      conditionEntries.push({ bag, condition: cond.condition, index: cond.index })
+      continue
+    }
+    const breakpointEntry = breakpointById.get(contextId)
+    if (breakpointEntry) bpEntries.push({ bag, ...breakpointEntry })
+  }
+
+  conditionEntries.sort((a, b) => a.index - b.index)
+  for (const { bag, condition } of conditionEntries) {
+    const decls = bagToCSS(bag)
+    if (!decls) continue
+    const prelude = conditionPrelude(condition)
+    if (!prelude) continue
+    blocks.push(`${prelude} {\n  ${selector} {\n${decls}\n  }\n}`)
+  }
+
+  bpEntries.sort(compareViewportContextCascade)
+  for (const { bag, breakpoint } of bpEntries) {
+    const decls = bagToCSS(bag)
+    if (!decls) continue
+    const prelude = conditionPrelude({ kind: 'media', query: breakpointMediaQuery(breakpoint) })
+    if (!prelude) continue
+    blocks.push(`${prelude} {\n  ${selector} {\n${decls}\n  }\n}`)
+  }
+
+  return blocks.join('\n\n')
+}
+
 function escapeCssAttribute(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }

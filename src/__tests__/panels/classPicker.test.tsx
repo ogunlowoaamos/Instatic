@@ -360,6 +360,24 @@ describe('ClassPicker — ambient selectors', () => {
     expect(screen.getByRole('button', { name: 'Edit selector *' })).toBeTruthy()
   })
 
+  it('ignores the selection-ring overlay and matches the real canvas element', () => {
+    const { nodeId } = loadSiteWithNode()
+    // The selection ring duplicates the node id in the admin document but carries
+    // none of the node's classes. It must not shadow the real rendered element —
+    // otherwise class-dependent selectors like `.btn-primary:hover` silently fail
+    // whenever the node is selected (the reported bug).
+    const ring = document.createElement('div')
+    ring.setAttribute('data-node-id', nodeId)
+    ring.setAttribute('data-canvas-selection-ring', 'true')
+    document.body.appendChild(ring)
+    addRenderedCanvasFrame(`<a data-node-id="${nodeId}" class="btn-primary" href="#">Buy</a>`)
+    createAmbient('.btn-primary:hover')
+
+    render(<ClassPicker nodeId={nodeId} />)
+
+    expect(screen.getByRole('button', { name: 'Edit selector .btn-primary:hover' })).toBeTruthy()
+  })
+
   it('shows an inline undo affordance when a newly-created ambient selector does not match', async () => {
     const user = userEvent.setup()
     const { nodeId } = loadSiteWithNode()

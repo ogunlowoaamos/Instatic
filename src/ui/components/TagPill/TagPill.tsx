@@ -30,7 +30,6 @@ export interface TagPillProps {
   monospace?: boolean
   size?: TagPillSize
   leading?: ReactNode
-  suffix?: ReactNode
   className?: string
   onClick?: MouseEventHandler<HTMLButtonElement>
   onContextMenu?: MouseEventHandler<HTMLSpanElement>
@@ -54,7 +53,6 @@ export function TagPill({
   monospace = false,
   size = 'sm',
   leading,
-  suffix,
   className,
   onClick,
   onContextMenu,
@@ -84,7 +82,6 @@ export function TagPill({
       >
         {label}
       </span>
-      {suffix && <span className={styles.suffix}>{suffix}</span>}
     </>
   )
 

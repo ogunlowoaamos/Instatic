@@ -13,8 +13,22 @@ function isClassRule(rule: StyleRule): boolean {
   return !rule.kind || rule.kind === 'class'
 }
 
+/**
+ * Resolve the live canvas element that actually renders the node, so ambient and
+ * pseudo selectors can be tested against it with `Element.matches`.
+ *
+ * The selection and hover overlay rings (`BreakpointSelectionOverlay`) also carry
+ * the selected node's `data-node-id`, but they live in the admin document and
+ * carry NONE of the node's classes. Since the admin document is searched before
+ * the canvas iframes, an un-excluded query returns the ring `<div>` whenever a
+ * node is selected — so `*` still matched (it matches any element) while every
+ * class-dependent selector like `.btn-primary:hover` silently failed. Excluding
+ * the ring markers makes the query land on the real rendered element.
+ */
 function getSelectedCanvasElement(nodeId: string): HTMLElement | null {
-  const selector = `[data-node-id="${cssAttrSelectorValue(nodeId)}"]`
+  const selector =
+    `[data-node-id="${cssAttrSelectorValue(nodeId)}"]`
+    + ':not([data-canvas-selection-ring]):not([data-canvas-hover-ring])'
   const localElement = document.querySelector<HTMLElement>(selector)
   if (localElement) return localElement
 

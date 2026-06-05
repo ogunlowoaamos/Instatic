@@ -34,8 +34,9 @@
 
 import { useEffect } from 'react'
 import { useEditorStore } from '@site/store/store'
-import type { ConditionDef } from '@core/page-tree'
-import { generateCanvasClassCSS, generatePreviewClassCSS } from './canvasClassCss'
+import { styleRuleSelector, type ConditionDef } from '@core/page-tree'
+import { selectorStatePseudo } from '@site/cssStatePseudo'
+import { generateCanvasClassCSS, generateForcedStateCSS, generatePreviewClassCSS } from './canvasClassCss'
 import { resolveViewportUnitsForCanvas, type CanvasViewport } from './resolveViewportUnits'
 
 interface ClassStyleInjectorProps {
@@ -60,6 +61,7 @@ interface ClassStyleInjectorProps {
 
 const STYLE_TAG_ID = 'mc-classes'
 const PREVIEW_STYLE_TAG_ID = 'mc-classes-preview'
+const FORCE_STATE_STYLE_TAG_ID = 'mc-classes-force-state'
 
 /**
  * Stable empty array used as the ?? fallback for breakpoints selector.
@@ -84,6 +86,8 @@ export function ClassStyleInjector({ targetDocument, viewport }: ClassStyleInjec
   const frameworkPreferences = useEditorStore((s) => s.site?.settings.framework?.preferences ?? null)
   const fonts = useEditorStore((s) => s.site?.settings.fonts ?? null)
   const previewClassStyles = useEditorStore((s) => s.previewClassStyles)
+  const activeClassId = useEditorStore((s) => s.activeClassId)
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
 
   useEffect(() => {
     const targetDoc = targetDocument ?? document
@@ -140,7 +144,9 @@ export function ClassStyleInjector({ targetDocument, viewport }: ClassStyleInjec
       targetDoc.head.appendChild(previewEl)
     }
     const cls = classes?.[previewClassStyles.classId]
-    if (!cls) {
+    // State-pseudo rules are handled by the forced-state preview below — their
+    // real `:hover`-style selector would never match here anyway.
+    if (!cls || (cls.kind === 'ambient' && selectorStatePseudo(styleRuleSelector(cls)) !== null)) {
       previewEl.textContent = ''
       return
     }
@@ -156,6 +162,39 @@ export function ClassStyleInjector({ targetDocument, viewport }: ClassStyleInjec
       : ''
   }, [targetDocument, viewport, classes, previewClassStyles])
 
+  // Forced state preview — when a state-pseudo selector (`.btn:hover`, …) is the
+  // active selector, paint its declarations onto the selected node so the state
+  // is visible/editable without physically triggering it (you can't toggle
+  // `:hover` via the DOM). Plain classes are edited in place and need no force;
+  // non-state ambients already match directly. In-flight edits to the same rule
+  // are overlaid so dragging a control updates the preview live.
+  useEffect(() => {
+    const targetDoc = targetDocument ?? document
+    let forceEl = targetDoc.getElementById(FORCE_STATE_STYLE_TAG_ID) as HTMLStyleElement | null
+    const rule = activeClassId ? classes?.[activeClassId] : null
+    const isStateRule = !!rule && rule.kind === 'ambient' && selectorStatePseudo(styleRuleSelector(rule)) !== null
+
+    if (!rule || !isStateRule || !selectedNodeId) {
+      if (forceEl) forceEl.textContent = ''
+      return
+    }
+    if (!forceEl) {
+      forceEl = targetDoc.createElement('style')
+      forceEl.id = FORCE_STATE_STYLE_TAG_ID
+      forceEl.setAttribute('data-source', 'ClassStyleInjector:force-state')
+      targetDoc.head.appendChild(forceEl)
+    }
+
+    // Overlay an in-flight edit to the same rule into the context it targets so
+    // dragging a control updates the forced preview live, at the right breakpoint.
+    const inflight = previewClassStyles?.classId === activeClassId
+      ? { contextId: previewClassStyles.breakpointId ?? null, styles: previewClassStyles.styles }
+      : null
+    const forcedCss = generateForcedStateCSS(selectedNodeId, rule, breakpoints, conditions, inflight)
+    const resolved = viewport ? resolveViewportUnitsForCanvas(forcedCss, viewport) : forcedCss
+    forceEl.textContent = resolved ? `@layer user-authored {\n${resolved}\n}` : ''
+  }, [targetDocument, viewport, classes, breakpoints, conditions, activeClassId, selectedNodeId, previewClassStyles])
+
   // Cleanup: remove the style elements when the component unmounts. We
   // capture `targetDocument` into the effect so cleanup targets the same
   // document the effect installed to, even if the prop later changed.
@@ -164,6 +203,7 @@ export function ClassStyleInjector({ targetDocument, viewport }: ClassStyleInjec
     return () => {
       targetDoc.getElementById(STYLE_TAG_ID)?.remove()
       targetDoc.getElementById(PREVIEW_STYLE_TAG_ID)?.remove()
+      targetDoc.getElementById(FORCE_STATE_STYLE_TAG_ID)?.remove()
     }
   }, [targetDocument])
 
