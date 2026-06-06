@@ -16,8 +16,8 @@
  */
 
 import type { TSchema } from '@sinclair/typebox'
-import type { AiToolOutput } from '@core/ai'
-export type { AiToolImage, AiToolOutput } from '@core/ai'
+import type { AiContentBlock, AiToolOutput } from '@core/ai'
+export type { AiContentBlock, AiToolImage, AiToolOutput } from '@core/ai'
 
 // ---------------------------------------------------------------------------
 // Provider identity + auth modes
@@ -36,14 +36,23 @@ export type AiAuthMode = 'apiKey' | 'baseUrl'
 // One AI surface in the admin. Each scope has its own toolset + system prompt.
 export type ToolScope = 'site' | 'content' | 'data' | 'plugin'
 
+/**
+ * Separator marking the split between the cacheable static system-prompt prefix
+ * and the dynamic suffix. The prompt builders emit `systemPrompt` as
+ * `[prefix, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, suffix]`; cache-capable drivers
+ * (Anthropic) apply `cache_control` to the prefix, others strip the marker and
+ * concatenate. Producer (the prompt builders) and consumers (every driver) MUST
+ * agree on this exact literal — if one drifts, prompt caching silently breaks.
+ * This is the single source of truth.
+ */
+export const SYSTEM_PROMPT_DYNAMIC_BOUNDARY = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
 
-export type AiContentBlock =
-  | { kind: 'text'; text: string }
-  | { kind: 'image'; mimeType: string; data: string /* base64 */ }
-  | { kind: 'toolCall'; toolCallId: string; toolName: string; input: unknown }
+// `AiContentBlock` is defined once, as a TypeBox schema, in `@core/ai`
+// (re-exported above). It covers text / image / toolCall / toolResult kinds.
 
 export type AiMessage =
   | { role: 'system'; content: string }

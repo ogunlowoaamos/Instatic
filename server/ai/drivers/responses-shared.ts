@@ -17,11 +17,12 @@
  */
 
 import { Type, parseValue, type Static } from '@core/utils/typeboxHelpers'
-import type {
-  AiContentBlock,
-  AiMessage,
-  AiStreamEvent,
-  AiToolOutput,
+import {
+  SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
+  type AiContentBlock,
+  type AiMessage,
+  type AiStreamEvent,
+  type AiToolOutput,
 } from '../runtime/types'
 import type { AiStreamRequest } from './types'
 import {
@@ -33,8 +34,8 @@ import {
   type TurnUsage,
 } from './http/toolLoop'
 import type { SseFrame } from './http/sse'
-
-const SYSTEM_PROMPT_DYNAMIC_BOUNDARY = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
+import { parseToolArguments } from './http/toolArgs'
+import { nanoid } from 'nanoid'
 
 // ---------------------------------------------------------------------------
 // Provider-native Responses `input` item shapes (request side — we construct)
@@ -254,11 +255,11 @@ export class ResponsesTurnTranslator implements TurnTranslator<ResponsesTurn> {
       case 'response.output_item.done': {
         const item = event.item
         if (!item || item.type !== 'function_call') return []
-        const callId = item.call_id ?? item.id ?? `tool-${cryptoId()}`
+        const callId = item.call_id ?? item.id ?? `tool-${nanoid()}`
         const name = item.name ?? 'tool'
         const args = typeof item.arguments === 'string' ? item.arguments : ''
         this.calls.push({ call_id: callId, name, arguments: args })
-        const input = parseJsonOrEmpty(args)
+        const input = parseToolArguments(args)
         this.toolCalls.push({ id: callId, name, input })
         return [{ type: 'toolCall', toolCallId: callId, toolName: name, input, status: 'pending' }]
       }
@@ -369,18 +370,3 @@ export function createResponsesAdapter(
   }
 }
 
-// A short, collision-resistant id for the rare case where the provider omits a
-// function call id. Avoids `Math.random()` (banned in some contexts) via Web
-// Crypto, available in Bun.
-function cryptoId(): string {
-  return crypto.randomUUID().slice(0, 8)
-}
-
-function parseJsonOrEmpty(value: string): unknown {
-  if (!value.trim()) return {}
-  try {
-    return JSON.parse(value)
-  } catch {
-    return value
-  }
-}

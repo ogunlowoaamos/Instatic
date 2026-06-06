@@ -17,13 +17,14 @@
  */
 
 import { Type, parseValue, type Static } from '@core/utils/typeboxHelpers'
-import type {
-  AiAuthMode,
-  AiContentBlock,
-  AiMessage,
-  AiProviderId,
-  AiStreamEvent,
-  AiToolOutput,
+import {
+  SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
+  type AiAuthMode,
+  type AiContentBlock,
+  type AiMessage,
+  type AiProviderId,
+  type AiStreamEvent,
+  type AiToolOutput,
 } from '../runtime/types'
 import type {
   AiProvider,
@@ -41,10 +42,10 @@ import {
   type TurnUsage,
 } from './http/toolLoop'
 import type { SseFrame } from './http/sse'
+import { parseToolArguments } from './http/toolArgs'
+import { nanoid } from 'nanoid'
 
 const SUPPORTED_AUTH_MODES: AiAuthMode[] = ['baseUrl']
-
-const SYSTEM_PROMPT_DYNAMIC_BOUNDARY = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
 
 // Ollama models vary per-install. Defaults are common picks as of May 2026 and
 // only surface when the `/api/tags` catalogue fetch fails.
@@ -399,7 +400,7 @@ export class ChatCompletionsTurnTranslator implements TurnTranslator<ChatTurn> {
           const index = tc.index ?? 0
           let acc = this.toolsByIndex.get(index)
           if (!acc) {
-            acc = { id: tc.id ?? `tool-${cryptoId()}`, name: '', arguments: '' }
+            acc = { id: tc.id ?? `tool-${nanoid()}`, name: '', arguments: '' }
             this.toolsByIndex.set(index, acc)
             this.order.push(index)
           }
@@ -421,7 +422,7 @@ export class ChatCompletionsTurnTranslator implements TurnTranslator<ChatTurn> {
           type: 'toolCall',
           toolCallId: acc.id,
           toolName: acc.name || 'tool',
-          input: parseJsonOrEmpty(acc.arguments),
+          input: parseToolArguments(acc.arguments),
           status: 'pending',
         })
       }
@@ -435,7 +436,7 @@ export class ChatCompletionsTurnTranslator implements TurnTranslator<ChatTurn> {
     const chatToolCalls: ChatToolCall[] = []
     for (const index of this.order) {
       const acc = this.toolsByIndex.get(index)!
-      toolCalls.push({ id: acc.id, name: acc.name || 'tool', input: parseJsonOrEmpty(acc.arguments) })
+      toolCalls.push({ id: acc.id, name: acc.name || 'tool', input: parseToolArguments(acc.arguments) })
       chatToolCalls.push({
         id: acc.id,
         type: 'function',
@@ -465,15 +466,3 @@ function trimSlash(url: string): string {
   return url.replace(/\/+$/, '')
 }
 
-function cryptoId(): string {
-  return crypto.randomUUID().slice(0, 8)
-}
-
-function parseJsonOrEmpty(value: string): unknown {
-  if (!value.trim()) return {}
-  try {
-    return JSON.parse(value)
-  } catch {
-    return value
-  }
-}

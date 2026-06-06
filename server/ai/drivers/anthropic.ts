@@ -15,13 +15,14 @@
  */
 
 import { Type, parseValue, type Static } from '@core/utils/typeboxHelpers'
-import type {
-  AiAuthMode,
-  AiContentBlock,
-  AiMessage,
-  AiProviderId,
-  AiStreamEvent,
-  AiToolOutput,
+import {
+  SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
+  type AiAuthMode,
+  type AiContentBlock,
+  type AiMessage,
+  type AiProviderId,
+  type AiStreamEvent,
+  type AiToolOutput,
 } from '../runtime/types'
 import type {
   AiProvider,
@@ -31,6 +32,7 @@ import type {
 } from './types'
 import { runToolLoop, type ProviderAdapter, type TurnResult, type TurnToolCall, type TurnToolResult, type TurnTranslator, type TurnUsage } from './http/toolLoop'
 import type { SseFrame } from './http/sse'
+import { parseToolArguments } from './http/toolArgs'
 
 const SUPPORTED_AUTH_MODES: AiAuthMode[] = ['apiKey']
 
@@ -38,7 +40,6 @@ const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1'
 const ANTHROPIC_ENDPOINT = `${ANTHROPIC_BASE_URL}/messages`
 const ANTHROPIC_MODELS_ENDPOINT = `${ANTHROPIC_BASE_URL}/models`
 const ANTHROPIC_VERSION = '2023-06-01'
-const SYSTEM_PROMPT_DYNAMIC_BOUNDARY = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
 
 // Per-turn output cap. Anthropic requires `max_tokens`; the prior SDK left it
 // to its own default. 8192 comfortably covers a single agent turn (a few
@@ -528,7 +529,7 @@ export class AnthropicTurnTranslator implements TurnTranslator<AnthropicMessage>
         const index = event.index ?? 0
         const tool = this.toolByIndex.get(index)
         if (!tool) return []
-        const input = parseJsonOrEmpty(tool.json)
+        const input = parseToolArguments(tool.json)
         this.toolCalls.push({ id: tool.id, name: tool.name, input })
         return [{
           type: 'toolCall',
@@ -571,7 +572,7 @@ export class AnthropicTurnTranslator implements TurnTranslator<AnthropicMessage>
       }
       const tool = this.toolByIndex.get(index)
       if (tool) {
-        content.push({ type: 'tool_use', id: tool.id, name: tool.name, input: parseJsonOrEmpty(tool.json) })
+        content.push({ type: 'tool_use', id: tool.id, name: tool.name, input: parseToolArguments(tool.json) })
       }
     }
 
@@ -599,14 +600,5 @@ export class AnthropicTurnTranslator implements TurnTranslator<AnthropicMessage>
       cacheReadTokens: this.usage.cache_read_input_tokens ?? 0,
       cacheCreationTokens: this.usage.cache_creation_input_tokens ?? 0,
     }
-  }
-}
-
-function parseJsonOrEmpty(value: string): unknown {
-  if (!value.trim()) return {}
-  try {
-    return JSON.parse(value)
-  } catch {
-    return {}
   }
 }

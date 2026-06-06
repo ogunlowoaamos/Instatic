@@ -7,7 +7,7 @@
  * collection + document are open and the user's identity.
  */
 
-import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '../site/systemPrompt'
+import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '../../runtime/types'
 import type { ContentSnapshot, ActiveDocument } from './snapshot'
 
 const STATIC_PROMPT_PREFIX = `You manage the user's website content (posts, pages, custom collections) by calling tools. No filesystem or shell. Bias toward action — execute the prompt, don't ask scoping questions.

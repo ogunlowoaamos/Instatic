@@ -91,9 +91,9 @@ export interface AiProviderModel {
 export interface AiStreamRequest {
   /**
    * System prompt as a 1- or 3-element array. Single string = no caching.
-   * Three elements [prefix, '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__', suffix]
+   * Three elements [prefix, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, suffix]
    * = drivers that support prompt cache (Anthropic) apply `cache_control`
-   * to the prefix; others concatenate.
+   * to the prefix; others concatenate. See `SYSTEM_PROMPT_DYNAMIC_BOUNDARY`.
    */
   readonly systemPrompt: string[]
   /**
