@@ -478,7 +478,7 @@ Canvas-internal values are not CSS tokens — they are raw integers intentionall
 | `CanvasContextSelector.tsx`     | Editing-context switcher: viewports + custom conditions (@media/@container/@supports) |
 | `CanvasLayerContextMenu.tsx`    | Right-click on a layer                                          |
 | `canvasDnd.ts`                  | Drag-and-drop (insert / move / wrap)                            |
-| `canvasDomGeometry.ts`          | Cross-iframe DOM measurement                                    |
+| `canvasDomGeometry.ts`          | Cross-iframe DOM measurement; `panToCenterBreakpointFrame` viewport centering geometry |
 | `canvasOverlayGeometry.ts`      | Cross-iframe element rect → canvas-root coords; CSS attribute value escaping |
 | `canvasSelectionUtils.ts`       | Selection helpers                                               |
 | `BreakpointSelectionOverlay.tsx`| Selection / hover rings, selection toolbar, inspect ladder integration |
@@ -486,6 +486,7 @@ Canvas-internal values are not CSS tokens — they are raw integers intentionall
 | `canvasTreeLadder.ts`           | Alt/Option inspect ladder tree model                            |
 | `CanvasTreeLadderOverlay.tsx`   | `useCanvasTreeLadderOverlay` — wires the ladder model to canvas events and portal |
 | `CanvasTreeLadderRowButton.tsx` | Single row button in the Alt/Option inspect ladder              |
+| `useCanvas.ts`                  | Pan/zoom gesture hook; `centerOnBreakpointFrame` for initial viewport focus |
 | `useCanvasKeyboardShortcuts.ts` | Editor keyboard shortcuts (delete, duplicate, wrap, …)          |
 | `useRuntimeScriptBuild.ts`      | Builds the bundled runtime scripts for the Run-scripts toggle    |
 | `useIframeCursorBridge.ts`      | Bridges iframe-native cursor movement to parent-doc callbacks (used by breakpoint activation tooltip) |

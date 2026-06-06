@@ -70,6 +70,8 @@ Large pages are staged by `useProgressiveCanvasFrameLoading`. `BreakpointFrame` 
 
 The active viewport context (highlighted, drives style override routing) is tracked by `activeBreakpointId` in `canvasSlice`.
 
+**Initial centering on load and document switch.** The transform layer always starts at pan `(0, 0)`, which places the leftmost (narrowest) frame at the top-left. On first load and whenever the active document changes (page switch, entering/leaving a Visual Component), `CanvasRoot` runs a `useEffect` keyed on `canvasPage.id` that calls `useCanvas().centerOnBreakpointFrame` to pan the canvas so the active breakpoint frame is horizontally centered and its top sits just below the viewport top. The geometry is computed by `panToCenterBreakpointFrame` in `canvasDomGeometry.ts`. The effect retries on a short `setTimeout` loop (not `requestAnimationFrame`, which is skipped for backgrounded tabs) until the iframe-backed frames have real layout geometry. The current zoom is preserved; only the pan changes. Breakpoint switches within the same document (toolbar, node clicks) do not re-center — the designer keeps their place. See [docs/features/editor-preferences.md](editor-preferences.md) for how the `defaultBreakpoint` preference plugs into this.
+
 ### Viewport Activation UX
 
 When a layer is selected **and** the Properties panel is open (`rightSidebarExpanded`), the design canvas enters a focused editing context that affects three behaviors:
@@ -191,6 +193,9 @@ Tests that render the canvas and query nodes must use the `iframeCanvasQuery.ts`
   - `src/admin/pages/site/canvas/useRuntimeScriptBuild.ts` — script bundle builder
   - `src/admin/pages/site/store/slices/canvasSlice.ts` — `canvasView`, `runScripts`
   - `src/ui/lib/sameOriginDocuments.ts` — `collectSameOriginDocuments`, `isNode` (cross-realm overlay dismiss)
+  - `src/admin/pages/site/canvas/canvasDomGeometry.ts` — cross-iframe measurement + `panToCenterBreakpointFrame` centering geometry
+  - `src/admin/pages/site/hooks/useCanvas.ts` — pan/zoom gesture hook; `centerOnBreakpointFrame`
   - `src/__tests__/canvas/canvasMode.test.tsx` — design/live toggle + script build contract
+  - `src/__tests__/canvas/panToCenterBreakpointFrame.test.ts` — centering geometry unit tests
 - Gate tests:
   - `src/__tests__/architecture/site-editor-shell-lazy-body.test.ts` — skeleton usage and lazy-boundary gates
