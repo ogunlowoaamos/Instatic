@@ -11,7 +11,7 @@ A template is an ordinary `pages` row carrying a `target` (everywhere or one/mor
 - A template declares `target: { kind: 'everywhere' } | { kind: 'postTypes', tableSlugs }` and a `priority`.
 - **Chain resolver:** `resolveTemplateChain(site, ctx)` in `src/core/templates/templateMatching.ts` → `Page[]` ordered outer → inner. At most one template per breadth level (highest priority wins, document order breaks ties). Two breadth levels today: `everywhere` (outermost) → `postTypes` (innermost).
 - **Chain composer:** `composeTemplateChain(chain, terminal)` in `src/core/templates/templateCompose.ts` → one merged `Page` ready for `publishPage`.
-- **`base.outlet`** is the polymorphic outlet content flows into. A template *should* contain one, but nothing is gated: a template with no outlet is unfinished and simply doesn't apply; one with several uses the first. The composer never throws on outlet count.
+- **`base.outlet`** is the polymorphic outlet content flows into. A template *should* contain one. Having NO outlet is not blocked (you add it after converting the page to a template — requiring it first would be circular). The editor enforces a one-outlet-per-document invariant for insertion: `useInsertModule` shows a warning toast and aborts, and `insertNode` in the store blocks the second outlet at the mutation chokepoint for all paths (drag-drop, programmatic, etc.). The composer remains defensive for data pre-dating the guard: no outlet → template skipped; multiple → first wins.
 - Template pages are never served at their own slug; the live router and the static bake both skip them.
 - Dynamic bindings and token interpolation work exactly as before — the merged tree is a plain page tree.
 - **`templateTargetLabel(page)`** returns a short human-readable string for a template's target (e.g. `"Everywhere"` or `"posts, news"`); import from `@core/templates`.
@@ -122,7 +122,7 @@ Result: one merged `Page` consumed by `publishPage` unchanged — one CSS bundle
 - **Splice (page route):** `composeTemplateChain` removes the `base.outlet` node and inserts the page's content in its place before `publishPage` is called. No outlet node reaches the renderer on page routes.
 - **Canvas preview:** `OutletEditor` renders the matched content READ-ONLY so the author sees what flows in — the first non-template page (`everywhere` target) via `ReadOnlyNodeTree`, or the entry body (`postTypes` target, resolved into `props.html`). It carries the editor wrapper bag so the outlet has a proper selection overlay; an empty match falls back to the shared placeholder.
 
-A template normally contains exactly one `base.outlet`, but this is **not gated** — you set a page as a template first and add the outlet afterward (the outlet block is only meaningful on templates, so requiring it before save would be circular). At render time the composer is forgiving: no outlet → the template is skipped; multiple → the first wins. Getting the outlet right is the author's job, not a blocking validation.
+A template normally contains exactly one `base.outlet`. Having **no outlet** is not blocked — you set a page as a template first and add the outlet afterward (the outlet block is only meaningful on templates, so requiring it before save would be circular). Inserting a **second outlet** IS blocked by the editor: `useInsertModule` (`src/admin/pages/site/hooks/useInsertModule.ts`) shows a warning toast and returns null, and `insertNode` in the store (`nodeActions.ts`) enforces the same invariant as a chokepoint for every insertion path (module picker, drag-drop, programmatic callers). The composer remains defensive for data that pre-dates or bypasses the guard: no outlet → the template is skipped; multiple → the first wins.
 
 ---
 
@@ -362,7 +362,7 @@ node.props.text = 'Posted by {currentEntry.author.displayName} on {currentEntry.
 | Walking a deep binding path with `JSON.parse(JSON.stringify(...))` | Use `walkFieldPath(frame, 'a.b.c')` |
 | Expecting to visit a template page at its own slug | Template pages are never directly routable — the live router and bake loop both skip them |
 | Inlining `page.template?.target.kind === 'everywhere' ? … : …` in UI code | Use `templateTargetLabel(page)` from `@core/templates` |
-| Adding a save-time guard that blocks a template without an outlet | Don't — it's circular (you add the outlet after the page becomes a template). The composer degrades gracefully instead |
+| Adding a save-time guard that blocks a template without an outlet | Don't — it's circular (you add the outlet after the page becomes a template). The composer degrades gracefully for zero-outlet templates. Duplicate-outlet insertion IS blocked by the editor insert guard and store backstop. |
 
 ---
 
@@ -387,3 +387,5 @@ node.props.text = 'Posted by {currentEntry.author.displayName} on {currentEntry.
   - `src/core/templates/templatePreviewData.ts` — `buildPreviewCells`, `dataTablePreviewToLoopItem`
   - `server/repositories/data/templateSeeding.ts` — default-template seeding
   - `server/publish/publicRenderer.ts` — chain-aware render paths
+  - `src/admin/pages/site/hooks/useInsertModule.ts` — hook-level outlet guard (toast + null return)
+  - `src/admin/pages/site/store/slices/site/nodeActions.ts` — store-level outlet backstop in `insertNode`
