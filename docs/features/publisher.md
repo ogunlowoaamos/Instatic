@@ -302,7 +302,7 @@ The CSP is modelled as **data**, not a string assembled with regex. `src/core/pu
 - The server injection pipeline (`server/publish/frontendInjections.ts`) merges plugin `frontend.assets[]` relaxations + elected media-adapter origins into the plan in **one** pass via `rewriteCspMeta` — no second regex pass, no per-directive `RegExp`.
 - The native-form runtime (`server/forms/formRuntime.ts`) merges `script-src 'self'` through the same `rewriteCspMeta` helper.
 
-Because `serializeCsp` sorts, the same plugins + adapters always emit a **byte-identical** policy across runs (gated by `cspPlan.test.ts`) — important for content-hashing and stable tests. Editing the emitted CSP string manually is **not** safe — it's a derived value. Mutate the plan (`setCspDirective` to replace, `addCspSources` to union) and re-serialize.
+Because `serializeCsp` sorts, the same plugins + adapters always emit a **byte-identical** policy across runs (gated by `src/__tests__/publisher/cspPlan.test.ts`) — important for content-hashing and stable tests. Editing the emitted CSP string manually is **not** safe — it's a derived value. Mutate the plan (`setCspDirective` to replace, `addCspSources` to union) and re-serialize.
 
 ---
 
@@ -489,5 +489,7 @@ This is rare and requires architectural review — most "new behavior" fits with
   - `src/__tests__/architecture/dispatcher-html-pipeline.test.ts`
   - `src/__tests__/architecture/publish-html-filter-context.test.ts`
   - `src/__tests__/architecture/media-presentation-pipeline.test.ts`
+  - `src/__tests__/architecture/publish-bumps-cache-version.test.ts` — every publish/unpublish entry point calls `bumpPublishVersion()` imported from `publishState.ts`
+  - `src/__tests__/publisher/cspPlan.test.ts` — CSP determinism (byte-identical output for the same inputs)
   - `src/__tests__/server/dynamicDetection.test.ts` — Rules 1–4 (module flag, bindings, tokens, loop source, VC ref)
   - `src/__tests__/server/dynamicDetectionLoop.test.ts` — Rule 3.5 static loop body promotion
