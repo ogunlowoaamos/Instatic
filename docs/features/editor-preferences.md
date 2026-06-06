@@ -162,6 +162,7 @@ export const PREFERENCE_CATEGORIES = [
   { id: 'canvas',     label: 'Canvas',          description: '…' },
   { id: 'layers',     label: 'Layers panel',    description: '…' },
   { id: 'properties', label: 'Properties panel' },
+  { id: 'spotlight',  label: 'Command palette', description: '…' },
 ]
 ```
 
@@ -272,6 +273,8 @@ The Settings → Preferences screen renders this list automatically from the cat
 | Layers panel     | `layersAutoExpandSelected`  | boolean              | `true`      | `DomPanel.tsx` selection effect                |
 | Layers panel     | `layersSmoothScroll`        | boolean              | `true`      | `DomPanel.tsx` scroll handler                  |
 | Properties panel | `propertiesSmoothScroll`    | boolean              | `true`      | `StyleSurface.tsx` + `PropertiesPanel.tsx`     |
+| Properties panel | `propertiesSectionsExpanded`| boolean              | `true`      | `StyleSectionsEditor.tsx`, `StyleSurface.tsx`, `CustomPropertiesSection.tsx` |
+| Command palette  | `spotlightTelemetryEnabled` | boolean              | `false`     | command palette usage tracking                  |
 
 ### Confirm-before-delete flow
 

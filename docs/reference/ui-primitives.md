@@ -46,7 +46,7 @@ Every interactive control in `src/admin/` goes through one of these. Bare `<butt
 
 | Primitive          | When to use                                                          | Key props                                                  |
 |--------------------|----------------------------------------------------------------------|------------------------------------------------------------|
-| `Section`          | Titled section block inside a panel                                  | `title`, `description`, `actions`, `children`              |
+| `Section`          | Collapsible titled section inside a panel (accordion)                | `title`, `children`, `defaultOpen`, `icon`, `meta`, `indicator`, `forceOpen`, `flush` |
 | `ControlRow`       | Label + control row in property panels                               | `label`, `description`, `children`                         |
 | `Separator`        | Visual divider between sections                                      | `orientation: 'horizontal' \| 'vertical'`                  |
 | `Widget`           | Borderless tile card on a darker parent (the dashboard pattern)      | `tint`, `title`, `children`                                |
@@ -425,17 +425,31 @@ For searchable submenus that host a non-menuitem widget (e.g. a search input), p
 
 Layout primitives for property panels.
 
+`Section` is a collapsible accordion block. Each instance manages its own open/closed state via `defaultOpen` (the initial value). `forceOpen` overrides local state and keeps the section always open. The `flush` prop removes the section's own vertical padding so spacing comes entirely from the parent container's grid gap — used by the Properties panel (1px-gap card pattern). The `indicator` prop renders a small green dot next to the title to signal active state (e.g. properties are set in this section).
+
 ```tsx
 import { Section } from '@ui/components/Section'
 import { ControlRow } from '@ui/components/ControlRow'
 
-<Section title="Spacing" description="Margin and padding for this node">
+<Section title="Spacing" defaultOpen>
   <ControlRow label="Margin top">
     <Input value={mt} onChange={setMt} suffix="px" />
   </ControlRow>
   <ControlRow label="Margin bottom">
     <Input value={mb} onChange={setMb} suffix="px" />
   </ControlRow>
+</Section>
+
+{/* With indicator dot, icon, and flush (Properties panel pattern) */}
+<Section
+  title="Layout"
+  icon={LayoutIcon}
+  defaultOpen={sectionsExpanded}
+  indicator={hasSetProperties}
+  meta="3 set"
+  flush
+>
+  {/* content */}
 </Section>
 ```
 
