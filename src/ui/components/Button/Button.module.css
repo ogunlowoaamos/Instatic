@@ -155,7 +155,7 @@
 }
 
 .variant-ghost:hover {
-    background: var(--editor-surface-2);
+    background: var(--editor-surface-4);
     color: var(--editor-text);
 }
 
