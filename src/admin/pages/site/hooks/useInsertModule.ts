@@ -2,6 +2,16 @@ import { selectActiveCanvasPage, useEditorStore } from '@site/store/store'
 import { resolveInsertLocation, type InsertLocation } from '@site/store/insertLocation'
 import { getMissingModuleDependencies } from '@core/module-engine'
 import type { AnyModuleDefinition } from '@core/module-engine'
+import type { Page } from '@core/page-tree'
+import { pushToast } from '@ui/components/Toast'
+
+/** Whether a document tree already contains a `base.outlet` node. */
+function hasOutletNode(page: Page): boolean {
+  for (const id in page.nodes) {
+    if (page.nodes[id].moduleId === 'base.outlet') return true
+  }
+  return false
+}
 
 /**
  * Insert a module into the active canvas document (page or Visual Component).
@@ -30,6 +40,20 @@ export function useInsertModule() {
 
   return (mod: AnyModuleDefinition, explicitTarget?: string | InsertLocation) => {
     if (!canvasPage) return null
+
+    // A document hosts matched content in a SINGLE `base.outlet`: the template
+    // composer and the canvas fill only the first outlet, so a second one would
+    // render as a dead, empty "Content outlet" placeholder. Block it with a
+    // clear message instead of letting the author create a confusing duplicate.
+    if (mod.id === 'base.outlet' && hasOutletNode(canvasPage)) {
+      pushToast({
+        kind: 'warning',
+        title: 'Only one content outlet',
+        body: 'This template already has a content outlet — matched content can flow into just one.',
+        location: 'module-inserter',
+      })
+      return null
+    }
 
     const location =
       typeof explicitTarget === 'object'

@@ -93,6 +93,50 @@ describe('useInsertModule', () => {
   })
 })
 
+describe('useInsertModule — single outlet guard', () => {
+  function countOutlets(): number {
+    const state = useEditorStore.getState()
+    const page = state.site!.pages.find((p) => p.id === state.activePageId)!
+    return Object.values(page.nodes).filter((n) => n.moduleId === 'base.outlet').length
+  }
+
+  it('inserts the first base.outlet but blocks a second one', () => {
+    useEditorStore.getState().createSite('Outlet Guard Test')
+    const outletMod = registry.get('base.outlet')
+    expect(outletMod).toBeTruthy()
+
+    const { result } = renderHook(() => useInsertModule())
+
+    // First outlet inserts normally.
+    let firstId: string | null = null
+    act(() => { firstId = result.current(outletMod!) })
+    expect(firstId).toBeTruthy()
+    expect(countOutlets()).toBe(1)
+
+    // Second outlet is blocked: the hook returns null and the tree is unchanged.
+    let secondId: string | null = 'sentinel'
+    act(() => { secondId = result.current(outletMod!) })
+    expect(secondId).toBeNull()
+    expect(countOutlets()).toBe(1)
+  })
+
+  it('store insertNode backstop refuses a second base.outlet even when called directly', () => {
+    useEditorStore.getState().createSite('Outlet Backstop Test')
+    const store = useEditorStore.getState()
+    const rootId = store.site!.pages.find((p) => p.id === store.activePageId)!.rootNodeId
+
+    const first = store.insertNode('base.outlet', {}, rootId)
+    expect(first).toBeTruthy()
+    expect(countOutlets()).toBe(1)
+
+    // Direct store call (bypassing the hook) is still blocked: returns '' and
+    // leaves the single existing outlet in place.
+    const second = store.insertNode('base.outlet', {}, rootId)
+    expect(second).toBe('')
+    expect(countOutlets()).toBe(1)
+  })
+})
+
 describe('useInsertModule — VC ref redirect', () => {
   /**
    * Builds a page with a VC ref that has two slot-instance children:
