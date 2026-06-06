@@ -247,10 +247,10 @@ Missing fields fall back to the catalog default. Unknown fields are preserved on
 
 Two tests cover the catalog-driven UI:
 
-- `src/__tests__/settings/settingsSections.test.tsx` — checks the Preferences screen renders one switch per catalog entry, by name.
-- `src/__tests__/settings/settingsModal.test.tsx` — checks `pref-${id}` ids and `htmlFor` linkage are produced for the auto-rendered rows.
+- `src/__tests__/settings/settingsSections.test.tsx` — renders `PreferencesSection` in isolation and asserts one switch per boolean catalog entry, each by name. Adding a boolean preference: (1) increment the `toHaveLength(N)` count and (2) add a `getByRole('switch', { name: /your label/i })` assertion.
+- `src/__tests__/settings/settingsModal.test.tsx` — renders the full `SettingsModal` and asserts the overall count of switches in the Preferences section (`expect(switches.length).toBe(N)`), plus `pref-${id}` ids and `htmlFor` linkage for auto-rendered rows. Adding a boolean preference: increment the count assertion only.
 
-Adding a preference requires updating one assertion in each (a new `getByRole('switch', { name: /your label/i })`). That's the only test surface — everything else flows automatically.
+Adding a non-boolean (select / select-dynamic) preference does not affect these tests — the switch count stays the same and no named assertion is needed.
 
 ---
 
