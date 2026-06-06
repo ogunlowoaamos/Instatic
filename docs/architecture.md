@@ -103,6 +103,8 @@ The repo is organized by responsibility, not by feature. Every file has one reas
 | Plugin sandbox (worker)      | `server/plugins/*`                    | QuickJS-WASM execution of plugin server code + module packs          |
 | Image-variant worker         | `server/handlers/cms/imageVariant*`   | `Bun.Worker` pool running sharp + blurhash off the main thread       |
 | Page tree primitive          | `src/core/page-tree/*`                | `NodeTree<TNode>` + tree-agnostic mutations                          |
+| Framework engine             | `src/core/framework/*`                | Color token CSS generation, fluid typography/spacing scales, CSS variable output; imports from `@core/framework-schema` for persisted shapes |
+| Framework schemas (leaf)     | `src/core/framework-schema/*`         | Pure TypeBox schemas + derived types for persisted framework settings (`FrameworkSettings`, `GeneratedClassMetadata`, etc.); no dependency on the engine or page-tree |
 | Visual components            | `src/core/visualComponents/*`         | VC tree shape, slot synchronization, recursion checks                |
 | Persistence (client-side)    | `src/core/persistence/*`              | HTTP envelopes, response schemas, site validation                    |
 | Validation utilities         | `src/core/utils/*`                    | TypeBox helpers, JSON boundary helpers, sanitization                 |

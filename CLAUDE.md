@@ -248,7 +248,14 @@ Modules that publish a public API (an `index.ts` in a folder under `src/core/`, 
 - ✅ Inside `src/core/page-tree/`: `import type { Page } from './page'` (relative, NEVER `from '@core/page-tree'`)
 - ❌ Outside the module: `import { Page } from '@core/page-tree/page'` — bypasses the barrel
 
-Deep imports into the four primary engine modules — `@core/page-tree`, `@core/module-engine`, `@core/visualComponents`, `@core/publisher` — are enforced by `src/__tests__/architecture/no-core-barrel-deep-imports.test.ts`. Any other module barrel is still a convention without a gate; treat deep imports in those as drift and migrate them to the barrel as part of whatever change you're making.
+Deep imports into these engine modules are enforced by `src/__tests__/architecture/no-core-barrel-deep-imports.test.ts`:
+
+- `@core/page-tree`, `@core/module-engine`, `@core/visualComponents`, `@core/publisher`
+- `@core/framework` — the framework engine (color, typography, spacing CSS generation)
+- `@core/framework-schema` — pure leaf: TypeBox schemas + derived types for persisted framework token settings; no dependency on the engine or page-tree
+- `@core/fonts`
+
+Note: `@core/framework-schema` is a dependency of both `@core/page-tree` (for `FrameworkSettingsSchema` and `GeneratedClassMetadataSchema`) and `@core/framework` (for the persisted data shapes). This arrangement keeps the module graph one-directional — the engine depends on the schema leaf, not on the page tree. Any other module barrel is still a convention without a gate; treat deep imports in those as drift and migrate them to the barrel as part of whatever change you're making.
 
 ---
 

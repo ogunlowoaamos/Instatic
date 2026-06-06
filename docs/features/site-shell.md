@@ -465,7 +465,7 @@ A plugin canvas module can then `import * as THREE from 'three'` and it resolves
   - `src/core/page-tree/breakpoint.ts` — `BreakpointSchema`, `DEFAULT_BREAKPOINTS`
   - `src/core/page-tree/condition.ts` — `ConditionDefSchema`, `conditionId`, `conditionLabel`, `makeConditionDef`, `parseConditions`
   - `src/core/page-tree/styleRule.ts` — `StyleRuleSchema`
-  - `src/core/framework/schemas.ts` — `FrameworkSettingsSchema`, `FrameworkColorToken`, `FrameworkColorSettings`
+  - `src/core/framework-schema/schemas.ts` — `FrameworkSettingsSchema`, `FrameworkColorToken`, `FrameworkColorSettings`, `GeneratedClassMetadataSchema` (pure leaf — no engine dependency)
   - `src/core/framework/generate.ts` — `generateFrameworkRootCss`, `generateFrameworkUtilityClasses`
   - `src/core/fonts/schemas.ts` — `SiteFontsSettingsSchema`, `FontEntry`, `FontToken`
   - `src/core/fonts/css.ts` — `generateFontsCss`
