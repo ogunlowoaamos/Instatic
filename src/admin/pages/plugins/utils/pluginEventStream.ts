@@ -12,41 +12,16 @@
  * that don't care about plugin events don't pay for the open socket.
  */
 
-type PluginEventKind =
-  | 'crash'
-  | 'recovered'
-  | 'parked'
-  | 'restarted'
-  | 'installed'
-  | 'updated'
-  | 'uninstalled'
-  | 'enabled'
-  | 'disabled'
+import { safeParseValue } from '@core/utils/typeboxHelpers'
+import {
+  PLUGIN_EVENT_KINDS,
+  PluginEventSchema,
+  type PluginEvent,
+} from '@core/plugins/events'
 
-export type PluginEvent =
-  | { kind: 'crash'; pluginId: string; reason: string; recentCrashCount: number; occurredAt: string }
-  | { kind: 'recovered'; pluginId: string; afterCrashCount: number; occurredAt: string }
-  | { kind: 'parked'; pluginId: string; reason: string; recentCrashCount: number; occurredAt: string }
-  | { kind: 'restarted'; pluginId: string; occurredAt: string }
-  | { kind: 'installed'; pluginId: string; version: string; occurredAt: string }
-  | { kind: 'updated'; pluginId: string; fromVersion: string; toVersion: string; occurredAt: string }
-  | { kind: 'uninstalled'; pluginId: string; occurredAt: string }
-  | { kind: 'enabled'; pluginId: string; occurredAt: string }
-  | { kind: 'disabled'; pluginId: string; occurredAt: string }
+export type { PluginEvent }
 
 type Listener = (event: PluginEvent) => void
-
-const EVENT_KINDS: PluginEventKind[] = [
-  'crash',
-  'recovered',
-  'parked',
-  'restarted',
-  'installed',
-  'updated',
-  'uninstalled',
-  'enabled',
-  'disabled',
-]
 
 const listeners = new Set<Listener>()
 let source: EventSource | null = null
@@ -54,10 +29,15 @@ let source: EventSource | null = null
 function ensureConnected(): void {
   if (source) return
   source = new EventSource('/admin/api/cms/plugins/events', { withCredentials: true })
-  for (const kind of EVENT_KINDS) {
+  for (const kind of PLUGIN_EVENT_KINDS) {
     source.addEventListener(kind, (event) => {
       try {
-        const payload = JSON.parse((event as MessageEvent).data) as PluginEvent
+        const result = safeParseValue(PluginEventSchema, JSON.parse((event as MessageEvent).data))
+        if (!result.ok) {
+          console.warn('[plugin-events] unexpected event shape', result.errors)
+          return
+        }
+        const payload = result.value
         for (const listener of listeners) {
           try { listener(payload) } catch (err) {
             console.error('[plugin-events] listener threw:', err)

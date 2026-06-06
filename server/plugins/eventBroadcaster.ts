@@ -19,18 +19,15 @@
  *
  * Event shape is small + JSON-serializable. The client uses event kind
  * to decide what to do (toast / badge / live-list refresh).
+ *
+ * The payload shape is defined once as a TypeBox schema in
+ * `@core/plugins/events` — the admin client validates every SSE frame
+ * against it. Both sides share that one source of truth.
  */
 
-export type PluginEvent =
-  | { kind: 'crash'; pluginId: string; reason: string; recentCrashCount: number; occurredAt: string }
-  | { kind: 'recovered'; pluginId: string; afterCrashCount: number; occurredAt: string }
-  | { kind: 'parked'; pluginId: string; reason: string; recentCrashCount: number; occurredAt: string }
-  | { kind: 'restarted'; pluginId: string; occurredAt: string }
-  | { kind: 'installed'; pluginId: string; version: string; occurredAt: string }
-  | { kind: 'updated'; pluginId: string; fromVersion: string; toVersion: string; occurredAt: string }
-  | { kind: 'uninstalled'; pluginId: string; occurredAt: string }
-  | { kind: 'enabled'; pluginId: string; occurredAt: string }
-  | { kind: 'disabled'; pluginId: string; occurredAt: string }
+import type { PluginEvent } from '@core/plugins/events'
+
+export type { PluginEvent }
 
 export type PluginEventListener = (event: PluginEvent) => void
 
