@@ -27,6 +27,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | Manifest schema + parser       | `src/core/plugins/manifest.ts`            |
 | Admin-page route helpers       | `src/core/plugins/manifestAdminPages.ts`  |
 | Host-side plugin runtime       | `src/core/plugins/`                       |
+| Lifecycle event schema + types | `src/core/plugins/events.ts`              |
 | Sandbox host (server entrypoint)| `server/plugins/quickjs/vm.ts`           |
 | Sandbox host (module pack VMs) | `server/plugins/modulePackVm.ts`          |
 | VM bootstrap source (typed)    | `server/plugins/quickjs/bootstrap/src/`   |
@@ -35,8 +36,12 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | Plugin asset path containment      | `server/util/pathWithin.ts`            |
 | Plugin lifecycle (boot, install, activate, uninstall) | `server/plugins/runtime.ts`, `package.ts` |
 | Plugin scheduler               | `server/plugins/scheduler.ts`             |
+| Event broadcaster (server fan-out) | `server/plugins/eventBroadcaster.ts`  |
+| SSE event endpoint             | `server/handlers/cms/plugins/events.ts`   |
 | HTTP route bridge              | `server/handlers/cms/runtime.ts`          |
 | Plugin pages in admin          | `src/admin/pages/plugins/`                |
+| SSE event stream (client)      | `src/admin/pages/plugins/utils/pluginEventStream.ts` |
+| Admin shell event bridge hook  | `src/admin/pages/plugins/hooks/usePluginEventBridge.ts` |
 | Plugin host UI primitives      | `src/admin/plugin-host-ui/`               |
 | Plugin host React hooks        | `src/admin/plugin-host-hooks/`            |
 | Example template plugin        | `examples/plugins/template/`              |
@@ -168,6 +173,39 @@ Each plugin's server entrypoint runs in its own worker. If the worker crashes:
 2. The worker is terminated. Sibling plugins are unaffected.
 3. The host auto-respawns the worker and re-runs `activate`.
 4. If the same plugin crashes more than `CRASH_THRESHOLD` (3) times within `CRASH_WINDOW_MS` (5 minutes), auto-respawn stops and the plugin is parked in `error`. The owner restarts it manually from the Plugins admin page.
+
+### Lifecycle events (SSE)
+
+Every lifecycle transition broadcasts a named SSE event to every connected admin tab. The admin UI uses these for real-time feedback (toasts, badge, live list refresh) without polling.
+
+**Event flow:**
+
+```text
+Plugin worker host / install handler
+  → broadcastPluginEvent(event)                   server/plugins/eventBroadcaster.ts
+  → ReadableStream SSE frame (event: <kind>)      server/handlers/cms/plugins/events.ts
+  → GET /admin/api/cms/plugins/events
+  → pluginEventStream.ts (frame validated)        src/admin/pages/plugins/utils/
+  → usePluginEventBridge (toast / badge)          src/admin/pages/plugins/hooks/
+```
+
+**Event kinds**, derived from `PluginEventSchema` in `src/core/plugins/events.ts`:
+
+| Kind         | Trigger                                | Admin effect                         |
+|--------------|----------------------------------------|--------------------------------------|
+| `crash`      | Worker crashed, within budget          | Warning toast                        |
+| `recovered`  | Auto-respawn succeeded                 | Clears in-error badge                |
+| `parked`     | Crash budget exhausted                 | Error toast + in-error badge         |
+| `restarted`  | Owner restarted manually               | Clears in-error badge                |
+| `installed`  | Plugin installed                       | Re-fetches plugin list               |
+| `updated`    | Plugin updated to a new version        | Re-fetches plugin list               |
+| `uninstalled`| Plugin removed                         | Re-fetches plugin list               |
+| `enabled`    | Plugin enabled                         | Re-fetches plugin list               |
+| `disabled`   | Plugin disabled                        | Clears in-error badge                |
+
+`src/core/plugins/events.ts` is the single source of truth. Both the server broadcaster and the client stream derive their `PluginEvent` type from `Static<typeof PluginEventSchema>` — there is no parallel hand-written union.
+
+The client-side `EventSource` connection is lazy: it opens on the first subscriber and closes when the last one unsubscribes. Every incoming frame is validated with `safeParseValue(PluginEventSchema, JSON.parse(frame.data))` before dispatch — malformed frames are dropped with a `console.warn`. The server sends an initial `ping` event on connect and a `': heartbeat'` SSE comment every 30 s to keep proxies from idle-closing the long-lived connection.
 
 ---
 
@@ -675,8 +713,13 @@ Manifest:
   - `src/core/plugin-sdk/capabilities.ts` — permission catalog
   - `src/core/plugin-sdk/cli/` — `instatic-plugin` CLI
   - `src/core/plugins/manifest.ts` — manifest parser + validator
+  - `src/core/plugins/events.ts` — `PluginEventSchema`, `PluginEvent` type, `PLUGIN_EVENT_KINDS`
   - `src/core/plugins/` — host-side runtime
   - `server/plugins/runtime.ts` — boot-time plugin activation
+  - `server/plugins/eventBroadcaster.ts` — server-side SSE fan-out (`subscribePluginEvents`, `broadcastPluginEvent`)
+  - `server/handlers/cms/plugins/events.ts` — `GET /admin/api/cms/plugins/events` SSE endpoint
+  - `src/admin/pages/plugins/utils/pluginEventStream.ts` — client-side lazy EventSource subscriber (validates frames)
+  - `src/admin/pages/plugins/hooks/usePluginEventBridge.ts` — admin shell hook (toasts, badge, list resync)
   - `server/plugins/quickjs/vm.ts` — server entrypoint sandbox (QuickJS VM factory)
   - `server/plugins/quickjs/bootstrap/src/` — bootstrap TypeScript source (authored, typed, lintable)
   - `server/plugins/quickjs/bootstrap/generated/` — committed bootstrap artifacts (regenerate with `bun run bootstrap:sync`)
@@ -704,3 +747,4 @@ Manifest:
   - `src/__tests__/plugins/pluginModulePack.test.ts` — module pack activation, re-activation, deactivation, and VM disposal
   - `src/__tests__/server/pluginVmPermissions.test.ts` — VM-side permission check: declared-but-not-granted permissions are denied at the VM boundary before host dispatch
   - `src/__tests__/server/pluginVmLoopDispatch.test.ts` — loop fetch/preview dispatcher robustness (no-return fallbacks, async-preview detection)
+  - `src/admin/pages/plugins/utils/pluginEventStream.test.ts` — SSE frame validation: well-formed events dispatched, unknown-shape frames dropped with `console.warn`
