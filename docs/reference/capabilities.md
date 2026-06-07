@@ -8,10 +8,10 @@ For the broader auth flow (sessions, MFA, step-up), see [docs/features/auth-and-
 
 ## TL;DR
 
-- Defined as a closed TypeBox literal union in `server/auth/capabilities.ts`. **36 capabilities.**
+- Defined as a `const` array in `src/core/capabilities.ts` (`@core/capabilities`); `CoreCapability` is derived via `typeof CORE_CAPABILITIES[number]`. **36 capabilities.**
 - Handlers gate on capability, not on role: `requireCapability(req, db, 'site.read')`.
 - The **Owner AND Admin** roles get their capability lists force-resynced from `SYSTEM_ROLES` on every server boot. Hand-edits to either built-in role through the admin UI are restored at next boot — they are code-level decisions, not runtime ones.
-- Adding a capability: append the literal in three places (server schema, server array, client array), then add it to the SYSTEM_ROLES entries it should belong to, wire `requireCapability(...)` at the gate point, and add picker meta + groups for the role-edit dialog. The two architecture tests (`capability-picker-coverage.test.ts`, `cms-handlers-capability-gated.test.ts`) catch missing pieces.
+- Adding a capability: append the literal to `CORE_CAPABILITIES` in `src/core/capabilities.ts` (one place — server imports it), add it to the relevant `SYSTEM_ROLES` entries, wire `requireCapability(...)` at the gate point, and add picker meta + groups for the role-edit dialog. The two architecture tests (`capability-picker-coverage.test.ts`, `cms-handlers-capability-gated.test.ts`) catch missing pieces.
 - Custom roles editable in the Roles admin page (Owner-only `roles.manage`).
 
 ---
@@ -33,7 +33,7 @@ For the broader auth flow (sessions, MFA, step-up), see [docs/features/auth-and-
 | `site.content.edit`      | Modify content props (text, image src/alt, link href) on existing nodes — no structure or style edits | Owner, Admin, Client |
 | `site.style.edit`        | Modify CSS classes, style overrides, breakpoints, framework tokens  | Owner, Admin  |
 
-`SITE_WRITE_CAPABILITIES` (in `capabilities.ts`) is the convenience set `['site.structure.edit', 'site.content.edit', 'site.style.edit']` — used by the site shell save handler. The `/pages` and `/components` reconcile endpoints additionally require `site.structure.edit` because their wholesale reconcile can soft-delete entries.
+`SITE_WRITE_CAPABILITIES` is the convenience set `['site.structure.edit', 'site.content.edit', 'site.style.edit']` — defined locally in `server/handlers/cms/site.ts` and `src/admin/access.ts` at each point of use, not in a shared capabilities module. Used by the site shell save handler. The `/pages` and `/components` reconcile endpoints additionally require `site.structure.edit` because their wholesale reconcile can soft-delete entries.
 
 ### Page publishing
 

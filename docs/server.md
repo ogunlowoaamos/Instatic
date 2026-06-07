@@ -260,7 +260,7 @@ if (user instanceof Response) return user   // 401 or 403 already encoded
 // ... user is now AuthUser
 ```
 
-`requireCapability` and `requireAnyCapability` are the only auth surfaces a handler should call. Capabilities are strings like `site.read`, `site.structure.edit`, `media.write`, `plugins.install`, `users.manage`, etc. Owner accounts get all `CORE_CAPABILITIES` automatically. The full list is in `server/auth/capabilities.ts`; `docs/features/auth-and-access.md` catalogs every one.
+`requireCapability` and `requireAnyCapability` are the only auth surfaces a handler should call. Capabilities are strings like `site.read`, `site.structure.edit`, `media.write`, `plugins.install`, `users.manage`, etc. Owner accounts get all `CORE_CAPABILITIES` automatically. The full list is in `src/core/capabilities.ts` (`@core/capabilities`); `docs/reference/capabilities.md` catalogs every one.
 
 ### Step-up auth
 

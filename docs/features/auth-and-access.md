@@ -9,7 +9,7 @@ Every state-changing CMS request goes through one auth funnel: parse the session
 ## TL;DR
 
 - **Sessions** are token-cookie based. Cookie name: `SESSION_COOKIE_NAME` (`instatic_admin_session`). Tokens are hashed before storage; the cookie carries the raw token.
-- **Capabilities** are the access model. 36 `CoreCapability` strings defined in `server/auth/capabilities.ts`. Roles are sets of capabilities. Handlers gate on capability, not role.
+- **Capabilities** are the access model. 36 `CoreCapability` strings defined in `src/core/capabilities.ts` (`@core/capabilities`). Roles are sets of capabilities. Handlers gate on capability, not role.
 - **`requireCapability(req, db, 'site.read')`** is the canonical handler entrypoint. Returns the `AuthUser` or a 401/403 `Response`.
 - **MFA (TOTP)** is per-user opt-in. Sessions for MFA-enrolled users are `pending_mfa` until verified, then become `active`. Failed MFA codes go through `mfaRateLimit` AND increment the per-account lockout counter — the same counter the password step uses. A locked account is rejected at the MFA step before any code is checked.
 - **Step-up auth** gates sensitive actions (delete user, revoke another device, sign out all) unless the user disables it on Account -> Security. The default window is 15 minutes; users can configure 5, 15, 30, or 60 minutes.
@@ -22,9 +22,11 @@ Every state-changing CMS request goes through one auth funnel: parse the session
 ## Where the code lives
 
 ```text
+src/core/capabilities.ts   — CORE_CAPABILITIES (the canonical list), CoreCapability type (@core/capabilities)
+
 server/auth/
 ├── authz.ts          — requireAuthenticatedUser, requireCapability, requireAnyCapability, requireStepUp
-├── capabilities.ts   — CoreCapability enum, SYSTEM_ROLES, SITE_WRITE_CAPABILITIES
+├── capabilities.ts   — imports/re-exports CORE_CAPABILITIES; owns SYSTEM_ROLES, FORCE_SYNC_ROLE_IDS, runtime guards
 ├── sessions.ts       — createSession, findUserBySessionHash, rotateSessionToken, MFA gates, step-up timer
 ├── stepUpPolicy.ts   — step-up modes and allowed window lengths
 ├── tokens.ts         — SESSION_COOKIE_NAME, hashSessionToken
@@ -114,24 +116,25 @@ Users can list active sessions and revoke them individually. `revokeOtherSession
 
 ## Capabilities
 
-36 core capabilities, defined as a closed TypeBox literal union in `server/auth/capabilities.ts`:
+36 core capabilities. The canonical list is in `src/core/capabilities.ts` (`@core/capabilities`) as an `as const` array; `CoreCapability` is derived from it via `typeof CORE_CAPABILITIES[number]`:
 
 ```ts
-type CoreCapability =
-  | 'dashboard.read'
-  | 'site.read'
-  | 'site.structure.edit' | 'site.content.edit' | 'site.style.edit'
-  | 'pages.edit'          | 'pages.publish'
-  | 'content.create'      | 'content.edit.own'  | 'content.edit.any'
-  | 'content.publish.own' | 'content.publish.any'
-  | 'content.manage'
-  | 'media.read'    | 'media.write'       | 'media.replace'   | 'media.delete'
-  | 'runtime.dependencies' | 'storage.elect' | 'storage.migrate'
-  | 'plugins.read'  | 'plugins.configure' | 'plugins.install' | 'plugins.lifecycle'
-  | 'users.manage'  | 'roles.manage'
-  | 'audit.read'
-  | 'data.tables.read' | 'data.tables.manage' | 'data.rows.move' | 'data.export' | 'data.import'
-  | 'ai.chat' | 'ai.tools.write' | 'ai.providers.manage' | 'ai.audit.read'
+// src/core/capabilities.ts — source of truth
+export const CORE_CAPABILITIES = [
+  'dashboard.read', 'site.read',
+  'site.structure.edit', 'site.content.edit', 'site.style.edit',
+  'pages.edit', 'pages.publish',
+  'content.create', 'content.edit.own', 'content.edit.any',
+  'content.publish.own', 'content.publish.any', 'content.manage',
+  'media.read', 'media.write', 'media.replace', 'media.delete',
+  'runtime.dependencies', 'storage.elect', 'storage.migrate',
+  'plugins.read', 'plugins.configure', 'plugins.install', 'plugins.lifecycle',
+  'users.manage', 'roles.manage', 'audit.read',
+  'data.tables.read', 'data.tables.manage', 'data.rows.move', 'data.export', 'data.import',
+  'ai.chat', 'ai.tools.write', 'ai.providers.manage', 'ai.audit.read',
+] as const
+
+export type CoreCapability = typeof CORE_CAPABILITIES[number]
 ```
 
 ### Site-editing split
@@ -170,7 +173,7 @@ Four system roles, defined in `SYSTEM_ROLES`:
 | Role    | id        | Capabilities                                                                 | Special     |
 |---------|-----------|------------------------------------------------------------------------------|-------------|
 | Owner   | `owner`   | All `CORE_CAPABILITIES`                                                      | Owner-only `roles.manage`. Resyncs on every boot via `syncSystemRoles(db)`. |
-| Admin   | `admin`   | All except `roles.manage`                                                    | Editable    |
+| Admin   | `admin`   | All except `roles.manage`                                                    | Force-resynced on every boot. Hand-edits restored at next boot. |
 | Client  | `client`  | `dashboard.read`, `site.read`, `site.content.edit`, `media.read`, `data.tables.read` | Editable    |
 | Member  | `member`  | (none)                                                                       | Editable    |
 
@@ -399,10 +402,10 @@ export async function handleSubscribersRoutes(req: Request, db: DbClient): Promi
 
 ### Add a new capability
 
-1. Add the literal to `CoreCapabilitySchema` and `CORE_CAPABILITIES` in `server/auth/capabilities.ts`.
-2. If it belongs to an existing role surface (admin / client), add it to the matching `*Capabilities` array.
+1. Append the literal to `CORE_CAPABILITIES` in `src/core/capabilities.ts` (`@core/capabilities`). The `CoreCapability` type updates automatically; the server picks it up via import.
+2. If it belongs to the Owner / Admin / Client default sets, add it to the matching entry in `SYSTEM_ROLES` inside `server/auth/capabilities.ts`. Owner + Admin force-sync on next boot.
 3. Use `requireCapability(req, db, 'your.new.capability')` in the handler that needs it.
-4. Owner and Admin roles auto-sync on next boot — no migration needed for existing Owner or Admin accounts.
+4. Add a `CAPABILITY_META` entry + `CAPABILITY_GROUPS` section in `src/admin/pages/users/utils/capabilities.ts` so the role-edit dialog renders a checkbox. The `capability-picker-coverage.test.ts` gate fails until you do.
 5. Existing custom roles will NOT have the new capability until users grant it through the Roles admin page.
 
 ### Gate a sensitive action
@@ -462,7 +465,8 @@ if (userHasAnyCapability(user, SITE_WRITE_CAPABILITIES)) { /* … */ }
 - [docs/reference/capabilities.md](../reference/capabilities.md) — full capability matrix + when to add a new one
 - Source-of-truth files:
   - `server/auth/authz.ts` — `requireCapability`, `requireAnyCapability`, `requireStepUp`
-  - `server/auth/capabilities.ts` — `CoreCapability`, `SYSTEM_ROLES`, `SITE_WRITE_CAPABILITIES`
+  - `src/core/capabilities.ts` (`@core/capabilities`) — `CORE_CAPABILITIES`, `CoreCapability` (single source of truth)
+  - `server/auth/capabilities.ts` — imports/re-exports `CORE_CAPABILITIES`; owns `SYSTEM_ROLES`, `FORCE_SYNC_ROLE_IDS`, runtime guards
   - `server/auth/sessions.ts` — session lifecycle, MFA gates, step-up timer
   - `server/auth/tokens.ts` — `SESSION_COOKIE_NAME`, `hashSessionToken`
   - `server/auth/mfa.ts` — TOTP + recovery codes
