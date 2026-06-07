@@ -28,7 +28,6 @@
  * the incoming document is treated as a structural change in its entirety —
  * a content-only caller cannot bootstrap a site from nothing.
  */
-import { resolvePropertyControlCategory } from '@core/module-engine'
 import type { CoreCapability } from '../../auth/capabilities'
 import type {
   StyleRule,
@@ -240,39 +239,8 @@ function diffFiles(
 }
 
 // ---------------------------------------------------------------------------
-// Prop classification (kept for potential future use with VC trees)
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the change category for a single prop key against a module schema.
- */
-export function classifyPropChange(
-  schema: Record<string, unknown>,
-  key: string,
-): SiteChangeKind {
-  const entry = schema[key]
-  if (!entry || typeof entry !== 'object') return 'structure'
-  const category = resolvePropertyControlCategory(
-    entry as Parameters<typeof resolvePropertyControlCategory>[0],
-  )
-  return category === 'content' ? 'content' : 'structure'
-}
-
-// ---------------------------------------------------------------------------
 // Small deep-equal helpers
 // ---------------------------------------------------------------------------
-
-function arrayEqual<T>(a: readonly T[], b: readonly T[]): boolean {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
-}
-
-// arrayEqual is used indirectly through deepEqual for arrays — keep the
-// direct reference to avoid lint warnings about unused exports.
-void arrayEqual
 
 function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true

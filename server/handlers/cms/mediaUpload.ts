@@ -81,18 +81,6 @@ export const IMAGE_MIMES: ReadonlyArray<AcceptedMediaMime> = [
 ]
 
 /**
- * Subset of font MIMEs — handy for callers that only want to accept font
- * uploads (e.g. a future dedicated `@font-face` upload route). The Super
- * Import wizard uses the full media-library set instead.
- */
-export const FONT_MIMES: ReadonlyArray<AcceptedMediaMime> = [
-  'font/woff',
-  'font/woff2',
-  'font/ttf',
-  'font/otf',
-]
-
-/**
  * Magic-byte signatures for each accepted MIME. Each signature is a list of
  * `(offset, byte)` constraints — the file passes the signature if every
  * constraint is satisfied. Some formats (WebP, MP4) need non-contiguous
