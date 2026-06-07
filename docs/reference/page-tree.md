@@ -156,6 +156,10 @@ All mutations live in `src/core/page-tree/mutations.ts`. They take a `NodeTree<P
 
 - `reindexNodeParents(nodes)` — recompute every node's `parentId` from the `children` arrays (the backfill / derive-on-entry helper). Tree-agnostic: takes a `Record<string, BaseNode>` directly.
 
+`src/core/page-tree/cloneNode.ts`:
+
+- `cloneNodeWithRemap(node, { newId, idMap, classIdRemap? }) → PageNode` — THE single node deep-clone primitive. Copies one `PageNode` with a fresh `id`, remaps `children` through `idMap` (child ids absent from the map are pruned), deep-copies every persisted sub-object (`props`, `breakpointOverrides`, `inlineStyles`, `propBindings`, `dynamicBindings`) so nothing is shared by reference with the source, and applies `classIdRemap` (if provided) to filter or remap `classIds`. Callers: `duplicateNode`, `pasteSubtree`, and `duplicatePage` all route through here; adding a new persisted `BaseNode`/`PageNode` field means editing exactly this one file.
+
 `src/core/page-tree/scopedClassClone.ts`:
 
 - `cloneScopedClassesForNodeMap(...)` — rewrites class ids that scope to specific nodes when those nodes are duplicated.
@@ -305,7 +309,8 @@ const tree = parsePageNodeTree(raw)
   - `src/core/page-tree/baseNode.ts` — `BaseNodeSchema` + `BaseNode`
   - `src/core/page-tree/pageNode.ts` — `PageNode` (extends `BaseNode`)
   - `src/core/page-tree/page.ts` — `Page` (is `NodeTree<PageNode>` + metadata)
-  - `src/core/page-tree/mutations.ts` — all node + site mutations; `cloneNodeWithRemap` (THE single deep-clone primitive)
+  - `src/core/page-tree/mutations.ts` — all node + site mutations
+  - `src/core/page-tree/cloneNode.ts` — `cloneNodeWithRemap` (THE single node deep-clone primitive)
   - `src/core/page-tree/selectors.ts` — `collectSubtreeIds` (THE single subtree-walker), `getNode`, `getParent`, `getAncestors`, `isAncestor`, `flattenSubtree`, `resolveProps`, `evaluateCondition`
   - `src/core/page-tree/subtreeRemoval.ts` — `deleteSubtree` (THE single subtree-deletion primitive), `removeNodeSubtrees`
   - `src/core/page-tree/parentIndex.ts` — `reindexNodeParents` (derive-on-entry backfill)
