@@ -1,8 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox'
-import { readEnvelope, assertOk } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 import { CmsCurrentUserSchema, type CmsCurrentUser } from './cmsAuth'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 export const CmsRoleSchema = Type.Object({
   id: Type.String(),
@@ -44,8 +42,11 @@ export async function listCmsUsers(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser[]> {
-  const res = await fetchImpl(`${basePath}/users`, { method: 'GET', credentials: 'include' })
-  const body = await readEnvelope(res, UsersEnvelope, `CMS users failed with ${res.status}`)
+  const body = await apiRequest(`${basePath}/users`, {
+    schema: UsersEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS users request failed',
+  })
   return body.users ?? []
 }
 
@@ -54,13 +55,13 @@ export async function createCmsUser(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/users`, {
+  const body = await apiRequest(`${basePath}/users`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: UserEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS user create failed',
   })
-  const body = await readEnvelope(res, UserEnvelope, `CMS user create failed with ${res.status}`)
   if (!body.user) throw new Error('CMS user create response was missing user')
   return body.user
 }
@@ -71,13 +72,13 @@ export async function updateCmsUser(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/users/${encodeURIComponent(userId)}`, {
+  const body = await apiRequest(`${basePath}/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: UserEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS user update failed',
   })
-  const body = await readEnvelope(res, UserEnvelope, `CMS user update failed with ${res.status}`)
   if (!body.user) throw new Error('CMS user update response was missing user')
   return body.user
 }
@@ -87,19 +88,22 @@ export async function deleteCmsUser(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/users/${encodeURIComponent(userId)}`, {
+  await apiRequest(`${basePath}/users/${encodeURIComponent(userId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS user delete failed',
   })
-  await assertOk(res, `CMS user delete failed with ${res.status}`)
 }
 
 export async function listCmsRoles(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsRole[]> {
-  const res = await fetchImpl(`${basePath}/roles`, { method: 'GET', credentials: 'include' })
-  const body = await readEnvelope(res, RolesEnvelope, `CMS roles failed with ${res.status}`)
+  const body = await apiRequest(`${basePath}/roles`, {
+    schema: RolesEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS roles request failed',
+  })
   return body.roles ?? []
 }
 
@@ -108,13 +112,13 @@ export async function createCmsRole(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsRole> {
-  const res = await fetchImpl(`${basePath}/roles`, {
+  const body = await apiRequest(`${basePath}/roles`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: RoleEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS role create failed',
   })
-  const body = await readEnvelope(res, RoleEnvelope, `CMS role create failed with ${res.status}`)
   if (!body.role) throw new Error('CMS role create response was missing role')
   return body.role
 }
@@ -125,13 +129,13 @@ export async function updateCmsRole(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsRole> {
-  const res = await fetchImpl(`${basePath}/roles/${encodeURIComponent(roleId)}`, {
+  const body = await apiRequest(`${basePath}/roles/${encodeURIComponent(roleId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: RoleEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS role update failed',
   })
-  const body = await readEnvelope(res, RoleEnvelope, `CMS role update failed with ${res.status}`)
   if (!body.role) throw new Error('CMS role update response was missing role')
   return body.role
 }
@@ -141,18 +145,21 @@ export async function deleteCmsRole(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/roles/${encodeURIComponent(roleId)}`, {
+  await apiRequest(`${basePath}/roles/${encodeURIComponent(roleId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS role delete failed',
   })
-  await assertOk(res, `CMS role delete failed with ${res.status}`)
 }
 
 export async function listCmsAuditEvents(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsAuditEvent[]> {
-  const res = await fetchImpl(`${basePath}/audit`, { method: 'GET', credentials: 'include' })
-  const body = await readEnvelope(res, AuditEnvelope, `CMS audit events failed with ${res.status}`)
+  const body = await apiRequest(`${basePath}/audit`, {
+    schema: AuditEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS audit events request failed',
+  })
   return body.events ?? []
 }

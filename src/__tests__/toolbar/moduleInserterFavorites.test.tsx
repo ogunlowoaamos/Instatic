@@ -61,8 +61,8 @@ function loadSite() {
 describe('ModuleInserterDialog favorites', () => {
   it('renders a favorite toggle for every visible module tile', async () => {
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (!init?.method) return jsonResponse({ value: { favorites: [] } })
-      return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      if (init?.method === 'PUT') return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      return jsonResponse({ value: { favorites: [] } })
     }) as typeof fetch
 
     loadSite()
@@ -85,12 +85,12 @@ describe('ModuleInserterDialog favorites', () => {
 
   it('uses aria-pressed and the label to expose active favorite state', async () => {
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (!init?.method) {
-        return jsonResponse({
-          value: { favorites: [{ kind: 'module', id: 'base.text' }] },
-        })
+      if (init?.method === 'PUT') {
+        return jsonResponse({ value: JSON.parse(String(init.body)).value })
       }
-      return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      return jsonResponse({
+        value: { favorites: [{ kind: 'module', id: 'base.text' }] },
+      })
     }) as typeof fetch
 
     loadSite()
@@ -115,8 +115,8 @@ describe('ModuleInserterDialog favorites', () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init })
-      if (!init?.method) return jsonResponse({ value: { favorites: [] } })
-      return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      if (init?.method === 'PUT') return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      return jsonResponse({ value: { favorites: [] } })
     }) as typeof fetch
 
     loadSite()

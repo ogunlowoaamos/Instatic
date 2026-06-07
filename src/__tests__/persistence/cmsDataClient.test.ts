@@ -106,7 +106,7 @@ describe('CMS data client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify(update))
@@ -146,7 +146,7 @@ describe('CMS data client', () => {
       init: {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify(input))
@@ -179,7 +179,7 @@ describe('CMS data client', () => {
       init: {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[1].init?.body).toBe(JSON.stringify({ cells: { title: 'Hello' } }))
@@ -254,7 +254,7 @@ describe('CMS data client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify(draft))
@@ -283,7 +283,7 @@ describe('CMS data client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify({ status: 'unpublished' }))
@@ -308,7 +308,7 @@ describe('CMS data client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify({ tableId: 'products' }))
@@ -333,7 +333,7 @@ describe('CMS data client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify({ authorUserId: 'user_author_2' }))

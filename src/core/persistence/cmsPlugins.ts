@@ -5,15 +5,13 @@ import type {
   PluginManifest,
   PluginPermission,
 } from '@core/plugin-sdk'
-import { readEnvelope, assertOk } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 import {
   CmsPluginPackInstallSummarySchema,
   CmsPluginSchedulesResponseEnvelopeSchema,
   CmsPluginScheduleRunOutcomeEnvelopeSchema,
 } from './responseSchemas'
 import type { CmsPluginPackInstallSummary } from './responseSchemas'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 // ---------------------------------------------------------------------------
 // Envelope schemas
@@ -63,11 +61,11 @@ export async function listCmsPlugins(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPluginsPayload> {
-  const res = await fetchImpl(`${basePath}/plugins`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/plugins`, {
+    schema: PluginsListEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugins request failed',
   })
-  const body = await readEnvelope(res, PluginsListEnvelope, `CMS plugins failed with ${res.status}`)
   return emptyPayload(body as Partial<CmsPluginsPayload>)
 }
 
@@ -77,17 +75,16 @@ export async function installCmsPluginManifest(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ plugin?: InstalledPlugin } & CmsPluginsPayload> {
-  const res = await fetchImpl(`${basePath}/plugins`, {
+  const body = await apiRequest(`${basePath}/plugins`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(
+    body:
       grantedPermissions.length > 0
         ? { manifest, grantedPermissions }
         : manifest,
-    ),
+    schema: PluginActionEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin install failed',
   })
-  const body = await readEnvelope(res, PluginActionEnvelope, `CMS plugin install failed with ${res.status}`)
   return {
     plugin: body.plugin as InstalledPlugin | undefined,
     ...emptyPayload(body as Partial<CmsPluginsPayload>),
@@ -101,12 +98,13 @@ export async function inspectCmsPluginPackage(
 ): Promise<PluginManifest> {
   const formData = new FormData()
   formData.set('file', file)
-  const res = await fetchImpl(`${basePath}/plugins/inspect-package`, {
+  const body = await apiRequest(`${basePath}/plugins/inspect-package`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
+    schema: ManifestEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin package inspection failed',
   })
-  const body = await readEnvelope(res, ManifestEnvelope, `CMS plugin package inspection failed with ${res.status}`)
   if (!body.manifest) throw new Error('CMS plugin package inspection response was missing manifest')
   return body.manifest as PluginManifest
 }
@@ -121,12 +119,13 @@ export async function installCmsPluginPackage(
   formData.set('file', file)
   formData.set('grantedPermissions', JSON.stringify(grantedPermissions))
 
-  const res = await fetchImpl(`${basePath}/plugins/package`, {
+  const body = await apiRequest(`${basePath}/plugins/package`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
+    schema: PluginActionEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin package install failed',
   })
-  const body = await readEnvelope(res, PluginActionEnvelope, `CMS plugin package install failed with ${res.status}`)
   return {
     plugin: body.plugin as InstalledPlugin | undefined,
     ...emptyPayload(body as Partial<CmsPluginsPayload>),
@@ -139,13 +138,13 @@ export async function setCmsPluginEnabled(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ plugin?: InstalledPlugin } & CmsPluginsPayload> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}`, {
+  const body = await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ enabled }),
+    body: { enabled },
+    schema: PluginActionEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin update failed',
   })
-  const body = await readEnvelope(res, PluginActionEnvelope, `CMS plugin update failed with ${res.status}`)
   return {
     plugin: body.plugin as InstalledPlugin | undefined,
     ...emptyPayload(body as Partial<CmsPluginsPayload>),
@@ -157,11 +156,11 @@ export async function removeCmsPlugin(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}`, {
+  await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS plugin delete failed',
   })
-  await assertOk(res, `CMS plugin delete failed with ${res.status}`)
 }
 
 /**
@@ -176,11 +175,12 @@ export async function restartCmsPlugin(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ plugin?: InstalledPlugin } & CmsPluginsPayload> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/restart`, {
+  const body = await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}/restart`, {
     method: 'POST',
-    credentials: 'include',
+    schema: PluginActionEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin restart failed',
   })
-  const body = await readEnvelope(res, PluginActionEnvelope, `CMS plugin restart failed with ${res.status}`)
   return {
     plugin: body.plugin as InstalledPlugin | undefined,
     ...emptyPayload(body as Partial<CmsPluginsPayload>),
@@ -192,11 +192,12 @@ export async function installCmsPluginPack(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPluginPackInstallSummary> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/pack/install`, {
+  return apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}/pack/install`, {
     method: 'POST',
-    credentials: 'include',
+    schema: CmsPluginPackInstallSummarySchema,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin pack install failed',
   })
-  return readEnvelope(res, CmsPluginPackInstallSummarySchema, `CMS plugin pack install failed with ${res.status}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -224,15 +225,11 @@ export async function getCmsPluginSettings(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPluginSettingsResponse> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
+    schema: PluginSettingsEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin settings load failed',
   })
-  const body = await readEnvelope(
-    res,
-    PluginSettingsEnvelope,
-    `CMS plugin settings load failed with ${res.status}`,
-  )
   return {
     schema: (body.schema as PluginSettingsSchema | undefined) ?? [],
     settings: (body.settings as PluginSettingsRecord | undefined) ?? {},
@@ -245,17 +242,13 @@ export async function updateCmsPluginSettings(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<PluginSettingsRecord> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
+  const body = await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}/settings`, {
     method: 'PUT',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ settings }),
+    body: { settings },
+    schema: PluginSettingsEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin settings update failed',
   })
-  const body = await readEnvelope(
-    res,
-    PluginSettingsEnvelope,
-    `CMS plugin settings update failed with ${res.status}`,
-  )
   return (body.settings as PluginSettingsRecord | undefined) ?? {}
 }
 
@@ -299,14 +292,11 @@ export async function listCmsPluginSchedules(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPluginSchedulesResponse> {
-  const res = await fetchImpl(`${basePath}/plugins/${encodeURIComponent(pluginId)}/schedules`, {
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/plugins/${encodeURIComponent(pluginId)}/schedules`, {
+    schema: CmsPluginSchedulesResponseEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin schedules list failed',
   })
-  const body = await readEnvelope(
-    res,
-    CmsPluginSchedulesResponseEnvelopeSchema,
-    `CMS plugin schedules list failed with ${res.status}`,
-  )
   return {
     // Deep types: schema uses Type.Unknown() because CmsPluginScheduleSummary
     // has a `cadence: unknown` field; cast after envelope validation.
@@ -322,8 +312,12 @@ export async function runCmsPluginScheduleNow(
   basePath = '/admin/api/cms',
 ): Promise<{ outcome: { ok: boolean; status: string; error?: string; durationMs: number } }> {
   const url = `${basePath}/plugins/${encodeURIComponent(pluginId)}/schedules/${encodeURIComponent(scheduleId)}/run-now`
-  const res = await fetchImpl(url, { method: 'POST', credentials: 'include' })
-  return readEnvelope(res, CmsPluginScheduleRunOutcomeEnvelopeSchema, `CMS plugin schedule run-now failed with ${res.status}`)
+  return apiRequest(url, {
+    method: 'POST',
+    schema: CmsPluginScheduleRunOutcomeEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin schedule run-now failed',
+  })
 }
 
 export async function pauseCmsPluginSchedule(
@@ -333,8 +327,7 @@ export async function pauseCmsPluginSchedule(
   basePath = '/admin/api/cms',
 ): Promise<void> {
   const url = `${basePath}/plugins/${encodeURIComponent(pluginId)}/schedules/${encodeURIComponent(scheduleId)}/pause`
-  const res = await fetchImpl(url, { method: 'POST', credentials: 'include' })
-  await assertOk(res, `CMS plugin schedule pause failed with ${res.status}`)
+  await apiRequest(url, { method: 'POST', fetchImpl, fallbackMessage: 'CMS plugin schedule pause failed' })
 }
 
 export async function resumeCmsPluginSchedule(
@@ -344,6 +337,5 @@ export async function resumeCmsPluginSchedule(
   basePath = '/admin/api/cms',
 ): Promise<void> {
   const url = `${basePath}/plugins/${encodeURIComponent(pluginId)}/schedules/${encodeURIComponent(scheduleId)}/resume`
-  const res = await fetchImpl(url, { method: 'POST', credentials: 'include' })
-  await assertOk(res, `CMS plugin schedule resume failed with ${res.status}`)
+  await apiRequest(url, { method: 'POST', fetchImpl, fallbackMessage: 'CMS plugin schedule resume failed' })
 }

@@ -52,7 +52,7 @@ describe('CMS plugin records client', () => {
       init: {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[1].init?.body).toBe(JSON.stringify({ data: { title: 'The Dispossessed' } }))
@@ -116,7 +116,7 @@ describe('CMS plugin records client', () => {
       init: {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify({ data: { title: 'Solaris' } }))

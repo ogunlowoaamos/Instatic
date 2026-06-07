@@ -1,14 +1,12 @@
 import { reconcileSiteExplorerOrganization, type SiteDocument, type SiteShell } from '@core/page-tree'
 import type { IPersistenceAdapter } from './types'
 import { parseJsonResponse } from '@core/utils/jsonValidate'
-import { assertOk } from '@core/http'
+import { apiRequest, assertOk, type FetchLike } from '@core/http'
 import { CmsSiteEnvelopeSchema, CmsPagesEnvelopeSchema, CmsComponentsEnvelopeSchema } from './responseSchemas'
 import { validateSite, validatePages, validateVisualComponents } from './validate'
 import { pageFromRow } from '@core/data/pageFromRow'
 import { visualComponentFromRow } from '@core/data/componentFromRow'
 import type { VisualComponent } from '@core/visualComponents'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
@@ -37,32 +35,28 @@ export class CmsAdapter implements IPersistenceAdapter {
     // Extract shell (strip pages and visualComponents from the full SiteDocument)
     const { pages, visualComponents, ...shell } = site
 
-    const shellRes = await this.fetchImpl(`${this.basePath}/site`, {
+    await apiRequest(`${this.basePath}/site`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ site: shell }),
+      body: { site: shell },
+      fetchImpl: this.fetchImpl,
+      fallbackMessage: 'CMS shell save failed',
     })
-    await assertOk(shellRes, `CMS shell save failed with ${shellRes.status}`)
 
     // Pages and components can be written in parallel — neither depends on the other.
-    const [pagesRes, componentsRes] = await Promise.all([
-      this.fetchImpl(`${this.basePath}/pages`, {
+    await Promise.all([
+      apiRequest(`${this.basePath}/pages`, {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(baselinePageIds ? { pages, baselinePageIds } : { pages }),
+        body: baselinePageIds ? { pages, baselinePageIds } : { pages },
+        fetchImpl: this.fetchImpl,
+        fallbackMessage: 'CMS pages save failed',
       }),
-      this.fetchImpl(`${this.basePath}/components`, {
+      apiRequest(`${this.basePath}/components`, {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ components: visualComponents }),
+        body: { components: visualComponents },
+        fetchImpl: this.fetchImpl,
+        fallbackMessage: 'CMS components save failed',
       }),
     ])
-
-    await assertOk(pagesRes, `CMS pages save failed with ${pagesRes.status}`)
-    await assertOk(componentsRes, `CMS components save failed with ${componentsRes.status}`)
   }
 
   /**

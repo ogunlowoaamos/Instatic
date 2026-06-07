@@ -16,7 +16,7 @@
  */
 
 import type { FontEntry } from '@core/fonts'
-import { readEnvelope, assertOk } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 import {
   type CmsFontEstimateDto,
   CmsFontEntryEnvelopeSchema,
@@ -25,23 +25,17 @@ import {
   type GoogleFontFamilyDto,
 } from './responseSchemas'
 
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
 const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
 export async function listCmsGoogleFonts(
   fetchImpl: FetchLike = defaultFetch,
   basePath = '/admin/api/cms',
 ): Promise<GoogleFontFamilyDto[]> {
-  const res = await fetchImpl(`${basePath}/fonts/google`, {
-    method: 'GET',
-    credentials: 'include',
+  const payload = await apiRequest(`${basePath}/fonts/google`, {
+    schema: CmsGoogleFontsEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'Google fonts list failed',
   })
-  const payload = await readEnvelope(
-    res,
-    CmsGoogleFontsEnvelopeSchema,
-    `Google fonts list failed with ${res.status}`,
-  )
   return payload.families
 }
 
@@ -63,14 +57,14 @@ export async function estimateCmsGoogleFont(
   basePath = '/admin/api/cms',
   init?: { signal?: AbortSignal },
 ): Promise<CmsFontEstimateDto> {
-  const res = await fetchImpl(`${basePath}/fonts/estimate`, {
+  return apiRequest(`${basePath}/fonts/estimate`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(request),
+    body: request,
+    schema: CmsFontEstimateEnvelopeSchema,
     signal: init?.signal,
+    fetchImpl,
+    fallbackMessage: 'Font estimate failed',
   })
-  return readEnvelope(res, CmsFontEstimateEnvelopeSchema, `Font estimate failed with ${res.status}`)
 }
 
 export async function installCmsGoogleFont(
@@ -78,19 +72,15 @@ export async function installCmsGoogleFont(
   fetchImpl: FetchLike = defaultFetch,
   basePath = '/admin/api/cms',
 ): Promise<FontEntry> {
-  const res = await fetchImpl(`${basePath}/fonts/install`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(request),
-  })
   // The envelope validates the inner shape against the canonical
   // `FontEntrySchema`, so `payload.font` is already a fully-typed FontEntry.
-  const payload = await readEnvelope(
-    res,
-    CmsFontEntryEnvelopeSchema,
-    `Font install failed with ${res.status}`,
-  )
+  const payload = await apiRequest(`${basePath}/fonts/install`, {
+    method: 'POST',
+    body: request,
+    schema: CmsFontEntryEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'Font install failed',
+  })
   return payload.font
 }
 
@@ -110,17 +100,13 @@ export async function registerCustomFont(
   fetchImpl: FetchLike = defaultFetch,
   basePath = '/admin/api/cms',
 ): Promise<FontEntry> {
-  const res = await fetchImpl(`${basePath}/fonts/custom`, {
+  const payload = await apiRequest(`${basePath}/fonts/custom`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(request),
+    body: request,
+    schema: CmsFontEntryEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'Custom font registration failed',
   })
-  const payload = await readEnvelope(
-    res,
-    CmsFontEntryEnvelopeSchema,
-    `Custom font registration failed with ${res.status}`,
-  )
   return payload.font
 }
 
@@ -129,9 +115,9 @@ export async function deleteCmsFontFamily(
   fetchImpl: FetchLike = defaultFetch,
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/fonts/family/${encodeURIComponent(family)}`, {
+  await apiRequest(`${basePath}/fonts/family/${encodeURIComponent(family)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'Font delete failed',
   })
-  await assertOk(res, `Font delete failed with ${res.status}`)
 }

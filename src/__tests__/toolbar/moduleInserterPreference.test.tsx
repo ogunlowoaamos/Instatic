@@ -56,12 +56,14 @@ describe('useModuleInserterPreference', () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init })
-      if (!init?.method) {
-        return jsonResponse({
-          value: { favorites: [{ kind: 'module', id: 'base.text' }] },
-        })
+      if (init?.method === 'PUT') {
+        return jsonResponse({ value: JSON.parse(String(init.body)).value })
       }
-      return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      // Reads (GET) — apiRequest sets method explicitly, so treat anything
+      // that isn't a PUT as the load path.
+      return jsonResponse({
+        value: { favorites: [{ kind: 'module', id: 'base.text' }] },
+      })
     }) as typeof fetch
 
     const { result } = renderHook(() => useModuleInserterPreference())
@@ -86,12 +88,14 @@ describe('useModuleInserterPreference', () => {
 
   it('keeps separate hook consumers in sync when favorites change', async () => {
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (!init?.method) {
-        return jsonResponse({
-          value: { favorites: [{ kind: 'module', id: 'base.text' }] },
-        })
+      if (init?.method === 'PUT') {
+        return jsonResponse({ value: JSON.parse(String(init.body)).value })
       }
-      return jsonResponse({ value: JSON.parse(String(init.body)).value })
+      // Reads (GET) — apiRequest sets method explicitly, so treat anything
+      // that isn't a PUT as the load path.
+      return jsonResponse({
+        value: { favorites: [{ kind: 'module', id: 'base.text' }] },
+      })
     }) as typeof fetch
 
     const first = renderHook(() => useModuleInserterPreference())

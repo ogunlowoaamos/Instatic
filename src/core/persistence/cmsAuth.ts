@@ -5,7 +5,7 @@ import {
   type CmsSetupStatus,
 } from './responseSchemas'
 import { Type, type Static } from '@sinclair/typebox'
-import { readEnvelope, assertOk } from '@core/http'
+import { apiRequest, ApiError, type FetchLike } from '@core/http'
 
 interface CmsSetupInput {
   siteName: string
@@ -101,8 +101,6 @@ const CurrentUserEnvelope = Type.Object(
   { additionalProperties: true },
 )
 
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
 const CmsLoginResponseSchema = Type.Object({
   ok: Type.Boolean(),
   mfaRequired: Type.Optional(Type.Boolean()),
@@ -112,11 +110,11 @@ export async function getCmsSetupStatus(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsSetupStatus> {
-  const res = await fetchImpl(`${basePath}/setup/status`, {
-    method: 'GET',
-    credentials: 'include',
+  return apiRequest(`${basePath}/setup/status`, {
+    schema: CmsSetupStatusSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS setup status request failed',
   })
-  return readEnvelope(res, CmsSetupStatusSchema, `CMS setup status failed with ${res.status}`)
 }
 
 /**
@@ -129,11 +127,11 @@ export async function getCmsPublicSite(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPublicSite> {
-  const res = await fetchImpl(`${basePath}/public-site`, {
-    method: 'GET',
-    credentials: 'include',
+  return apiRequest(`${basePath}/public-site`, {
+    schema: CmsPublicSiteSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS public site identity request failed',
   })
-  return readEnvelope(res, CmsPublicSiteSchema, `CMS public site identity failed with ${res.status}`)
 }
 
 export async function setupCms(
@@ -141,13 +139,12 @@ export async function setupCms(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/setup`, {
+  await apiRequest(`${basePath}/setup`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    fetchImpl,
+    fallbackMessage: 'CMS setup failed',
   })
-  await assertOk(res, `CMS setup failed with ${res.status}`)
 }
 
 export async function loginCms(
@@ -155,13 +152,13 @@ export async function loginCms(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ mfaRequired: boolean }> {
-  const res = await fetchImpl(`${basePath}/login`, {
+  const body = await apiRequest(`${basePath}/login`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: CmsLoginResponseSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS login failed',
   })
-  const body = await readEnvelope(res, CmsLoginResponseSchema, `CMS login failed with ${res.status}`)
   return { mfaRequired: body.mfaRequired === true }
 }
 
@@ -170,50 +167,47 @@ export async function verifyCmsMfa(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/auth/mfa/verify`, {
+  await apiRequest(`${basePath}/auth/mfa/verify`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    fetchImpl,
+    fallbackMessage: 'CMS MFA verification failed',
   })
-  await assertOk(res, `CMS MFA verification failed with ${res.status}`)
 }
 
 export async function logoutCms(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/logout`, {
+  await apiRequest(`${basePath}/logout`, {
     method: 'POST',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS logout failed',
   })
-  await assertOk(res, `CMS logout failed with ${res.status}`)
 }
 
 export async function probeCmsSession(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<boolean> {
-  const res = await fetchImpl(`${basePath}/me`, {
-    method: 'GET',
-    credentials: 'include',
-  })
-
-  if (res.ok) return true
-  if (res.status === 401) return false
-  await assertOk(res, `CMS session check failed with ${res.status}`)
-  return false
+  try {
+    await apiRequest(`${basePath}/me`, { fetchImpl, fallbackMessage: 'CMS session check failed' })
+    return true
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return false
+    throw err
+  }
 }
 
 export async function getCurrentCmsUser(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/me`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/me`, {
+    schema: CurrentUserEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS current user request failed',
   })
-  const body = await readEnvelope(res, CurrentUserEnvelope, `CMS current user failed with ${res.status}`)
   return body.user
 }
 
@@ -269,16 +263,13 @@ export async function uploadCurrentUserAvatar(
 ): Promise<CmsCurrentUser> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetchImpl(`${basePath}/me/avatar`, {
+  const body = await apiRequest(`${basePath}/me/avatar`, {
     method: 'POST',
-    credentials: 'include',
     body: form,
+    schema: MeAvatarEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS avatar upload failed',
   })
-  const body = await readEnvelope(
-    res,
-    MeAvatarEnvelope,
-    `CMS avatar upload failed with ${res.status}`,
-  )
   return body.user
 }
 
@@ -291,15 +282,12 @@ export async function deleteCurrentUserAvatar(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/me/avatar`, {
+  const body = await apiRequest(`${basePath}/me/avatar`, {
     method: 'DELETE',
-    credentials: 'include',
+    schema: MeAvatarEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS avatar delete failed',
   })
-  const body = await readEnvelope(
-    res,
-    MeAvatarEnvelope,
-    `CMS avatar delete failed with ${res.status}`,
-  )
   return body.user
 }
 
@@ -308,17 +296,13 @@ export async function changeCurrentUserPassword(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/me/password`, {
+  const body = await apiRequest(`${basePath}/me/password`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: PasswordChangeEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS password change failed',
   })
-  const body = await readEnvelope(
-    res,
-    PasswordChangeEnvelope,
-    `CMS password change failed with ${res.status}`,
-  )
   return body.user
 }
 
@@ -326,15 +310,12 @@ export async function startCurrentUserTotpSetup(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ secret: string; otpauthUrl: string }> {
-  const res = await fetchImpl(`${basePath}/me/mfa/totp/start`, {
+  return apiRequest(`${basePath}/me/mfa/totp/start`, {
     method: 'POST',
-    credentials: 'include',
+    schema: TotpStartEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS MFA setup failed',
   })
-  return await readEnvelope(
-    res,
-    TotpStartEnvelope,
-    `CMS MFA setup failed with ${res.status}`,
-  )
 }
 
 export async function enableCurrentUserTotp(
@@ -342,17 +323,13 @@ export async function enableCurrentUserTotp(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ user: CmsCurrentUser; recoveryCodes: string[] }> {
-  const res = await fetchImpl(`${basePath}/me/mfa/totp/enable`, {
+  const body = await apiRequest(`${basePath}/me/mfa/totp/enable`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: RecoveryCodesEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS MFA enable failed',
   })
-  const body = await readEnvelope(
-    res,
-    RecoveryCodesEnvelope,
-    `CMS MFA enable failed with ${res.status}`,
-  )
   return { user: body.user, recoveryCodes: body.recoveryCodes }
 }
 
@@ -360,15 +337,12 @@ export async function disableCurrentUserTotp(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/me/mfa/totp`, {
+  const body = await apiRequest(`${basePath}/me/mfa/totp`, {
     method: 'DELETE',
-    credentials: 'include',
+    schema: MeUserEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS MFA disable failed',
   })
-  const body = await readEnvelope(
-    res,
-    MeUserEnvelope,
-    `CMS MFA disable failed with ${res.status}`,
-  )
   return body.user
 }
 
@@ -376,15 +350,12 @@ export async function regenerateCurrentUserRecoveryCodes(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ user: CmsCurrentUser; recoveryCodes: string[] }> {
-  const res = await fetchImpl(`${basePath}/me/mfa/recovery-codes`, {
+  const body = await apiRequest(`${basePath}/me/mfa/recovery-codes`, {
     method: 'POST',
-    credentials: 'include',
+    schema: RecoveryCodesEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS recovery code regeneration failed',
   })
-  const body = await readEnvelope(
-    res,
-    RecoveryCodesEnvelope,
-    `CMS recovery code regeneration failed with ${res.status}`,
-  )
   return { user: body.user, recoveryCodes: body.recoveryCodes }
 }
 
@@ -393,17 +364,13 @@ export async function updateCurrentUserStepUpSettings(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsCurrentUser> {
-  const res = await fetchImpl(`${basePath}/me/security/step-up`, {
+  const body = await apiRequest(`${basePath}/me/security/step-up`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: MeUserEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS step-up settings update failed',
   })
-  const body = await readEnvelope(
-    res,
-    MeUserEnvelope,
-    `CMS step-up settings update failed with ${res.status}`,
-  )
   return body.user
 }
 
@@ -442,11 +409,11 @@ export async function listCmsSessions(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsSession[]> {
-  const res = await fetchImpl(`${basePath}/auth/sessions`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/auth/sessions`, {
+    schema: CmsSessionsEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS sessions request failed',
   })
-  const body = await readEnvelope(res, CmsSessionsEnvelope, `CMS sessions failed with ${res.status}`)
   return body.sessions
 }
 
@@ -459,11 +426,11 @@ export async function revokeCmsSession(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${basePath}/auth/sessions/${encodeURIComponent(sessionId)}`, {
+  await apiRequest(`${basePath}/auth/sessions/${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS revoke session failed',
   })
-  await assertOk(res, `CMS revoke session failed with ${res.status}`)
 }
 
 // ─── Step-up auth ────────────────────────────────────────────────────────────
@@ -488,17 +455,13 @@ export async function stepUpCms(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ stepUpExpiresAt: string; user?: CmsCurrentUser }> {
-  const res = await fetchImpl(`${basePath}/auth/step-up`, {
+  const body = await apiRequest(`${basePath}/auth/step-up`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: CmsStepUpResponseSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS step-up failed',
   })
-  const body = await readEnvelope(
-    res,
-    CmsStepUpResponseSchema,
-    `CMS step-up failed with ${res.status}`,
-  )
   return {
     stepUpExpiresAt: body.stepUpExpiresAt,
     user: body.user,
@@ -510,8 +473,8 @@ export async function stepUpCms(
  * rejected the action because the session has no fresh step-up window.
  *
  * The wire format is `{ error: 'step_up_required' }` with HTTP 401. The
- * persistence helpers throw via `assertOk` / `readEnvelope` with the body's
- * `error` string, so the message is what we match against here.
+ * persistence helpers throw via `apiRequest` with the body's `error` string,
+ * so the message is what we match against here.
  */
 export function isStepUpRequiredError(err: unknown): boolean {
   return err instanceof Error && err.message === 'step_up_required'
@@ -559,15 +522,11 @@ export async function listCmsLoginActivity(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsLoginActivityEvent[]> {
-  const res = await fetchImpl(`${basePath}/auth/activity`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/auth/activity`, {
+    schema: CmsLoginActivityEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS login activity request failed',
   })
-  const body = await readEnvelope(
-    res,
-    CmsLoginActivityEnvelope,
-    `CMS login activity failed with ${res.status}`,
-  )
   return body.events
 }
 
@@ -580,14 +539,11 @@ export async function logoutAllOtherCmsSessions(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<number> {
-  const res = await fetchImpl(`${basePath}/auth/logout-all`, {
+  const body = await apiRequest(`${basePath}/auth/logout-all`, {
     method: 'POST',
-    credentials: 'include',
+    schema: CmsLogoutAllEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS logout-all failed',
   })
-  const body = await readEnvelope(
-    res,
-    CmsLogoutAllEnvelope,
-    `CMS logout-all failed with ${res.status}`,
-  )
   return body.revokedCount
 }

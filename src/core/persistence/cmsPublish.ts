@@ -1,4 +1,4 @@
-import { readEnvelope } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 import {
   CmsPublishResultSchema,
   CmsPublishStatusSchema,
@@ -6,26 +6,25 @@ import {
   type CmsPublishStatus,
 } from './responseSchemas'
 
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
 export async function publishCmsDraft(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPublishResult> {
-  const res = await fetchImpl(`${basePath}/publish`, {
+  return apiRequest(`${basePath}/publish`, {
     method: 'POST',
-    credentials: 'include',
+    schema: CmsPublishResultSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS publish failed',
   })
-  return readEnvelope(res, CmsPublishResultSchema, `CMS publish failed with ${res.status}`)
 }
 
 export async function getCmsPublishStatus(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsPublishStatus> {
-  const res = await fetchImpl(`${basePath}/publish/status`, {
-    method: 'GET',
-    credentials: 'include',
+  return apiRequest(`${basePath}/publish/status`, {
+    schema: CmsPublishStatusSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS publish status request failed',
   })
-  return readEnvelope(res, CmsPublishStatusSchema, `CMS publish status failed with ${res.status}`)
 }

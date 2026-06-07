@@ -39,7 +39,7 @@ describe('CMS auth client', () => {
     expect(calls[0].init).toMatchObject({
       method: 'POST',
       credentials: 'include',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
     })
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({
       siteName: 'Studio Site',

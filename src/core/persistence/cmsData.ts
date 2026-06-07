@@ -23,10 +23,7 @@ import type { SiteBundle } from '@core/data/bundleSchema'
 import { SiteBundleSchema } from '@core/data/bundleSchema'
 import type { LoopItem } from '@core/loops/types'
 import { LoopItemSchema } from '@core/loops/types'
-import { parseValue } from '@core/utils/typeboxHelpers'
-import { readEnvelope, responseErrorMessage } from '@core/http'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+import { apiRequest, assertOk, ApiError, type FetchLike } from '@core/http'
 
 // ---------------------------------------------------------------------------
 // Envelope schemas
@@ -70,11 +67,11 @@ export async function listCmsDataTables(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataTableListItem[]> {
-  const res = await fetchImpl(`${basePath}/data/tables`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/data/tables`, {
+    schema: TablesListEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data tables request failed',
   })
-  const body = await readEnvelope(res, TablesListEnvelope, `CMS data tables failed with ${res.status}`)
   return body.tables ?? []
 }
 
@@ -83,13 +80,17 @@ export async function getCmsDataTable(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataTable | null> {
-  const res = await fetchImpl(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
-    method: 'GET',
-    credentials: 'include',
-  })
-  if (res.status === 404) return null
-  const body = await readEnvelope(res, TableEnvelope, `CMS data table fetch failed with ${res.status}`)
-  return body.table ?? null
+  try {
+    const body = await apiRequest(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
+      schema: TableEnvelope,
+      fetchImpl,
+      fallbackMessage: 'CMS data table fetch failed',
+    })
+    return body.table ?? null
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
 }
 
 export async function getCmsDataTableBySlug(
@@ -106,13 +107,13 @@ export async function createCmsDataTable(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataTable> {
-  const res = await fetchImpl(`${basePath}/data/tables`, {
+  const body = await apiRequest(`${basePath}/data/tables`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: TableEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data table create failed',
   })
-  const body = await readEnvelope(res, TableEnvelope, `CMS data table create failed with ${res.status}`)
   if (!body.table) throw new Error('CMS data table create response was missing table')
   return body.table
 }
@@ -123,13 +124,13 @@ export async function updateCmsDataTable(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataTable> {
-  const res = await fetchImpl(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
+  const body = await apiRequest(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: TableEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data table update failed',
   })
-  const body = await readEnvelope(res, TableEnvelope, `CMS data table update failed with ${res.status}`)
   if (!body.table) throw new Error('CMS data table update response was missing table')
   return body.table
 }
@@ -139,11 +140,12 @@ export async function deleteCmsDataTable(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataTable> {
-  const res = await fetchImpl(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
+  const body = await apiRequest(`${basePath}/data/tables/${encodeURIComponent(tableId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    schema: TableEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data table delete failed',
   })
-  const body = await readEnvelope(res, TableEnvelope, `CMS data table delete failed with ${res.status}`)
   if (!body.table) throw new Error('CMS data table delete response was missing table')
   return body.table
 }
@@ -157,11 +159,10 @@ export async function listCmsDataRows(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow[]> {
-  const res = await fetchImpl(
+  const body = await apiRequest(
     `${basePath}/data/tables/${encodeURIComponent(tableId)}/rows`,
-    { method: 'GET', credentials: 'include' },
+    { schema: RowsListEnvelope, fetchImpl, fallbackMessage: 'CMS data rows request failed' },
   )
-  const body = await readEnvelope(res, RowsListEnvelope, `CMS data rows failed with ${res.status}`)
   return body.rows ?? []
 }
 
@@ -171,16 +172,10 @@ export async function createCmsDataRow(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(
+  const body = await apiRequest(
     `${basePath}/data/tables/${encodeURIComponent(tableId)}/rows`,
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(input),
-    },
+    { method: 'POST', body: input, schema: RowEnvelope, fetchImpl, fallbackMessage: 'CMS data row create failed' },
   )
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row create failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row create response was missing row')
   return body.row
 }
@@ -191,13 +186,13 @@ export async function saveCmsDataRowDraft(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row save failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row save failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row save response was missing row')
   return body.row
 }
@@ -207,15 +202,12 @@ export async function deleteCmsDataRow(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DeletedRowSummary> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    schema: DeletedRowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row delete failed',
   })
-  const body = await readEnvelope(
-    res,
-    DeletedRowEnvelope,
-    `CMS data row delete failed with ${res.status}`,
-  )
   if (!body.row) throw new Error('CMS data row delete response was missing row')
   return body.row
 }
@@ -225,11 +217,12 @@ export async function publishCmsDataRow(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/publish`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/publish`, {
     method: 'POST',
-    credentials: 'include',
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row publish failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row publish failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row publish response was missing row')
   return body.row
 }
@@ -247,13 +240,13 @@ export async function scheduleCmsDataRowPublish(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/schedule`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/schedule`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ at: atIso }),
+    body: { at: atIso },
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row schedule failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row schedule failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row schedule response was missing row')
   return body.row
 }
@@ -268,11 +261,12 @@ export async function cancelCmsDataRowSchedule(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/schedule`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/schedule`, {
     method: 'DELETE',
-    credentials: 'include',
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row schedule cancel failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row schedule cancel failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row schedule cancel response was missing row')
   return body.row
 }
@@ -289,13 +283,13 @@ export async function updateCmsDataRowStatus(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/status`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/status`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: { status },
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row status update failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row status update failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row status response was missing row')
   return body.row
 }
@@ -306,13 +300,13 @@ export async function updateCmsDataRowAuthor(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/author`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/author`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ authorUserId }),
+    body: { authorUserId },
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row author update failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row author update failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row author response was missing row')
   return body.row
 }
@@ -323,13 +317,13 @@ export async function updateCmsDataRowTable(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataRow> {
-  const res = await fetchImpl(`${basePath}/data/rows/${encodeURIComponent(rowId)}/table`, {
+  const body = await apiRequest(`${basePath}/data/rows/${encodeURIComponent(rowId)}/table`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tableId }),
+    body: { tableId },
+    schema: RowEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data row table update failed',
   })
-  const body = await readEnvelope(res, RowEnvelope, `CMS data row table update failed with ${res.status}`)
   if (!body.row) throw new Error('CMS data row table response was missing row')
   return body.row
 }
@@ -368,21 +362,19 @@ export async function previewCmsDataLoopItems(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataLoopPreviewResult> {
-  const params = new URLSearchParams()
-  if (options.orderBy) params.set('orderBy', options.orderBy)
-  if (options.direction) params.set('direction', options.direction)
-  if (typeof options.limit === 'number') params.set('limit', String(options.limit))
-  if (typeof options.offset === 'number') params.set('offset', String(options.offset))
-  const query = params.toString()
-  const suffix = query ? `?${query}` : ''
-  const res = await fetchImpl(
-    `${basePath}/data/tables/${encodeURIComponent(tableId)}/loop-preview${suffix}`,
-    { method: 'GET', credentials: 'include' },
-  )
-  const body = await readEnvelope(
-    res,
-    LoopPreviewEnvelope,
-    `CMS data loop preview failed with ${res.status}`,
+  const body = await apiRequest(
+    `${basePath}/data/tables/${encodeURIComponent(tableId)}/loop-preview`,
+    {
+      query: {
+        orderBy: options.orderBy,
+        direction: options.direction,
+        limit: options.limit,
+        offset: options.offset,
+      },
+      schema: LoopPreviewEnvelope,
+      fetchImpl,
+      fallbackMessage: 'CMS data loop preview failed',
+    },
   )
   return {
     items: body.items ?? [],
@@ -394,7 +386,8 @@ export async function previewCmsDataLoopItems(
 // Live-mode preview — renders an entry through the real publish pipeline
 // using the draft cells from the editor's in-memory state. The response
 // is the full HTML document (sandboxed in an iframe on the client side)
-// rather than JSON, so we side-step the envelope helper.
+// rather than JSON, so we perform the fetch directly and return text after
+// asserting the response is OK.
 // ---------------------------------------------------------------------------
 
 export interface PreviewCmsDataRowOptions {
@@ -419,12 +412,9 @@ export async function previewCmsDataRow(
     body: JSON.stringify({ cells: options.cells ?? {} }),
     signal: options.signal,
   })
-  if (!res.ok) {
-    // The preview endpoint emits the standard `{ error }` JSON envelope on
-    // failure; responseErrorMessage prefers that, then raw text, then fallback.
-    const message = await responseErrorMessage(res, `CMS data row preview failed with ${res.status}`)
-    throw new Error(message)
-  }
+  // The preview endpoint returns an HTML document on success; assertOk reads the
+  // standard `{ error }` envelope (then raw text, then fallback) on failure.
+  await assertOk(res, `CMS data row preview failed with ${res.status}`)
   return await res.text()
 }
 
@@ -436,11 +426,11 @@ export async function listCmsDataAuthors(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<DataUserReference[]> {
-  const res = await fetchImpl(`${basePath}/data/authors`, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(`${basePath}/data/authors`, {
+    schema: AuthorsListEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data authors request failed',
   })
-  const body = await readEnvelope(res, AuthorsListEnvelope, `CMS data authors failed with ${res.status}`)
   return body.authors ?? []
 }
 
@@ -458,8 +448,11 @@ export async function getDataMeta(
 ): Promise<DataMeta> {
   const fetchImpl = options?.fetchImpl ?? globalThis.fetch.bind(globalThis)
   const basePath = options?.basePath ?? '/admin/api/cms'
-  const res = await fetchImpl(`${basePath}/data/_meta`, { credentials: 'include' })
-  const body = await readEnvelope(res, DataMetaEnvelope, `CMS data meta failed with ${res.status}`)
+  const body = await apiRequest(`${basePath}/data/_meta`, {
+    schema: DataMetaEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS data meta request failed',
+  })
   return body.meta
 }
 
@@ -476,16 +469,12 @@ export async function exportCmsBundle(
 ): Promise<SiteBundle> {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
   const basePath = options.basePath ?? '/admin/api/cms'
-  const query = options.includeMedia ? '?media=1' : ''
-  const res = await fetchImpl(`${basePath}/export${query}`, {
-    method: 'GET',
-    credentials: 'include',
+  return apiRequest(`${basePath}/export`, {
+    query: { media: options.includeMedia ? 1 : undefined },
+    schema: SiteBundleSchema,
+    fetchImpl,
+    fallbackMessage: 'CMS export failed',
   })
-  if (!res.ok) {
-    throw new Error(`CMS export failed with ${res.status}`)
-  }
-  const raw: unknown = await res.json()
-  return parseValue(SiteBundleSchema, raw)
 }
 
 const ImportResultEnvelope = Type.Object(
@@ -515,13 +504,13 @@ export async function importCmsBundle(
 ): Promise<ImportBundleResult> {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
   const basePath = options.basePath ?? '/admin/api/cms'
-  const res = await fetchImpl(`${basePath}/import`, {
+  const body = await apiRequest(`${basePath}/import`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(bundle),
+    body: bundle,
+    schema: ImportResultEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS import failed',
   })
-  const body = await readEnvelope(res, ImportResultEnvelope, `CMS import failed with ${res.status}`)
   return {
     tableCount: body.tableCount ?? 0,
     rowCount: body.rowCount ?? 0,

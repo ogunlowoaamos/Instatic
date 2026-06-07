@@ -103,7 +103,7 @@ describe('editor plugin runtime SDK', () => {
       init: {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       },
     })
     expect(calls[0].init?.body).toBe(JSON.stringify({

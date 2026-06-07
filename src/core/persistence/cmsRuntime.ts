@@ -6,14 +6,12 @@ import type {
 } from '@core/site-runtime'
 import type { SitePackageJson } from '@core/site-dependencies/manifest'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
-import { readEnvelope } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 import {
   CmsRuntimeDependencyEnvelopeSchema,
   CmsRuntimePreviewResponseSchema,
   type CmsRuntimePreviewAsset,
 } from './responseSchemas'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 export type { CmsRuntimePreviewAsset }
 
@@ -48,20 +46,16 @@ export async function resolveCmsRuntimeDependencies(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsRuntimeDependencyResolveResult> {
-  const res = await fetchImpl(`${basePath}/runtime/dependencies/resolve`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ packageJson }),
-  })
   // The envelope schema validates SiteDependencyLock + RuntimePackageImportmap
   // in full (both own canonical schemas in @core/site-runtime), so the parsed
   // body is already correctly typed — no cast needed.
-  const body = await readEnvelope(
-    res,
-    CmsRuntimeDependencyEnvelopeSchema,
-    `Runtime dependency resolution failed with ${res.status}`,
-  )
+  const body = await apiRequest(`${basePath}/runtime/dependencies/resolve`, {
+    method: 'POST',
+    body: { packageJson },
+    schema: CmsRuntimeDependencyEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: 'Runtime dependency resolution failed',
+  })
   return {
     dependencyLock: body.dependencyLock,
     ...(body.packageImportmap ? { packageImportmap: body.packageImportmap } : {}),
@@ -73,20 +67,16 @@ export async function buildCmsRuntimePreview(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<CmsRuntimePreviewResult> {
-  const res = await fetchImpl(`${basePath}/runtime/preview`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
-  })
   // The envelope schema validates the assets, runtimeAssets, and diagnostics
   // shapes in full against the canonical @core/site-runtime schemas, so the
   // parsed body matches CmsRuntimePreviewResult directly — no cast needed.
-  const body = await readEnvelope(
-    res,
-    CmsRuntimePreviewResponseSchema,
-    `Runtime preview build failed with ${res.status}`,
-  )
+  const body = await apiRequest(`${basePath}/runtime/preview`, {
+    method: 'POST',
+    body: input,
+    schema: CmsRuntimePreviewResponseSchema,
+    fetchImpl,
+    fallbackMessage: 'Runtime preview build failed',
+  })
   return {
     html: body.html,
     assets: body.assets,

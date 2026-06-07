@@ -31,7 +31,7 @@
  */
 import type { TSchema } from '@sinclair/typebox'
 import { Type, type Static } from '@core/utils/typeboxHelpers'
-import { readEnvelope, responseErrorMessage } from '@core/http'
+import { apiRequest, type FetchLike } from '@core/http'
 
 // ---------------------------------------------------------------------------
 // Per-key value schemas
@@ -160,8 +160,6 @@ import { parseValue } from '@core/utils/typeboxHelpers'
 // Client helpers
 // ---------------------------------------------------------------------------
 
-type FetchLike = typeof globalThis.fetch
-
 const BASE_PATH = '/admin/api/cms/me/preferences'
 
 /**
@@ -175,15 +173,11 @@ export async function getUserPreference<K extends UserPreferenceKey>(
   key: K,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
 ): Promise<UserPreferenceValue<K> | null> {
-  const res = await fetchImpl(`${BASE_PATH}/${encodeURIComponent(key)}`, {
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
+  const envelope = await apiRequest(`${BASE_PATH}/${encodeURIComponent(key)}`, {
+    schema: PreferenceEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: `Failed to load user preference "${key}"`,
   })
-  const envelope = await readEnvelope(
-    res,
-    PreferenceEnvelopeSchema,
-    `Failed to load user preference "${key}"`,
-  )
   // `value: null` is the server's "never set" signal — every pref value
   // schema is an object, never null, so this is unambiguous.
   if (envelope.value === null) return null
@@ -201,17 +195,13 @@ export async function setUserPreference<K extends UserPreferenceKey>(
   value: UserPreferenceValue<K>,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
 ): Promise<UserPreferenceValue<K>> {
-  const res = await fetchImpl(`${BASE_PATH}/${encodeURIComponent(key)}`, {
+  const envelope = await apiRequest(`${BASE_PATH}/${encodeURIComponent(key)}`, {
     method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ value }),
+    body: { value },
+    schema: PreferenceEnvelopeSchema,
+    fetchImpl,
+    fallbackMessage: `Failed to save user preference "${key}"`,
   })
-  const envelope = await readEnvelope(
-    res,
-    PreferenceEnvelopeSchema,
-    `Failed to save user preference "${key}"`,
-  )
   return parseValue(USER_PREFERENCE_SCHEMAS[key], envelope.value) as UserPreferenceValue<K>
 }
 
@@ -223,11 +213,9 @@ export async function deleteUserPreference<K extends UserPreferenceKey>(
   key: K,
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
 ): Promise<void> {
-  const res = await fetchImpl(`${BASE_PATH}/${encodeURIComponent(key)}`, {
+  await apiRequest(`${BASE_PATH}/${encodeURIComponent(key)}`, {
     method: 'DELETE',
-    credentials: 'same-origin',
+    fetchImpl,
+    fallbackMessage: `Failed to reset user preference "${key}"`,
   })
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, `Failed to reset user preference "${key}"`))
-  }
 }

@@ -1,9 +1,7 @@
 import { Type } from '@sinclair/typebox'
 import { PluginRecordSchema, type PluginRecord, type PluginResource } from '@core/plugin-sdk'
 import type { StorageListOptions } from '@core/plugin-sdk/storageSchemas'
-import { readEnvelope, assertOk } from '@core/http'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+import { apiRequest, type FetchLike } from '@core/http'
 
 interface PluginRecordsPayload {
   resource?: PluginResource
@@ -54,11 +52,11 @@ export async function listCmsPluginResourceRecords(
   options?: StorageListOptions,
 ): Promise<{ records: PluginRecord[]; totalCount: number }> {
   const url = recordsPath(basePath, pluginId, resourceId) + buildQueryString(options)
-  const res = await fetchImpl(url, {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(url, {
+    schema: PluginRecordsEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin records request failed',
   })
-  const body = await readEnvelope(res, PluginRecordsEnvelope, `CMS plugin records failed with ${res.status}`)
   const cast = body as PluginRecordsPayload
   return {
     records: Array.isArray(cast.records) ? cast.records : [],
@@ -72,11 +70,11 @@ export async function getCmsPluginResource(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<{ resource: PluginResource; records: PluginRecord[]; totalCount: number }> {
-  const res = await fetchImpl(recordsPath(basePath, pluginId, resourceId), {
-    method: 'GET',
-    credentials: 'include',
+  const body = await apiRequest(recordsPath(basePath, pluginId, resourceId), {
+    schema: PluginRecordsEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin resource request failed',
   })
-  const body = await readEnvelope(res, PluginRecordsEnvelope, `CMS plugin resource failed with ${res.status}`)
   const cast = body as PluginRecordsPayload
   if (!cast.resource) throw new Error('CMS plugin resource response was missing resource')
   return {
@@ -93,13 +91,13 @@ export async function createCmsPluginResourceRecord(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<PluginRecord> {
-  const res = await fetchImpl(recordsPath(basePath, pluginId, resourceId), {
+  const body = await apiRequest(recordsPath(basePath, pluginId, resourceId), {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ data }),
+    body: { data },
+    schema: RecordEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin record create failed',
   })
-  const body = await readEnvelope(res, RecordEnvelope, `CMS plugin record create failed with ${res.status}`)
   if (!body.record) throw new Error('CMS plugin record create response was missing record')
   return body.record
 }
@@ -112,13 +110,13 @@ export async function updateCmsPluginResourceRecord(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<PluginRecord> {
-  const res = await fetchImpl(`${recordsPath(basePath, pluginId, resourceId)}/${encodeURIComponent(recordId)}`, {
+  const body = await apiRequest(`${recordsPath(basePath, pluginId, resourceId)}/${encodeURIComponent(recordId)}`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ data }),
+    body: { data },
+    schema: RecordEnvelope,
+    fetchImpl,
+    fallbackMessage: 'CMS plugin record update failed',
   })
-  const body = await readEnvelope(res, RecordEnvelope, `CMS plugin record update failed with ${res.status}`)
   if (!body.record) throw new Error('CMS plugin record update response was missing record')
   return body.record
 }
@@ -130,9 +128,9 @@ export async function deleteCmsPluginResourceRecord(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
   basePath = '/admin/api/cms',
 ): Promise<void> {
-  const res = await fetchImpl(`${recordsPath(basePath, pluginId, resourceId)}/${encodeURIComponent(recordId)}`, {
+  await apiRequest(`${recordsPath(basePath, pluginId, resourceId)}/${encodeURIComponent(recordId)}`, {
     method: 'DELETE',
-    credentials: 'include',
+    fetchImpl,
+    fallbackMessage: 'CMS plugin record delete failed',
   })
-  await assertOk(res, `CMS plugin record delete failed with ${res.status}`)
 }

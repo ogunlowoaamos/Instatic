@@ -22,10 +22,8 @@ import type {
   MediaStorageServingMode,
   MediaStorageVerifyResult,
 } from '@core/plugin-sdk'
-import { readEnvelope, responseErrorMessage } from '@core/http'
+import { apiRequest, responseErrorMessage, type FetchLike } from '@core/http'
 import { safeParseJson } from '@core/utils/jsonValidate'
-
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 // ---------------------------------------------------------------------------
 // Wire shapes
@@ -184,15 +182,11 @@ function resolveClient(opts: ClientBase | undefined) {
 
 export async function getCmsMediaStorageState(opts?: ClientBase): Promise<CmsMediaStorageState> {
   const { fetchImpl, basePath } = resolveClient(opts)
-  const res = await fetchImpl(`${basePath}/media/storage`, {
-    method: 'GET',
-    credentials: 'include',
+  const body: StorageStateBody = await apiRequest(`${basePath}/media/storage`, {
+    schema: StorageStateEnvelope,
+    fetchImpl,
+    fallbackMessage: 'Media storage state failed',
   })
-  const body: StorageStateBody = await readEnvelope(
-    res,
-    StorageStateEnvelope,
-    `Media storage state failed with ${res.status}`,
-  )
   return {
     roles: (body.roles ?? []) as ReadonlyArray<MediaAssetRole>,
     adapters: (body.adapters ?? []) as ReadonlyArray<CmsMediaAdapterSummary>,
@@ -211,13 +205,13 @@ export async function electCmsMediaAdapter(
   opts?: ClientBase,
 ): Promise<CmsMediaElection> {
   const { fetchImpl, basePath } = resolveClient(opts)
-  const res = await fetchImpl(`${basePath}/media/storage/elect`, {
+  const body = await apiRequest(`${basePath}/media/storage/elect`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: ElectionEnvelope,
+    fetchImpl,
+    fallbackMessage: 'Media adapter election failed',
   })
-  const body = await readEnvelope(res, ElectionEnvelope, `Media adapter election failed with ${res.status}`)
   if (!body.election) {
     throw new Error('Media adapter election response was missing the election field')
   }
@@ -229,17 +223,13 @@ export async function electCmsMediaVariantDelegate(
   opts?: ClientBase,
 ): Promise<CmsMediaElectedVariantDelegate | null> {
   const { fetchImpl, basePath } = resolveClient(opts)
-  const res = await fetchImpl(`${basePath}/media/storage/delegate`, {
+  const body = await apiRequest(`${basePath}/media/storage/delegate`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    schema: DelegateEnvelope,
+    fetchImpl,
+    fallbackMessage: 'Media variant delegate election failed',
   })
-  const body = await readEnvelope(
-    res,
-    DelegateEnvelope,
-    `Media variant delegate election failed with ${res.status}`,
-  )
   return (body.electedDelegate ?? null) as CmsMediaElectedVariantDelegate | null
 }
 
@@ -249,15 +239,12 @@ export async function verifyCmsMediaAdapter(
 ): Promise<MediaStorageVerifyResult> {
   const { fetchImpl, basePath } = resolveClient(opts)
   const encoded = encodeURIComponent(adapterId)
-  const res = await fetchImpl(`${basePath}/media/storage/verify/${encoded}`, {
+  const body: VerifyBody = await apiRequest(`${basePath}/media/storage/verify/${encoded}`, {
     method: 'POST',
-    credentials: 'include',
+    schema: VerifyEnvelope,
+    fetchImpl,
+    fallbackMessage: 'Media adapter verify failed',
   })
-  const body: VerifyBody = await readEnvelope(
-    res,
-    VerifyEnvelope,
-    `Media adapter verify failed with ${res.status}`,
-  )
   return body.result as MediaStorageVerifyResult
 }
 

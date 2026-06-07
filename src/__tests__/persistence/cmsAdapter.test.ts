@@ -68,7 +68,7 @@ describe('CmsAdapter', () => {
     expect(calls[0].init).toMatchObject({
       method: 'PUT',
       credentials: 'include',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
     })
     expect(JSON.parse(String(calls[0].init?.body))).toMatchObject({
       site: { id: 'project_1', name: 'CMS Site' },
