@@ -41,6 +41,7 @@ src/admin/pages/media/
 │   └── viewers/                        — per-media-type viewers (image, video, pdf, etc.)
 ├── hooks/
 │   ├── useMediaWorkspace.ts            — orchestrates server state (folders, assets, filters)
+│   ├── useMediaDnd.ts                  — shared DnD wiring (dragOver / dragLeave / drop handlers + drop-target highlight)
 │   ├── useUploadQueue.ts               — XHR/fetch upload pipeline + progress events
 │   ├── useStandaloneMediaEditor.ts     — alt-text / caption / tags editor
 │   ├── useCmsMediaAssetByPath.ts       — single-asset lookup by path
@@ -49,6 +50,7 @@ src/admin/pages/media/
     ├── filters.ts                      — type/date/folder filter predicates
     ├── folderTree.ts                   — folder utilities: tree build, descent check, child listing
     ├── formatBytes.ts                  — binary-unit file-size formatter (B/KB/MB/GB) shared by canvas tiles, viewer, upload queue, replace dialog
+    ├── mediaDnd.ts                     — drop-legality rules: canMoveFolderTo, canAcceptDrop, commitDropPayload, MediaDndTarget
     ├── mediaDragDrop.ts                — TypeBox-validated drag/drop payload helpers
     ├── smartFolders.ts                 — smart folder IDs, type guard, per-ID predicates
     └── variants.ts                     — image variant URL helpers
@@ -96,11 +98,22 @@ The editor store does **not** grow new slices. The Media page is self-contained 
 - Inside a folder, immediate child folders render before assets, and a parent-folder item appears at the start of the grid/list.
 - Type filters other than `All` and active tag filters hide folder items so filtering remains literal. Search still matches folder names when folders are visible.
 
-Drag/drop uses a media-specific `DataTransfer` payload helper in `src/admin/pages/media/utils/mediaDragDrop.ts`. Canvas folder items, the parent-folder item, and regular folder rows in `MediaFolderPanel` all accept the same payloads:
+Drag/drop logic is split across two layers:
 
-- Asset drops call `useMediaWorkspace().moveAssetsToFolder(assetIds, targetFolderId)`.
-- Folder drops call the existing `moveFolder(folderId, parentId)` action after UI-side cycle/no-op checks.
-- Dropping on **All files** moves assets/folders back to the root (`targetFolderId: null`).
+- **`utils/mediaDragDrop.ts`** — TypeBox-validated `DataTransfer` payload read/write helpers. Declares the `MediaDropPayload` union (`{ kind: 'assets', assetIds }` | `{ kind: 'folder', folderId }`).
+- **`utils/mediaDnd.ts`** — the single source of truth for drop-legality rules. Exports `canMoveFolderTo`, `canAcceptDrop`, and `commitDropPayload` as pure functions operating on a `MediaDndTarget` interface (folders, folderById, moveAssetsToFolder, moveFolder). Also exports `folderDropKey` and `ROOT_FOLDER_DROP_KEY` for the root sentinel.
+- **`hooks/useMediaDnd.ts`** — wraps the rules with React state (active drop-target highlight) and returns `handleDragOver`, `handleDragLeave`, `handleDrop`, `isDropTarget`, and `clearDropTarget`. Both `MediaCanvas` and `MediaFolderPanel` consume this hook — no DnD logic is duplicated between the two surfaces.
+
+Drop rules enforced by `canMoveFolderTo`:
+
+| Drop attempt | Allowed |
+|---|---|
+| Folder onto itself | No — self-drop |
+| Folder onto its current parent | No — no-op move |
+| Folder into one of its own descendants | No — cycle |
+| Any other folder target | Yes |
+
+Asset drops are always accepted; `commitDropPayload` calls `moveAssetsToFolder(assetIds, targetFolderId)`. Dropping on **All files** moves assets/folders back to the root (`targetFolderId: null`).
 
 Storage remains `media_asset_folders` (many-to-many), but the canvas move interaction is intentionally file-manager-like: moving an asset to a folder removes its previous folder assignments and adds only the target folder. The user-facing model is one current folder per asset move.
 
@@ -338,7 +351,10 @@ See [docs/features/plugin-system.md](plugin-system.md). The plugin SDK's `api.cm
 - Source-of-truth files:
   - `src/admin/pages/media/MediaPage.tsx` — top-level workspace
   - `src/admin/pages/media/hooks/useMediaWorkspace.ts` — orchestrator
+  - `src/admin/pages/media/hooks/useMediaDnd.ts` — shared DnD hook (canvas + sidebar)
   - `src/admin/pages/media/hooks/useUploadQueue.ts` — upload pipeline
+  - `src/admin/pages/media/utils/mediaDnd.ts` — drop-legality rules (canMoveFolderTo, canAcceptDrop, commitDropPayload)
+  - `src/admin/pages/media/utils/mediaDragDrop.ts` — DataTransfer payload helpers
   - `src/admin/pages/media/utils/smartFolders.ts` — smart folder IDs + predicates
   - `src/core/persistence/cmsMedia.ts` — client-facing wire schema + API (`CmsMediaAsset`, `CmsMediaVariant`)
   - `server/repositories/mediaAssetMapping.ts` — canonical `media_assets` projection + row mapper (shared by repo and publisher)
@@ -348,6 +364,7 @@ See [docs/features/plugin-system.md](plugin-system.md). The plugin SDK's `api.cm
   - `server/publish/mediaPresentation.ts`, `mediaPrefetch.ts` — publisher integration
   - `@core/plugins/mediaStorageRegistry` — storage adapter registry
 - Gate tests:
+  - `src/__tests__/media/mediaDnd.test.ts` — drop-legality rules: self-drop, no-op move, cycle detection, legal move, asset drops
   - `src/__tests__/server/mediaAssetMapping.test.ts` — repo and publisher map the same row to the same `MediaAsset`; INSERT arity lockstep
   - `src/__tests__/architecture/media-migration-invariants.test.ts`
   - `src/__tests__/architecture/media-presentation-pipeline.test.ts`
