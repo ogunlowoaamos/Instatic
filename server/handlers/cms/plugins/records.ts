@@ -27,6 +27,7 @@ import { StorageListOptionsSchema } from '@core/plugin-sdk/storageSchemas'
 import { Type, parseValue } from '@core/utils/typeboxHelpers'
 import { validatePluginRecordData } from '@core/plugins/manifest'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../../http'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import {
   getEnabledPluginResource,
   pluginRecordNotFound,
@@ -120,7 +121,7 @@ export async function handlePluginRecordsCollection(
       })
       return jsonResponse({ record }, { status: 201 })
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : 'Invalid plugin record data')
+      return badRequest(getErrorMessage(err, 'Invalid plugin record data'))
     }
   }
 
@@ -152,7 +153,7 @@ export async function handlePluginRecordItem(
       if (!record) return pluginRecordNotFound()
       return jsonResponse({ record })
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : 'Invalid plugin record data')
+      return badRequest(getErrorMessage(err, 'Invalid plugin record data'))
     }
   }
 

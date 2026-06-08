@@ -49,6 +49,7 @@ import {
 import { broadcastPluginEvent } from '../../../plugins/eventBroadcaster'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../../http'
 import { Type } from '@core/utils/typeboxHelpers'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { type CmsHandlerOptions } from '../shared'
 import {
   assertPluginPermissionGrants,
@@ -107,7 +108,7 @@ export async function handlePluginsCollection(
       })
       return jsonResponse({ plugin, ...(await pluginsPayload(db)) }, { status: 201 })
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : 'Invalid plugin manifest')
+      return badRequest(getErrorMessage(err, 'Invalid plugin manifest'))
     }
   }
 
@@ -127,7 +128,7 @@ export async function handleInspectPackage(req: Request): Promise<Response> {
     const pluginPackage = await readPluginPackage(file)
     return jsonResponse({ manifest: pluginPackage.manifest })
   } catch (err) {
-    return badRequest(err instanceof Error ? err.message : 'Invalid plugin package')
+    return badRequest(getErrorMessage(err, 'Invalid plugin package'))
   }
 }
 
@@ -182,7 +183,7 @@ export async function handlePackageInstall(
     }
     return await installFreshFromPackage(ctx)
   } catch (err) {
-    return badRequest(err instanceof Error ? err.message : 'Invalid plugin package')
+    return badRequest(getErrorMessage(err, 'Invalid plugin package'))
   }
 }
 

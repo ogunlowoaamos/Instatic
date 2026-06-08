@@ -24,6 +24,7 @@ import { refreshPluginSettingsCache } from '../../../plugins/runtime'
 import { hookBus } from '@core/plugins/hookBus'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../../http'
 import { Type } from '@core/utils/typeboxHelpers'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { requestAuditContext } from '../shared'
 import { pluginNotFound } from './shared'
 
@@ -62,7 +63,7 @@ export async function handlePluginSettings(
     try {
       cleaned = validatePluginSettingsRecord(declared, body.settings ?? body)
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : 'Invalid settings payload')
+      return badRequest(getErrorMessage(err, 'Invalid settings payload'))
     }
     await setPluginSettings(db, pluginId, cleaned)
     await refreshPluginSettingsCache(db, pluginId)

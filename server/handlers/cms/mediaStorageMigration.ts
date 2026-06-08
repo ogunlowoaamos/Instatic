@@ -42,6 +42,7 @@ import type { MediaAssetRole } from '@core/plugin-sdk'
 import { requireCapability } from '../../auth/authz'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../http'
 import { Type } from '@core/utils/typeboxHelpers'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import { getElectedAdapterId } from '../../repositories/mediaStorageAdapters'
 import {
@@ -193,7 +194,7 @@ export async function handleMediaStorageMigrate(
         emit: emitter.send,
       })
         .catch((err) => {
-          const message = err instanceof Error ? err.message : String(err)
+          const message = getErrorMessage(err, String(err))
           emitter.send({ kind: 'error', message })
         })
         .finally(() => {
@@ -270,7 +271,7 @@ async function runOriginalMigration(args: RunMigrationArgs): Promise<void> {
         args.emit({ kind: 'progress', id: item.id, ok: true, migrated, total })
       } catch (err) {
         failed += 1
-        const message = err instanceof Error ? err.message : String(err)
+        const message = getErrorMessage(err, String(err))
         args.emit({ kind: 'progress', id: item.id, ok: false, migrated, total, error: message })
         console.error(`[mediaMigration] original "${item.id}" failed:`, err)
       }
@@ -362,7 +363,7 @@ async function runVariantMigration(args: RunMigrationArgs): Promise<void> {
           args.emit({ kind: 'progress', id: eventId, ok: true, migrated, total })
         } catch (err) {
           failed += 1
-          const message = err instanceof Error ? err.message : String(err)
+          const message = getErrorMessage(err, String(err))
           args.emit({ kind: 'progress', id: eventId, ok: false, migrated, total, error: message })
           console.error(`[mediaMigration] variant "${eventId}" failed:`, err)
         }

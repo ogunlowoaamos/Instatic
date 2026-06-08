@@ -44,6 +44,7 @@ import {
 import { collectEnabledAdminPages } from '@core/plugins/manifest'
 import { assertPathWithin } from '../../../util/pathWithin'
 import { badRequest, jsonResponse } from '../../../http'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { requestAuditContext } from '../shared'
 
 // ---------------------------------------------------------------------------
@@ -160,7 +161,7 @@ export const pluginResourceNotFound = (): Response =>
   jsonResponse({ error: 'Plugin resource not found' }, { status: 404 })
 
 export function lifecycleErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : 'Plugin lifecycle hook failed'
+  return getErrorMessage(err, 'Plugin lifecycle hook failed')
 }
 
 // ---------------------------------------------------------------------------

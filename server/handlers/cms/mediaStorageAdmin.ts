@@ -34,6 +34,7 @@ import {
   readValidatedBody,
 } from '../../http'
 import { Type } from '@core/utils/typeboxHelpers'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { CMS_API_PREFIX, type CmsHandlerOptions } from './shared'
 import type { MediaAssetRole } from '@core/plugin-sdk'
 import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
@@ -224,7 +225,7 @@ async function handleVerifyAdapter(
     const result = await adapter.verify()
     return jsonResponse({ result })
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err)
+    const reason = getErrorMessage(err, String(err))
     return jsonResponse({ result: { ok: false, reason } })
   }
 }

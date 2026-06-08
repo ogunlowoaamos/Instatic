@@ -35,6 +35,7 @@ import {
 import type { Page, SiteDocument, SiteShell } from '@core/page-tree'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../http'
 import { Type } from '@core/utils/typeboxHelpers'
+import { getErrorMessage } from '@core/utils/errorMessage'
 
 function runtimeDependencyMap(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -126,7 +127,7 @@ export async function handleRuntimeRoutes(req: Request, db: DbClient): Promise<R
           : {}),
       })
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : 'Runtime dependency resolution failed')
+      return badRequest(getErrorMessage(err, 'Runtime dependency resolution failed'))
     }
   }
 
@@ -205,7 +206,7 @@ export async function handleRuntimeRoutes(req: Request, db: DbClient): Promise<R
       })
     } catch (err) {
       if (err instanceof SiteValidationError) return badRequest(err.message)
-      return badRequest(err instanceof Error ? err.message : 'Runtime preview build failed')
+      return badRequest(getErrorMessage(err, 'Runtime preview build failed'))
     }
   }
 

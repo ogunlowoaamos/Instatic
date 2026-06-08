@@ -26,7 +26,7 @@ import { createNode } from '@core/page-tree'
 import { pageToCells } from '../../../src/core/data/pageFromRow'
 import type { Page } from '@core/page-tree'
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../http'
-import { Type } from '@core/utils/typeboxHelpers'
+import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
 import type { SiteRow } from '../../types'
 import { CMS_API_PREFIX, requestAuditContext } from './shared'
 
@@ -110,6 +110,32 @@ interface PublicSiteIdentity {
 }
 
 /**
+ * Persisted `site.settings_json` envelope, narrowed to the ONE field the
+ * public identity endpoint reads. The shell's settings are stored under
+ * `{ site: { settings: SiteSettings } }` (see `shellToStorage` in
+ * `server/repositories/site.ts`), but modelling the full `SiteSettings` shape
+ * here would be wrong: its `shortcuts` field is required (backfilled by
+ * `parseSiteSettings`, not guaranteed in raw storage) and its `framework` /
+ * `fonts` sub-schemas drift independently — any of which would make a valid
+ * favicon resolve to null. TypeBox objects allow extra properties by default,
+ * so validating only `faviconUrl` still type-checks it with zero `as` casts
+ * while staying immune to unrelated settings fields. Every level is optional
+ * so a freshly-created site (`settings_json = {}`) yields a null favicon
+ * instead of throwing.
+ */
+const StoredSiteIdentitySchema = Type.Object({
+  site: Type.Optional(
+    Type.Object({
+      settings: Type.Optional(
+        Type.Object({
+          faviconUrl: Type.Optional(Type.String()),
+        }),
+      ),
+    }),
+  ),
+})
+
+/**
  * Read the site identity (name + favicon URL) the unauthenticated login /
  * setup screen renders as its brand. Never throws: a missing site row or
  * malformed settings JSON resolves to `{ name: null, faviconUrl: null }`,
@@ -129,19 +155,11 @@ async function loadPublicSiteIdentity(db: DbClient): Promise<PublicSiteIdentity>
   const row = rows[0]
   if (!row) return { name: null, faviconUrl: null }
 
-  const stored = row.settings_json
-  const innerSite = stored && typeof stored === 'object' && !Array.isArray(stored)
-    ? (stored as Record<string, unknown>).site
-    : undefined
-  const settings = innerSite && typeof innerSite === 'object' && !Array.isArray(innerSite)
-    ? (innerSite as Record<string, unknown>).settings
-    : undefined
-  const faviconUrl = settings
-    && typeof settings === 'object'
-    && !Array.isArray(settings)
-    && typeof (settings as Record<string, unknown>).faviconUrl === 'string'
-    ? (settings as Record<string, unknown>).faviconUrl as string
-    : null
+  // Validate at the boundary, then trust the parsed value. A malformed
+  // settings payload fails parsing and resolves to a null favicon — never a
+  // thrown error or a silently-wrong value.
+  const parsed = safeParseValue(StoredSiteIdentitySchema, row.settings_json)
+  const faviconUrl = parsed.ok ? parsed.value.site?.settings?.faviconUrl ?? null : null
 
   return {
     name: typeof row.name === 'string' && row.name.length > 0 ? row.name : null,
