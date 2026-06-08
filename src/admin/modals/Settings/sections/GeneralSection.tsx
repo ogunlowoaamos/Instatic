@@ -11,8 +11,9 @@
  * favicon doesn't have intermediate states (single click → commit), so it
  * skips that pattern.
  */
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useEditorStore } from '@site/store/store'
+import { useAsyncResource } from '@admin/lib/useAsyncResource'
 import { Input, Textarea } from '@ui/components/Input'
 import { Button } from '@ui/components/Button'
 import { SkeletonBlock } from '@ui/components/Skeleton'
@@ -23,7 +24,6 @@ import {
 } from '@core/persistence/cmsMedia'
 import { blurHashToDataUrl, pickVariantUrl } from '@admin/pages/media/utils/variants'
 import s from '../SettingsModal.module.css'
-import { getErrorMessage } from '@core/utils/errorMessage'
 
 // Lazy-load the media picker modal so the Settings modal opens quickly even
 // when the Media-page module graph (folders / canvas / viewer) hasn't been
@@ -145,35 +145,28 @@ interface FaviconFieldProps {
  */
 function FaviconField({ currentValue, onChange }: FaviconFieldProps) {
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [cmsAssets, setCmsAssets] = useState<CmsMediaAsset[]>([])
-  const [libraryError, setLibraryError] = useState('')
 
-  // Fetch the asset list once so the "currently picked" tile can show the
-  // right thumbnail + filename for the saved publicPath. The modal mounts
-  // its own workspace when opened; this fetch is only used for the inline
-  // preview tile.
-  useEffect(() => {
-    let cancelled = false
-    listCmsMediaAssets()
-      .then((nextAssets) => {
-        if (!cancelled) setCmsAssets(nextAssets)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          const message = getErrorMessage(err, 'Unable to load media library')
-          setLibraryError(message === 'Unauthorized' ? 'Sign in again to use CMS media.' : message)
-        }
-      })
-    return () => { cancelled = true }
-  }, [])
+  // Single fetch of the asset list so the "currently picked" tile can show the
+  // right thumbnail + filename for the saved publicPath. The modal mounts its
+  // own workspace when opened; this resource only backs the inline preview.
+  const { data: cmsAssets, error } = useAsyncResource<CmsMediaAsset[]>(
+    () => listCmsMediaAssets(),
+    [],
+    { fallbackError: 'Unable to load media library' },
+  )
+  const libraryError = error === 'Unauthorized' ? 'Sign in again to use CMS media.' : error
 
-  const currentAsset = cmsAssets.find((asset) => asset.publicPath === currentValue) ?? null
+  // A just-picked asset may post-date the loaded snapshot (e.g. uploaded inside
+  // the modal), so keep it alongside the read-only resource to render its
+  // thumbnail immediately without re-fetching the whole library.
+  const [pickedAsset, setPickedAsset] = useState<CmsMediaAsset | null>(null)
+
+  const currentAsset =
+    (cmsAssets ?? []).find((asset) => asset.publicPath === currentValue) ??
+    (pickedAsset?.publicPath === currentValue ? pickedAsset : null)
 
   function handlePickFromModal(asset: CmsMediaAsset) {
-    setCmsAssets((current) => {
-      if (current.some((a) => a.id === asset.id)) return current
-      return [asset, ...current]
-    })
+    setPickedAsset(asset)
     onChange(asset.publicPath)
   }
 

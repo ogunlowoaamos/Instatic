@@ -95,6 +95,14 @@ export function useUsersPageData(access: UsersPageLoadAccess): UsersPageData {
     }
   }
 
+  // Not useAsyncResource: this is an optimistic collection with custom load
+  // semantics, not a plain read-only resource. (1) `users`/`roles`/`events`
+  // are mutated in place by the tabs via setUsers/setRoles for instant
+  // save/delete feedback, then reconciled by refresh(); (2) `loading` flips
+  // false only after the FIRST load and refresh() never re-raises it, so an
+  // optimistic save doesn't flash the tab skeletons — useAsyncResource raises
+  // loading on every load; (3) `error` is a shared channel for both load and
+  // mutation failures. Forcing the single-resource hook here would regress UX.
   useEffect(() => {
     let cancelled = false
     void loadUsersPageData(loadAccess())

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
 import { listCmsDataTables } from '@core/persistence/cmsData'
-import { getErrorMessage } from '@core/utils/errorMessage'
+import { useAsyncResource } from '@admin/lib/useAsyncResource'
 import type { ControlProps } from './shared'
 import { Select } from '@ui/components/Select'
 import { ControlRow } from '@ui/components/ControlRow'
@@ -26,38 +25,24 @@ export function DataTableControl({
   layout,
   includeSystem = false,
 }: DataTableControlProps) {
-  const [tables, setTables] = useState<TableOption[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-    listCmsDataTables()
-      .then((items) => {
-        if (cancelled) return
-        setError('')
-        setTables(
-          items
-            .filter((table) => includeSystem || table.kind === 'data')
-            .map((table) => ({
-              id: table.id,
-              label: table.name || table.slug || table.id,
-              kind: table.kind,
-            })),
-        )
-      })
-      .catch((err) => {
-        if (cancelled) return
-        console.error('[DataTableControl] Failed to load data tables:', err)
-        setError(getErrorMessage(err, 'Failed to load data tables.'))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [includeSystem])
+  const {
+    data: tables,
+    loading,
+    error,
+  } = useAsyncResource<TableOption[]>(
+    async () => {
+      const items = await listCmsDataTables()
+      return items
+        .filter((table) => includeSystem || table.kind === 'data')
+        .map((table) => ({
+          id: table.id,
+          label: table.name || table.slug || table.id,
+          kind: table.kind,
+        }))
+    },
+    [includeSystem],
+    { fallbackError: 'Failed to load data tables.' },
+  )
 
   return (
     <ControlRow
@@ -79,7 +64,7 @@ export function DataTableControl({
           <option value="">
             {loading ? 'Loading tables...' : 'Choose table'}
           </option>
-          {tables.map((table) => (
+          {(tables ?? []).map((table) => (
             <option key={table.id} value={table.id}>
               {table.label}
             </option>

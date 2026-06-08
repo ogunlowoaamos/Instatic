@@ -116,6 +116,11 @@ export function MediaLibraryControl({
     draft: currentValue,
   }))
 
+  // Not useAsyncResource: this is an optimistic collection, not a read-only
+  // resource. `cmsAssets` is mutated in place after load — handlePickFromModal
+  // prepends, and `viewerEditor` edits/removes existing rows via
+  // onAssetChanged/onAssetRemoved — and the tag-autocomplete palette derives
+  // from the live list. useAsyncResource's read-only `data` can't model that.
   useEffect(() => {
     let cancelled = false
     listCmsMediaAssets()
