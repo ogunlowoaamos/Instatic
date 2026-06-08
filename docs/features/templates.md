@@ -389,3 +389,5 @@ node.props.text = 'Posted by {currentEntry.author.displayName} on {currentEntry.
   - `server/publish/publicRenderer.ts` — chain-aware render paths
   - `src/admin/pages/site/hooks/useInsertModule.ts` — hook-level outlet guard (toast + null return)
   - `src/admin/pages/site/store/slices/site/nodeActions.ts` — store-level outlet backstop in `insertNode`
+- Integration tests:
+  - `src/__tests__/templates/templateModel.test.ts` — template metadata round-trip; `convertTemplateToPage` strips template config and all bindings; `setNodeDynamicBinding`/`clearNodeDynamicBinding` modify bindings without touching static prop fallbacks

@@ -197,5 +197,6 @@ Tests that render the canvas and query nodes must use the `iframeCanvasQuery.ts`
   - `src/admin/pages/site/hooks/useCanvas.ts` — pan/zoom gesture hook; `centerOnBreakpointFrame`
   - `src/__tests__/canvas/canvasMode.test.tsx` — design/live toggle + script build contract
   - `src/__tests__/canvas/panToCenterBreakpointFrame.test.ts` — centering geometry unit tests
+  - `src/__tests__/canvas/progressiveCanvasLoading.test.tsx` — progressive loading contract: skeletons paint before node trees; active frame mounts first (after animation frame); idle frames load via `requestIdleCallback` fallback; design mode hides root iframe overflow, live mode leaves it scrollable
 - Gate tests:
   - `src/__tests__/architecture/site-editor-shell-lazy-body.test.ts` — skeleton usage and lazy-boundary gates
