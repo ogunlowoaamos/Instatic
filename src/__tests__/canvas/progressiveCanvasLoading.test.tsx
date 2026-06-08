@@ -11,16 +11,18 @@ import { makeNode, makePage, makeSite } from '../fixtures'
 import { getCanvasFrameDocument, queryCanvasNodeInFrame } from './iframeCanvasQuery'
 import '@modules/base'
 
-afterEach(cleanup)
-
 const originalFetch = globalThis.fetch
 
 afterEach(() => {
+  cleanup()
+  document.body.replaceChildren()
   globalThis.fetch = originalFetch
   __resetModuleInserterPreferenceForTests()
 })
 
 beforeEach(() => {
+  cleanup()
+  document.body.replaceChildren()
   __resetModuleInserterPreferenceForTests()
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString()

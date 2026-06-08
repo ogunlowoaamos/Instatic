@@ -26,6 +26,7 @@ import { resetForTests } from '../../../server/publish/renderCache'
 import { getPublishVersion } from '../../../server/publish/publishState'
 import { LoopSourceDescriptorSchema } from '../../../server/plugins/protocol/schemas/loops'
 import { registry } from '../../core/module-engine/registry'
+import type { AnyModuleDefinition } from '../../core/module-engine'
 import { loopSourceRegistry } from '../../core/loops/registry'
 import { findDynamicNodeIds } from '../../core/publisher/dynamicDetection'
 import type { LoopEntitySource, SourceFetchContext } from '../../core/loops/types'
@@ -33,10 +34,27 @@ import { makeModule, makePage, makeSite } from '../publisher/helpers'
 
 const LIVE_SOURCE_ID = 'acme.di.live'
 const VISITOR_SOURCE_ID = 'acme.di.visitor'
+const TEST_MODULE_IDS = ['test.body', 'test.text', 'base.loop'] as const
 
 // Per-source fetch call counters so the tests can assert cache behaviour.
 let liveCalls = 0
 let visitorCalls = 0
+let previousModules = new Map<string, AnyModuleDefinition | undefined>()
+
+function snapshotTestModules() {
+  previousModules = new Map(TEST_MODULE_IDS.map((id) => [id, registry.get(id)]))
+}
+
+function restoreTestModules() {
+  for (const [id, definition] of previousModules) {
+    if (definition) {
+      registry.registerOrReplace(definition)
+    } else {
+      registry.unregister(id)
+    }
+  }
+  previousModules.clear()
+}
 
 function makeLiveSource(): LoopEntitySource {
   return {
@@ -180,6 +198,7 @@ beforeEach(() => {
   // `resetForTests` also clears the hole endpoint's version-keyed snapshot memo
   // via `resetPublishStateForTests` — no bespoke hole reset hook needed.
   resetForTests()
+  snapshotTestModules()
   liveCalls = 0
   visitorCalls = 0
   registry.registerOrReplace(
@@ -198,6 +217,7 @@ beforeEach(() => {
 afterEach(() => {
   loopSourceRegistry.unregister(LIVE_SOURCE_ID)
   loopSourceRegistry.unregister(VISITOR_SOURCE_ID)
+  restoreTestModules()
 })
 
 // ---------------------------------------------------------------------------

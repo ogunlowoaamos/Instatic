@@ -1,9 +1,27 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { makeSite } from '../fixtures'
 import { validateSite, validatePages } from '@core/persistence/validate'
 import { useEditorStore } from '@site/store/store'
 
+function resetStore() {
+  useEditorStore.setState({
+    site: null,
+    activePageId: null,
+    activeDocument: null,
+    selectedNodeId: null,
+    selectedNodeIds: [],
+    hoveredNodeId: null,
+    _historyPast: [],
+    _historyFuture: [],
+    canUndo: false,
+    canRedo: false,
+    hasUnsavedChanges: false,
+  } as Parameters<typeof useEditorStore.setState>[0])
+}
+
 describe('dynamic template model', () => {
+  beforeEach(resetStore)
+
   it('preserves page template metadata and structured dynamic bindings', () => {
     const site = makeSite()
     const page = site.pages[0]
@@ -38,7 +56,12 @@ describe('dynamic template model', () => {
       text: { source: 'currentEntry', field: 'title' },
     }
 
-    useEditorStore.setState({ site, activePageId: page.id, hasUnsavedChanges: false })
+    useEditorStore.setState({
+      site,
+      activePageId: page.id,
+      activeDocument: { kind: 'page', pageId: page.id },
+      hasUnsavedChanges: false,
+    })
     useEditorStore.getState().convertTemplateToPage(page.id)
 
     const nextPage = useEditorStore.getState().site?.pages[0]
@@ -53,7 +76,12 @@ describe('dynamic template model', () => {
     const root = page.nodes[page.rootNodeId]
     root.props = { text: 'Static fallback' }
 
-    useEditorStore.setState({ site, activePageId: page.id, hasUnsavedChanges: false })
+    useEditorStore.setState({
+      site,
+      activePageId: page.id,
+      activeDocument: { kind: 'page', pageId: page.id },
+      hasUnsavedChanges: false,
+    })
     useEditorStore.getState().setNodeDynamicBinding(root.id, 'text', {
       source: 'currentEntry',
       field: 'title',
