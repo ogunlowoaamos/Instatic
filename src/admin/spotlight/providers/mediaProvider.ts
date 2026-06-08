@@ -8,45 +8,30 @@
  * Each result navigates to /admin/media with the file pre-selected.
  */
 
-import type { SpotlightProvider, Command } from '../types'
-import { apiRequest, isAbortError } from '@core/http'
-import type { Static } from '@core/utils/typeboxHelpers'
+import type { Command } from '../types'
 import { MediaListResponseSchema } from './schemas'
+import { makeServerProvider } from './serverProvider'
 
-const ENDPOINT = '/admin/api/cms/media'
-const MAX_RESULTS = 25
-
-export const mediaProvider: SpotlightProvider = {
+export const mediaProvider = makeServerProvider({
   id: 'media',
   label: 'Media',
   debounceMs: 150,
-
-  async search(query, _ctx, signal): Promise<Command[]> {
-    if (!query.trim()) return []
-
-    const url = `${ENDPOINT}?query=${encodeURIComponent(query)}&limit=${MAX_RESULTS}`
-    let body: Static<typeof MediaListResponseSchema>
-    try {
-      body = await apiRequest(url, { schema: MediaListResponseSchema, signal })
-    } catch (err) {
-      if (isAbortError(err)) return []
-      throw err
-    }
-
-    return body.assets.map((asset): Command => ({
-      id: `media:${asset.id}`,
-      title: asset.title || asset.filename,
-      subtitle: `${humanMimeType(asset.mimeType)} · ${humanFileSize(asset.sizeBytes)}`,
-      group: 'media',
-      iconName: mimeToIconName(asset.mimeType),
-      keywords: ['media', 'file', 'upload', asset.filename, asset.mimeType],
-      run: (ctx) => {
-        ctx.closeSpotlight()
-        ctx.navigate(`/admin/media?file=${encodeURIComponent(asset.id)}`)
-      },
-    }))
-  },
-}
+  endpoint: '/admin/api/cms/media',
+  schema: MediaListResponseSchema,
+  select: (body) => body.assets,
+  toCommand: (asset): Command => ({
+    id: `media:${asset.id}`,
+    title: asset.title || asset.filename,
+    subtitle: `${humanMimeType(asset.mimeType)} · ${humanFileSize(asset.sizeBytes)}`,
+    group: 'media',
+    iconName: mimeToIconName(asset.mimeType),
+    keywords: ['media', 'file', 'upload', asset.filename, asset.mimeType],
+    run: (ctx) => {
+      ctx.closeSpotlight()
+      ctx.navigate(`/admin/media?file=${encodeURIComponent(asset.id)}`)
+    },
+  }),
+})
 
 function humanFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

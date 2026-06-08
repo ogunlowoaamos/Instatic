@@ -10,12 +10,12 @@
  */
 
 import type { SpotlightProvider, Command } from '../types'
-import { apiRequest, isAbortError } from '@core/http'
-import type { Static } from '@core/utils/typeboxHelpers'
 import { PluginsListResponseSchema } from './schemas'
+import { MAX_RESULTS, fetchOnAbortEmpty } from './serverProvider'
 
+// Unlike the other server providers, this endpoint takes no query param — the
+// full plugin list is cheap, cached by the providerRunner, and filtered below.
 const ENDPOINT = '/admin/api/cms/plugins'
-const MAX_RESULTS = 25
 
 export const pluginPagesProvider: SpotlightProvider = {
   id: 'pluginPages',
@@ -23,13 +23,8 @@ export const pluginPagesProvider: SpotlightProvider = {
   debounceMs: 150,
 
   async search(query, _ctx, signal): Promise<Command[]> {
-    let body: Static<typeof PluginsListResponseSchema>
-    try {
-      body = await apiRequest(ENDPOINT, { schema: PluginsListResponseSchema, signal })
-    } catch (err) {
-      if (isAbortError(err)) return []
-      throw err
-    }
+    const body = await fetchOnAbortEmpty(ENDPOINT, PluginsListResponseSchema, signal)
+    if (body === null) return []
 
     const q = query.toLowerCase()
     const results: Command[] = []

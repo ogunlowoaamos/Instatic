@@ -11,53 +11,38 @@
  * workspace deep-links via these query params (see useContentWorkspace.ts).
  */
 
-import type { SpotlightProvider, Command } from '../types'
-import { apiRequest, isAbortError } from '@core/http'
-import type { Static } from '@core/utils/typeboxHelpers'
+import type { Command } from '../types'
 import { DataSearchResponseSchema } from './schemas'
+import { makeServerProvider } from './serverProvider'
 
-const ENDPOINT = '/admin/api/cms/data/search'
-const MAX_RESULTS = 25
-
-export const contentProvider: SpotlightProvider = {
+export const contentProvider = makeServerProvider({
   id: 'content',
   label: 'Content',
   debounceMs: 150,
+  endpoint: '/admin/api/cms/data/search',
+  schema: DataSearchResponseSchema,
+  select: (body) => body.entries,
+  toCommand: (entry): Command => {
+    // Humanise the slug for display: replace hyphens with spaces and capitalise.
+    const displayTitle = entry.slug
+      .split('-')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
 
-  async search(query, _ctx, signal): Promise<Command[]> {
-    if (!query.trim()) return []
-
-    const url = `${ENDPOINT}?query=${encodeURIComponent(query)}&limit=${MAX_RESULTS}`
-    let body: Static<typeof DataSearchResponseSchema>
-    try {
-      body = await apiRequest(url, { schema: DataSearchResponseSchema, signal })
-    } catch (err) {
-      if (isAbortError(err)) return []
-      throw err
+    return {
+      id: `content:${entry.id}`,
+      title: displayTitle,
+      subtitle: `${entry.tableName} · ${formatDate(entry.updatedAt)}`,
+      group: 'content',
+      iconName: 'file-text-solid',
+      keywords: ['content', 'document', entry.tableSlug, entry.slug],
+      run: (ctx) => {
+        ctx.closeSpotlight()
+        ctx.navigate(`/admin/content?table=${encodeURIComponent(entry.tableSlug)}&row=${encodeURIComponent(entry.id)}`)
+      },
     }
-
-    return body.entries.map((entry): Command => {
-      // Humanise the slug for display: replace hyphens with spaces and capitalise.
-      const displayTitle = entry.slug
-        .split('-')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ')
-
-      return {
-        id: `content:${entry.id}`,
-        title: displayTitle,
-        subtitle: `${entry.tableName} · ${formatDate(entry.updatedAt)}`,
-        group: 'content',
-        iconName: 'file-text-solid',
-        keywords: ['content', 'document', entry.tableSlug, entry.slug],
-        run: (ctx) => {
-          ctx.closeSpotlight()
-          ctx.navigate(`/admin/content?table=${encodeURIComponent(entry.tableSlug)}&row=${encodeURIComponent(entry.id)}`)
-        },
-      }
-    })
   },
-}
+})
 
 function formatDate(iso: string): string {
   try {
