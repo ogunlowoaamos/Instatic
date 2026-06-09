@@ -199,8 +199,8 @@ export interface ModuleDefinition<
   /**
    * Trust level — determines sandbox strategy.
    * true  = base/trusted module → component mounts directly in editor React tree
-   * false = community module  → component runs inside <iframe sandbox="allow-scripts">
-   *                             with a future postMessage bridge host
+   * false = sandboxed plugin module → component runs inside <iframe sandbox="allow-scripts">
+   *                                   with a future postMessage bridge host
    * Constraint #218: decided in Contribution #309
    */
   trusted: boolean

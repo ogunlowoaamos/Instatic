@@ -598,7 +598,6 @@ Data sources:
 - **Modules:** `registry.list()` filtered by the same editor insertion rules as the compact picker (`base.body`, `base.visual-component-ref`, and `base.slot-instance` hidden; `base.slot-outlet` only in Visual Component mode).
 - **Layouts:** seeded `LAYOUT_PRESETS`, built from the same serialized subtree shape as `FORM_PRESETS`.
 - **Components:** `site.visualComponents`.
-- **Community:** reserved for a future plugin catalog backend; no mocked catalog is shown in the real editor.
 - **Recent:** per-browser local state in `instatic-module-inserter-v1`, validated with TypeBox before use.
 - **Favorites:** per-user server state in `user_preferences` key `module-inserter`, validated with TypeBox by `src/core/persistence/userPreferences.ts` and used by `CanvasNotch`.
 

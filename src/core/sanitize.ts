@@ -10,7 +10,7 @@
  * USAGE
  * -----
  * Call `sanitizeRichtext(value)` at EVERY write path that stores a richtext prop:
- *   - useSandboxBridge: PROP_CHANGE messages from community module iframes
+ *   - useSandboxBridge: PROP_CHANGE messages from sandboxed plugin module iframes
  *   - CMS draft hydration before store load
  *   - Phase D agent dispatcher: setProps tool calls for richtext-typed props
  *

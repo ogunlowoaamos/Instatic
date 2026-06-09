@@ -19,9 +19,8 @@ export type ModuleInserterSectionId =
   | 'modules'
   | 'layouts'
   | 'components'
-  | 'community'
   | 'recent'
-export type ModuleInserterItemKind = 'module' | 'layout' | 'component' | 'community'
+export type ModuleInserterItemKind = 'module' | 'layout' | 'component'
 export type ModuleInserterRecentRef = ModuleInserterItemRef
 
 export interface RegistryModuleForInserter {
@@ -62,15 +61,10 @@ export interface ModuleInserterComponentItem extends BaseInserterItem {
   uses: number
 }
 
-export interface ModuleInserterCommunityItem extends BaseInserterItem {
-  kind: 'community'
-}
-
 export type ModuleInserterItem =
   | ModuleInserterModuleItem
   | ModuleInserterLayoutItem
   | ModuleInserterComponentItem
-  | ModuleInserterCommunityItem
 
 const HIDDEN_MODULE_IDS = new Set([
   'base.body',

@@ -19,7 +19,6 @@ const RecentKindSchema = Type.Union([
   Type.Literal('module'),
   Type.Literal('layout'),
   Type.Literal('component'),
-  Type.Literal('community'),
 ])
 
 const RecentRefSchema = Type.Object({
@@ -30,8 +29,7 @@ const RecentRefSchema = Type.Object({
 const ModuleInserterPrefsSchema = Type.Object({
   view: InserterViewSchema,
   recent: Type.Array(RecentRefSchema, { maxItems: 32 }),
-  installedCommunity: Type.Array(Type.String(), { maxItems: 256 }),
-})
+}, { additionalProperties: false })
 
 type ModuleInserterView = Static<typeof InserterViewSchema>
 export type ModuleInserterPrefs = Static<typeof ModuleInserterPrefsSchema>
@@ -40,7 +38,6 @@ export type ModuleInserterRecentRef = ModuleInserterItemRef
 const DEFAULT_PREFS: ModuleInserterPrefs = {
   view: 'grid',
   recent: [],
-  installedCommunity: [],
 }
 
 export function readModuleInserterPrefs(): ModuleInserterPrefs {
@@ -68,20 +65,6 @@ export function trackModuleInserterRecent(ref: ModuleInserterRecentRef): void {
   ].slice(0, MAX_RECENT_INSERTIONS)
 
   writeModuleInserterPrefs({ ...prefs, recent })
-}
-
-export function writeModuleInserterCommunityInstalled(
-  id: string,
-  installed: boolean,
-): void {
-  const prefs = readModuleInserterPrefs()
-  const existing = new Set(prefs.installedCommunity)
-  if (installed) existing.add(id)
-  else existing.delete(id)
-  writeModuleInserterPrefs({
-    ...prefs,
-    installedCommunity: Array.from(existing),
-  })
 }
 
 function writeModuleInserterPrefs(prefs: ModuleInserterPrefs): void {

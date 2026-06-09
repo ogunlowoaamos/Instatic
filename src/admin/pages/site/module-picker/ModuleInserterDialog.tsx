@@ -26,7 +26,6 @@ import { cn } from '@ui/cn'
 import { AppGridPlusGlyphIcon } from 'pixel-art-icons/icons/app-grid-plus-glyph'
 import { BoxStackSolidIcon } from 'pixel-art-icons/icons/box-stack-solid'
 import { CalendarSolidIcon } from 'pixel-art-icons/icons/calendar-solid'
-import { GlobeSolidIcon } from 'pixel-art-icons/icons/globe-solid'
 import { Grid2x22SolidIcon } from 'pixel-art-icons/icons/grid-2x2-2-solid'
 import { LayoutSolidIcon } from 'pixel-art-icons/icons/layout-solid'
 import { ListBoxSolidIcon } from 'pixel-art-icons/icons/list-box-solid'
@@ -94,7 +93,6 @@ const SECTIONS: readonly SectionDefinition[] = [
   { id: 'modules', name: 'Modules', accent: 'lilac', icon: AppGridPlusGlyphIcon },
   { id: 'layouts', name: 'Layouts', accent: 'sky', icon: LayoutSolidIcon },
   { id: 'components', name: 'Components', accent: 'mint', icon: BoxStackSolidIcon },
-  { id: 'community', name: 'Community', accent: 'peach', icon: GlobeSolidIcon },
   { id: 'recent', name: 'Recent', accent: 'rose', icon: CalendarSolidIcon },
 ]
 
@@ -159,7 +157,6 @@ export function ModuleInserterDialog({
     modules: filteredModules.length,
     layouts: filteredLayouts.length,
     components: filteredComponents.length,
-    community: 0,
     recent: filteredRecent.length,
   }
 
@@ -507,7 +504,7 @@ export function ModuleInserterDialog({
               value={query}
               onValueChange={setQuery}
               onFocus={() => setZone('search')}
-              placeholder="Search every module, layout & community drop…"
+              placeholder="Search every module, layout & component..."
               aria-label="Search modules"
               className={styles.searchField}
             />
@@ -541,16 +538,7 @@ export function ModuleInserterDialog({
           </div>
 
           <div ref={scrollRef} className={styles.scroller}>
-            {section === 'community' ? (
-              <EmptyState
-                variant="centered"
-                plain
-                icon={<PackageSolidIcon size={22} />}
-                title="Plugin catalog unavailable"
-                description="Community modules need the plugin catalog backend before install actions can be wired."
-                className={styles.empty}
-              />
-            ) : items.length === 0 ? (
+            {items.length === 0 ? (
               <EmptyState
                 variant="centered"
                 plain
@@ -568,7 +556,6 @@ export function ModuleInserterDialog({
                     view={view}
                     selected={selectedKey === item.key}
                     favorite={isFavorite(recentRefForItem(item))}
-                    favoriteDisabled={item.kind === 'community'}
                     onSelect={() => {
                       selectionSourceRef.current = 'pointer'
                       setSelectedKeyOverride(item.key)
@@ -633,7 +620,6 @@ function itemsForSection(
   if (section === 'layouts') return groups.layouts
   if (section === 'components') return groups.components
   if (section === 'recent') return groups.recent
-  if (section === 'community') return []
   return groups.modules
 }
 

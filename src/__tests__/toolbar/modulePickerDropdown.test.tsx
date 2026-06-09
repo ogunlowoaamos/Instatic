@@ -210,6 +210,18 @@ describe('ModulePickerDropdown — Visual Components', () => {
     expect(textNodes.length).toBe(1)
   })
 
+  it('does not expose unfinished community catalog affordances', () => {
+    loadSite([])
+    render(<ModulePickerDropdown />)
+    const dialog = openInserter()
+
+    expect(screen.queryByRole('button', { name: /^Community\b/ })).toBeNull()
+    expect(screen.getByRole('searchbox', { name: 'Search modules' }).getAttribute('placeholder'))
+      .toBe('Search every module, layout & component...')
+    expect(within(dialog).queryByText('Plugin catalog unavailable')).toBeNull()
+    expect(within(dialog).queryByText(/Community modules/i)).toBeNull()
+  })
+
   it('drops into the breakpoint frame under the pointer and activates that frame', () => {
     loadSite([])
     useEditorStore.getState().setActiveBreakpoint('desktop')

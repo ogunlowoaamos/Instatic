@@ -3,7 +3,7 @@
  *
  * The existing registry.test.ts uses a local `TestRegistry` class for isolation.
  * This file tests the actual singleton: `registerOrReplace`, `unregister`, `listByCategory`,
- * and `size` — all of which are used in the community module lifecycle (Phase 9).
+ * and `size` — all of which are used in the plugin module lifecycle (Phase 9).
  *
  * IMPORTANT: Each test uses unique module IDs (prefixed "reg-test.") to avoid
  * conflicts with the global registry populated by base module imports.

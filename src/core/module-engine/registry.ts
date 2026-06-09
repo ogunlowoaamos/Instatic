@@ -4,7 +4,7 @@ import type { IModuleRegistry, AnyModuleDefinition, ModuleDefinition } from './t
  * ModuleRegistry — Singleton that holds all registered ModuleDefinitions.
  *
  * Base modules self-register via `src/modules/base/index.ts` on app boot.
- * Community modules are registered dynamically when installed/loaded.
+ * Plugin modules are registered dynamically when installed/loaded.
  *
  * The registry holds the type-erased AnyModuleDefinition shape (props typed as
  * Record<string, unknown>). Each module's narrow TProps is visible at the

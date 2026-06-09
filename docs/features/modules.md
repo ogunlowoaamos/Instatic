@@ -82,7 +82,7 @@ interface ModuleDefinition<TProps extends Record<string, unknown>> {
   /** Semver version string, e.g. "1.0.0". */
   version: string
 
-  /** true = trusted first-party module; false = community module in iframe sandbox. */
+  /** true = trusted first-party module; false = sandboxed plugin module. */
   trusted: boolean
 
   /** Whether this module accepts children. */

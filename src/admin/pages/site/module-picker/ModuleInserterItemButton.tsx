@@ -4,7 +4,6 @@ import type {
 } from 'react'
 import type { IconComponent } from 'pixel-art-icons/types'
 import { BracesIcon } from 'pixel-art-icons/icons/braces'
-import { GlobeSolidIcon } from 'pixel-art-icons/icons/globe-solid'
 import { HandGrabSolidIcon } from 'pixel-art-icons/icons/hand-grab-solid'
 import { LayoutSolidIcon } from 'pixel-art-icons/icons/layout-solid'
 import { PlusIcon } from 'pixel-art-icons/icons/plus'
@@ -36,7 +35,6 @@ interface InserterItemButtonProps {
   onSelect: () => void
   onPick: () => void
   favorite: boolean
-  favoriteDisabled: boolean
   onToggleFavorite: () => void
   onPointerDown: (
     item: ModuleInserterItem,
@@ -55,7 +53,6 @@ export function ModuleInserterItemButton({
   onSelect,
   onPick,
   favorite,
-  favoriteDisabled,
   onToggleFavorite,
   onPointerDown,
 }: InserterItemButtonProps) {
@@ -67,7 +64,7 @@ export function ModuleInserterItemButton({
   function handleFavoriteClick(event: ReactMouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
-    if (!favoriteDisabled) onToggleFavorite()
+    onToggleFavorite()
   }
 
   return (
@@ -99,7 +96,6 @@ export function ModuleInserterItemButton({
         aria-label={favoriteLabel}
         aria-pressed={favorite}
         tooltip={favoriteLabel}
-        disabled={favoriteDisabled}
       >
         <StarSolidIcon size={13} aria-hidden="true" />
       </Button>
@@ -160,5 +156,6 @@ function ItemIcon({ item }: { item: ModuleInserterItem }) {
   if (item.kind === 'component') {
     return <BracesIcon size={13} aria-hidden="true" />
   }
-  return <GlobeSolidIcon size={13} aria-hidden="true" />
+  const _exhaustive: never = item
+  return _exhaustive
 }

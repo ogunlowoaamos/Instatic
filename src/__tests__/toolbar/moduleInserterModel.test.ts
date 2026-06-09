@@ -93,7 +93,6 @@ describe('module inserter preferences', () => {
     expect(readModuleInserterPrefs()).toEqual({
       view: 'grid',
       recent: [],
-      installedCommunity: [],
     })
   })
 
@@ -110,7 +109,6 @@ describe('module inserter preferences', () => {
         { kind: 'module', id: 'base.text' },
         { kind: 'layout', id: 'layout.contact' },
       ],
-      installedCommunity: [],
     })
   })
 })

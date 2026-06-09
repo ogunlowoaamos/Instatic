@@ -89,7 +89,7 @@ class RenderCache {
   /**
    * Invalidate all cache entries for a specific module.
    *
-   * Used during hot-reload in Phase 9: when a community module is updated,
+   * Used during hot-reload in Phase 9: when a plugin module is updated,
    * its cached render outputs become stale. This sweeps all entries whose
    * cache key starts with `${moduleId}::`.
    *

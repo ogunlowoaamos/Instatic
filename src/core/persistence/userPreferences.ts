@@ -76,7 +76,6 @@ const ModuleInserterItemKindSchema = Type.Union([
   Type.Literal('module'),
   Type.Literal('layout'),
   Type.Literal('component'),
-  Type.Literal('community'),
 ])
 
 export const ModuleInserterItemRefSchema = Type.Object({
