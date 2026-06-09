@@ -115,7 +115,7 @@ const CHROME_RULES = `
  */
 
 [data-canvas-module-placeholder] {
-  display: flex;
+  display: block;
   box-sizing: border-box;
   min-width: 0;
   border-radius: var(--editor-radius);
@@ -134,10 +134,8 @@ const CHROME_RULES = `
 }
 
 [data-canvas-module-placeholder][data-variant="block"] {
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  display: grid;
+  place-items: center;
   width: 100%;
   min-height: 100px;
   padding: 14px;
@@ -145,27 +143,69 @@ const CHROME_RULES = `
 }
 
 [data-canvas-module-placeholder][data-variant="inline"] {
+  display: inline-grid;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+[data-canvas-module-placeholder] [data-instatic-placeholder-content] {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+[data-canvas-module-placeholder][data-variant="block"] [data-instatic-placeholder-content] {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  row-gap: 8px;
+}
+
+[data-canvas-module-placeholder][data-variant="block"][data-layout="row"] [data-instatic-placeholder-content] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+[data-canvas-module-placeholder][data-variant="inline"] [data-instatic-placeholder-content] {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 6px 10px;
 }
 
 [data-canvas-module-placeholder] [data-instatic-placeholder-icon] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
   color: var(--editor-text-subtle);
   font-size: inherit;
   font-weight: inherit;
-  line-height: inherit;
+  line-height: 1;
   letter-spacing: normal;
   text-transform: none;
   white-space: normal;
 }
 
+[data-canvas-module-placeholder] [data-instatic-placeholder-icon] > svg {
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+}
+
 [data-canvas-module-placeholder] [data-instatic-placeholder-label] {
+  display: block;
+  margin: 0;
+  padding: 0;
   color: var(--editor-text-secondary);
   font-size: 12px;
   font-family: var(--font-sans);
@@ -184,6 +224,8 @@ const CHROME_RULES = `
 
 [data-canvas-module-placeholder] [data-instatic-placeholder-description] {
   max-width: 36ch;
+  margin: 0;
+  padding: 0;
   color: var(--editor-text-muted);
   font-size: 11px;
   font-family: var(--font-sans);
@@ -202,6 +244,7 @@ const CHROME_RULES = `
   justify-content: center;
   gap: 6px;
   margin-top: 4px;
+  pointer-events: auto;
 }
 
 [data-canvas-module-placeholder] [data-instatic-placeholder-actions] button {

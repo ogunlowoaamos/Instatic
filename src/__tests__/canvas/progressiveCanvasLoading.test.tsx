@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { CanvasRoot } from '@site/canvas/CanvasRoot'
+import { CANVAS_VIEWPORT_HEIGHT } from '@site/canvas/resolveViewportUnits'
 import { useEditorStore } from '@site/store/store'
 import {
   DEFAULT_MODULE_INSERTER_PREFERENCE,
@@ -113,6 +114,7 @@ describe('progressive canvas loading', () => {
     expect(designDoc).toBeTruthy()
     expect(designDoc!.documentElement.style.height).toBe('auto')
     expect(designDoc!.body.style.height).toBe('auto')
+    expect(designDoc!.body.style.minHeight).toBe(`${CANVAS_VIEWPORT_HEIGHT}px`)
     expect(designDoc!.documentElement.style.overflow).toBe('hidden')
     expect(designDoc!.body.style.overflow).toBe('hidden')
 
@@ -124,6 +126,7 @@ describe('progressive canvas loading', () => {
 
     const liveDoc = getCanvasFrameDocument('desktop')
     expect(liveDoc).toBeTruthy()
+    expect(liveDoc!.body.style.minHeight).toBe('')
     expect(liveDoc!.documentElement.style.overflow).toBe('')
     expect(liveDoc!.body.style.overflow).toBe('')
   })

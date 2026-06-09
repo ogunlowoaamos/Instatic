@@ -56,6 +56,8 @@ IframeFrameSurface
 
 The canvas frame grows to content height (so no inner scrollbar appears on the infinite surface). `vh`/`vmin`/`vmax` units size against the iframe element's height — writing a new height feeds back into the viewport unit, which grows the content, which fires the observer again. The frame measures content inside a `requestAnimationFrame`, caps consecutive self-driven resizes at 60, and resets the cap on any DOM mutation that didn't come from its own height writes. When a long page is replaced by a shorter page, the measurement ignores `documentElement.scrollHeight` if it is only reporting the old iframe viewport floor, so frames can shrink to the new body content height.
 
+Design frames override `html` and `body` to `height: auto` but give the iframe body a fixed `min-height` equal to `CANVAS_VIEWPORT_HEIGHT` (800 px). This makes the page body occupy the visible artboard floor for short pages without using `100vh`, which would point back at the auto-sized iframe height and reintroduce the feedback loop.
+
 ---
 
 ## Design mode

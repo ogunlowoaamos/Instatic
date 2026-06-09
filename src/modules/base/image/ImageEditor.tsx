@@ -59,8 +59,9 @@ export const ImageEditor: React.FC<ModuleComponentProps<ImageStoredProps>> = ({ 
       <CanvasModulePlaceholder
         {...nodeWrapperProps}
         className={mcClassName}
-        icon={<ImageSolidIcon size={48} />}
+        icon={<ImageSolidIcon size={32} />}
         label="No image selected"
+        layout="row"
       />
     )
   }

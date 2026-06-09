@@ -34,6 +34,8 @@ export interface CanvasModulePlaceholderProps extends HTMLAttributes<HTMLDivElem
   icon?: ReactNode
   /** Primary line — short message identifying what's missing. */
   label: ReactNode
+  /** Visual arrangement for icon + label. Defaults to the stacked block empty state. */
+  layout?: 'stack' | 'row'
   /** Secondary line — extra context (e.g. drop instructions). Block variant only. */
   description?: ReactNode
   /**
@@ -65,6 +67,7 @@ export interface CanvasModulePlaceholderProps extends HTMLAttributes<HTMLDivElem
 export function CanvasModulePlaceholder({
   icon,
   label,
+  layout = 'stack',
   description,
   actions,
   className,
@@ -77,33 +80,36 @@ export function CanvasModulePlaceholder({
       className={cn(styles.root, styles[`variant-${variant}`], className)}
       data-canvas-module-placeholder=""
       data-variant={variant}
+      data-layout={layout}
     >
-      {icon ? (
-        <span
-          className={styles.icon}
-          data-instatic-placeholder-icon=""
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-      ) : null}
-      <span className={styles.label} data-instatic-placeholder-label="">{label}</span>
-      {variant === 'block' && description ? (
-        <span className={styles.description} data-instatic-placeholder-description="">{description}</span>
-      ) : null}
-      {variant === 'block' && actions ? (
-        // `data-canvas-interactive` opts the action row out of the canvas
-        // selection capture in `NodeWrapper`, so clicks on the inner buttons
-        // actually reach their `onClick` handlers instead of selecting the
-        // node and stopping propagation.
-        <div
-          className={styles.actions}
-          data-instatic-placeholder-actions=""
-          data-canvas-interactive="true"
-        >
-          {actions}
-        </div>
-      ) : null}
+      <div className={styles.content} data-instatic-placeholder-content="">
+        {icon ? (
+          <span
+            className={styles.icon}
+            data-instatic-placeholder-icon=""
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        ) : null}
+        <span className={styles.label} data-instatic-placeholder-label="">{label}</span>
+        {variant === 'block' && description ? (
+          <span className={styles.description} data-instatic-placeholder-description="">{description}</span>
+        ) : null}
+        {variant === 'block' && actions ? (
+          // `data-canvas-interactive` opts the action row out of the canvas
+          // selection capture in `NodeWrapper`, so clicks on the inner buttons
+          // actually reach their `onClick` handlers instead of selecting the
+          // node and stopping propagation.
+          <div
+            className={styles.actions}
+            data-instatic-placeholder-actions=""
+            data-canvas-interactive="true"
+          >
+            {actions}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

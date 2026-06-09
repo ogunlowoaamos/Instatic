@@ -48,17 +48,60 @@ describe('CanvasModulePlaceholder', () => {
     expect(chromeInjector).not.toContain('[data-icon-sizing="block"] svg')
   })
 
-  it('renders the empty image placeholder with a large intrinsic image icon', () => {
+  it('keeps block placeholder content stack rules in module and iframe chrome CSS', () => {
+    const moduleCss = readFileSync(
+      new URL('../../ui/components/CanvasModulePlaceholder/CanvasModulePlaceholder.module.css', import.meta.url),
+      'utf8',
+    )
+    const chromeInjector = readFileSync(
+      new URL('../../admin/pages/site/canvas/EditorChromeInjector.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(moduleCss).toContain('.variant-block .content')
+    expect(moduleCss).toContain('place-items: center')
+    expect(moduleCss).toContain('row-gap: 8px')
+    expect(moduleCss).toContain('.variant-block[data-layout="row"] .content')
+    expect(moduleCss).toContain('.icon > svg')
+    expect(moduleCss).toContain('margin: 0;')
+    expect(moduleCss).toContain('padding: 0;')
+    expect(chromeInjector).toContain('[data-instatic-placeholder-content]')
+    expect(chromeInjector).toContain('place-items: center')
+    expect(chromeInjector).toContain('row-gap: 8px')
+    expect(chromeInjector).toContain('[data-variant="block"][data-layout="row"]')
+    expect(chromeInjector).toContain('[data-instatic-placeholder-icon] > svg')
+    expect(chromeInjector).toContain('margin: 0;')
+    expect(chromeInjector).toContain('padding: 0;')
+  })
+
+  it('renders the empty image placeholder as a compact centered row', () => {
     const { container } = render(
       <ImageEditor
         props={ImageModule.defaults}
       />,
     )
 
+    const root = container.querySelector('[data-canvas-module-placeholder]')
     const icon = container.querySelector('[data-instatic-placeholder-icon]')
     const svg = icon?.querySelector('svg')
+    expect(root?.getAttribute('data-layout')).toBe('row')
     expect(icon?.hasAttribute('data-icon-sizing')).toBe(false)
-    expect(svg?.getAttribute('width')).toBe('48')
-    expect(svg?.getAttribute('height')).toBe('48')
+    expect(svg?.getAttribute('width')).toBe('32')
+    expect(svg?.getAttribute('height')).toBe('32')
+  })
+
+  it('keeps empty-state icon and label inside an isolated content stack', () => {
+    const { container } = render(
+      <CanvasModulePlaceholder
+        icon={<svg aria-hidden="true" />}
+        label="No image selected"
+      />,
+    )
+
+    const root = container.querySelector('[data-canvas-module-placeholder]')
+    const content = root?.querySelector('[data-instatic-placeholder-content]')
+    expect(content).not.toBeNull()
+    expect(content?.querySelector('[data-instatic-placeholder-icon]')).not.toBeNull()
+    expect(content?.querySelector('[data-instatic-placeholder-label]')?.textContent).toBe('No image selected')
   })
 })

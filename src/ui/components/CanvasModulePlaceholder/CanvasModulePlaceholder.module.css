@@ -14,7 +14,7 @@
  */
 
 .root {
-    display: flex;
+    display: block;
     box-sizing: border-box;
     min-width: 0;
     border-radius: var(--editor-radius);
@@ -31,10 +31,8 @@
  * stack vertically and center.
  */
 .variant-block {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    display: grid;
+    place-items: center;
     width: 100%;
     min-height: 100px;
     padding: 14px;
@@ -48,21 +46,64 @@
  * to nothing) so a full block of space would be misleading.
  */
 .variant-inline {
+    display: inline-grid;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 10px;
+}
+
+.content {
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+}
+
+.variant-block .content {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    row-gap: 8px;
+}
+
+.variant-block[data-layout="row"] .content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.variant-inline .content {
+    display: flex;
     flex-direction: row;
     align-items: center;
     gap: 6px;
-    min-height: 32px;
-    padding: 6px 10px;
 }
 
 .icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
     color: var(--editor-text-subtle);
+    line-height: 1;
+}
+
+.icon > svg {
+    display: block;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
 }
 
 .label {
+    display: block;
+    margin: 0;
+    padding: 0;
     color: var(--editor-text-secondary);
     font-weight: 600;
 }
@@ -73,6 +114,8 @@
 
 .description {
     max-width: 36ch;
+    margin: 0;
+    padding: 0;
     color: var(--editor-text-muted);
     font-size: 11px;
     font-weight: 500;
@@ -99,6 +142,7 @@
     justify-content: center;
     gap: 6px;
     margin-top: 4px;
+    pointer-events: auto;
 }
 
 /* Descendant selector gives us specificity over `.variant-primary` /

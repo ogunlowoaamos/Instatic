@@ -253,11 +253,11 @@ export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFra
     // We also break the `:where(html, body) { height: 100% }` reset rule
     // for the canvas iframe context. The published page wants body filling
     // the viewport (so footer stickies to bottom on short pages); the
-    // canvas iframe is a Figma-like frame that should be EXACTLY the height
-    // of its content — letting body inherit 100% creates a feedback loop
-    // where the iframe sizes to body which sizes to iframe and the frame
-    // never shrinks. Both `html` and `body` styles win against `:where()`
-    // (zero-specificity) so the override is safe.
+    // canvas iframe is a Figma-like frame that should be content-sized, with
+    // a fixed canvas viewport floor on the body. Letting body inherit 100%
+    // creates a feedback loop where the iframe sizes to body which sizes to
+    // iframe and the frame never shrinks. Both `html` and `body` styles win
+    // against `:where()` (zero-specificity) so the override is safe.
     useEffect(() => {
       if (!iframeDoc?.body) return
       applyIframeBodyReset(iframeDoc, breakpointId, interaction)
@@ -674,12 +674,14 @@ function applyIframeBodyReset(
   if (interaction === 'live') {
     iframeDoc.documentElement.style.height = ''
     iframeDoc.body.style.height = ''
+    iframeDoc.body.style.minHeight = ''
     iframeDoc.documentElement.style.overflow = ''
     iframeDoc.body.style.overflow = ''
     return
   }
   iframeDoc.documentElement.style.height = 'auto'
   iframeDoc.body.style.height = 'auto'
+  iframeDoc.body.style.minHeight = `${CANVAS_VIEWPORT_HEIGHT}px`
   // Design frames grow to fit their content on the parent canvas. The iframe
   // document itself must never expose root scrollbars while that fit settles
   // or because authored CSS sets html/body overflow.
